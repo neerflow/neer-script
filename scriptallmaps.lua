@@ -32,18 +32,21 @@ ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 --// VARIABLES & RESPONSIVE LOGIC
 local IsOpen = true
 local AnimationSpeed = 0.4
-local CurrentScale = 1 
 
 -- --> [LOGIKA UKURAN OTOMATIS PC VS MOBILE] <--
--- Mengecek lebar layar. Jika di bawah 800 pixel, dianggap Mobile/Tablet kecil.
+-- Mengecek lebar layar. Jika di bawah 1080 pixel, dianggap Mobile.
 local ViewportSize = workspace.CurrentCamera.ViewportSize
-local IsMobile = ViewportSize.X < 8000
+local IsMobile = ViewportSize.X < 1080
 
--- --> [UBAH UKURAN DEFAULT DISINI] <--
--- PCSize: Menggunakan Offset (Pixel) agar di monitor lebar tidak jadi "gepeng" panjang.
--- MobileSize: Menggunakan Scale (Persen) agar menyesuaikan layar HP.
-local PCSize     = UDim2.new(0, 580, 0, 380)      -- (Lebar 580px, Tinggi 380px)
-local MobileSize = UDim2.new(0.42, 0, 0.5, 0)    -- (Lebar 85%, Tinggi 65%)
+-- --> [PENYESUAIAN SKALA (DPI) DISINI] <--
+-- Jika Mobile, otomatis pakai 0.75 (75%). Jika PC, pakai 1 (100%).
+local CurrentScale = IsMobile and 0.75 or 1 
+
+-- --> [UBAH UKURAN FRAME DEFAULT] <--
+-- PCSize: Tetap ukuran fixed pixel.
+-- MobileSize: Tetap persen, tapi karena Scale sudah 0.75, tampilannya akan pas (tidak kegedean).
+local PCSize     = UDim2.new(0, 580, 0, 380)      
+local MobileSize = UDim2.new(0, 580, 0, 380)    
 
 local FinalSize  = IsMobile and MobileSize or PCSize
 
@@ -277,7 +280,7 @@ local function CreateTabBtn(name, isActive)
     return Page
 end
 
---// FUNGSI: MEMBUAT DASHBOARD INFO (DIPERBARUI)
+--// FUNGSI: MEMBUAT DASHBOARD INFO 
 local function BuildInfoTab(parentFrame)
     
     -- --> [UBAH JARAK ANTAR KARTU DISINI] <--
@@ -301,12 +304,12 @@ local function BuildInfoTab(parentFrame)
         Card.Size = size
         Card.LayoutOrder = layoutOrder
         
-		-- pinggiran tumpul tab info
+        -- pinggiran tumpul tab info
         local C = Instance.new("UICorner")
         C.CornerRadius = UDim.new(0, 10)
         C.Parent = Card
         
-		--tebal border
+        --tebal border
         local S = Instance.new("UIStroke")
         S.Parent = Card
         S.Color = Theme.Accent
@@ -319,7 +322,7 @@ local function BuildInfoTab(parentFrame)
     -- --> [UBAH TINGGI KARTU PING DISINI] <--
     local PingCard = CreateCard(UDim2.new(1, 0, 0,60), 1) 
     
-	-- text network ping
+    -- text network ping
     local PingTitle = Instance.new("TextLabel")
     PingTitle.Parent = PingCard
     PingTitle.BackgroundTransparency = 1
@@ -331,7 +334,7 @@ local function BuildInfoTab(parentFrame)
     PingTitle.TextSize = 12
     PingTitle.TextXAlignment = Enum.TextXAlignment.Left
 
-	-- text ms
+    -- text ms
     local PingValue = Instance.new("TextLabel")
     PingValue.Parent = PingCard
     PingValue.BackgroundTransparency = 1
@@ -351,7 +354,7 @@ local function BuildInfoTab(parentFrame)
     BarBg.Size = UDim2.new(1, -30, 0, 10) -- Sedikit lebih tipis biar elegan
     local BarBgC = Instance.new("UICorner"); BarBgC.CornerRadius = UDim.new(1, 0); BarBgC.Parent = BarBg
 
-	-- animasi barfill spawn
+    -- animasi barfill spawn
     local BarFill = Instance.new("Frame")
     BarFill.Parent = BarBg
     BarFill.BackgroundColor3 = Theme.Accent
@@ -369,8 +372,8 @@ local function BuildInfoTab(parentFrame)
 
     local GL = Instance.new("UIGridLayout")
     GL.Parent = GridContainer
-    GL.CellPadding = UDim2.new(0, 10, 0, 0) -- Jarak horizontal antar kotak
-    GL.CellSize = UDim2.new(0.485, 0, 1, 0)  -- Otomatis bagi 2 (sekitar 48% lebar masing-masing)
+    GL.CellPadding = UDim2.new(0, 5, 0, 0) -- Jarak horizontal antar kotak
+    GL.CellSize = UDim2.new(0.493, 0, 1, 0)  -- Otomatis bagi 2 (sekitar 48% lebar masing-masing)
     GL.SortOrder = Enum.SortOrder.LayoutOrder
     GL.HorizontalAlignment = Enum.HorizontalAlignment.Center
 
@@ -410,7 +413,7 @@ local function BuildInfoTab(parentFrame)
     -- --> [UBAH TINGGI KARTU WAKTU DISINI] <--
     local TimeCard = CreateCard(UDim2.new(1, 0, 0, 55), 3) -- Saya tambah tingginya jadi 85 biar muat Title
     
-    -- TITLE WAKTU (BARU)
+    -- TITLE WAKTU 
     local TimeTitle = Instance.new("TextLabel")
     TimeTitle.Parent = TimeCard
     TimeTitle.BackgroundTransparency = 1
@@ -419,10 +422,10 @@ local function BuildInfoTab(parentFrame)
     TimeTitle.Font = Enum.Font.GothamBold
     TimeTitle.Text = "Time Server" -- Judul Baru
     TimeTitle.TextColor3 = Theme.TextDim
-    TimeTitle.TextSize = 15
+    TimeTitle.TextSize = 12
     TimeTitle.TextXAlignment = Enum.TextXAlignment.Left
 
-    -- JAM (Posisi diturunkan sedikit)
+    -- JAM 
     local ClockLabel = Instance.new("TextLabel")
     ClockLabel.Parent = TimeCard
     ClockLabel.BackgroundTransparency = 1
@@ -448,14 +451,14 @@ local function BuildInfoTab(parentFrame)
     
    --// 4. REJOIN SERVER SECTION (ADDON)
     -- --> [UBAH TINGGI KARTU REJOIN DISINI] <--
-    local RejoinCard = CreateCard(UDim2.new(1, 0, 0, 80), 4) -- LayoutOrder 4 (Setelah Time)
+    local RejoinCard = CreateCard(UDim2.new(1, 0, 0, 75), 4) -- LayoutOrder 4 (Setelah Time)
 
     -- Title Rejoin
     local RejoinTitle = Instance.new("TextLabel")
     RejoinTitle.Parent = RejoinCard
     RejoinTitle.BackgroundTransparency = 1
     RejoinTitle.Position = UDim2.new(0, 15, 0, 8)
-    RejoinTitle.Size = UDim2.new(1, -30, 0, 20)
+    RejoinTitle.Size = UDim2.new(1, -30, 0, 10)
     RejoinTitle.Font = Enum.Font.GothamBold
     RejoinTitle.Text = "Session Control"
     RejoinTitle.TextColor3 = Theme.TextDim
@@ -466,7 +469,7 @@ local function BuildInfoTab(parentFrame)
     local RjBtn = Instance.new("TextButton")
     RjBtn.Parent = RejoinCard
     RjBtn.BackgroundColor3 = Theme.Sidebar -- Warna lebih gelap dikit
-    RjBtn.Position = UDim2.new(0, 15, 0, 35)
+    RjBtn.Position = UDim2.new(0, 15, 0, 30)
     RjBtn.Size = UDim2.new(1, -30, 0, 35)
     RjBtn.Font = Enum.Font.GothamBold
     RjBtn.Text = "Rejoin Server"
@@ -527,7 +530,7 @@ local function BuildInfoTab(parentFrame)
             
             task.wait(0.5)
 
-			
+            
         end
     end)
 end
@@ -556,7 +559,8 @@ DPIBtn.Parent = TabSettings
 DPIBtn.BackgroundColor3 = Color3.fromRGB(35, 40, 55)
 DPIBtn.Size = UDim2.new(0.6, 0, 0, 40)
 DPIBtn.Font = Enum.Font.GothamBold
-DPIBtn.Text = "   Size: 100%"
+-- [AUTO UPDATE TEXT DEFAULT]
+DPIBtn.Text = IsMobile and "   Size: 75% (Medium)" or "   Size: 100% (Default)"
 DPIBtn.TextColor3 = Color3.fromRGB(160, 180, 190)
 DPIBtn.TextSize = 12
 DPIBtn.TextXAlignment = Enum.TextXAlignment.Left
