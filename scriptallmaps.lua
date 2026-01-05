@@ -43,7 +43,7 @@ local IsMobile = ViewportSize.X < 8000
 -- PCSize: Menggunakan Offset (Pixel) agar di monitor lebar tidak jadi "gepeng" panjang.
 -- MobileSize: Menggunakan Scale (Persen) agar menyesuaikan layar HP.
 local PCSize     = UDim2.new(0, 580, 0, 380)      -- (Lebar 580px, Tinggi 380px)
-local MobileSize = UDim2.new(0.4, 0, 0.5, 0)    -- (Lebar 85%, Tinggi 65%)
+local MobileSize = UDim2.new(0.42, 0, 0.5, 0)    -- (Lebar 85%, Tinggi 65%)
 
 local FinalSize  = IsMobile and MobileSize or PCSize
 
