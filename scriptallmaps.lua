@@ -26,6 +26,22 @@ if CoreGui:FindFirstChild("NeeR_Unified") then
     CoreGui.NeeR_Unified:Destroy()
 end
 
+--// [BAGIAN 2] SESSION MANAGER & DEFAULT STATS SAVER
+local DefaultStats = {
+    WalkSpeed = 16, -- Nilai fallback
+    JumpPower = 50  -- Nilai fallback
+}
+
+-- Simpan stats awal saat script dijalankan
+local function SaveDefaultStats()
+    local char = Players.LocalPlayer.Character
+    if char and char:FindFirstChild("Humanoid") then
+        DefaultStats.WalkSpeed = char.Humanoid.WalkSpeed
+        DefaultStats.JumpPower = char.Humanoid.JumpPower
+    end
+end
+SaveDefaultStats() -- Jalankan sekali di awal
+
 --// [BAGIAN 2] SESSION MANAGER
 local Session = {
     StopFly = function() end,
@@ -319,7 +335,7 @@ local function BuildMovementTab(parentFrame)
     -- Helper Switch Card (Noclip & Inf Jump) - REFACTORED MENJADI CARD DE DENGAN SWITCH DI KANAN
     local function CreateSwitchCard(text, callback)
         -- 1. The Main Card Container
-        local Card = CreateCard(parentFrame, UDim2.new(1, 0, 0, 50), 0)
+        local Card = CreateCard(parentFrame, UDim2.new(1, 0, 0, 35), 0)
 
         -- 2. The Title on the left
         local TitleLbl = Instance.new("TextLabel"); TitleLbl.Parent = Card; TitleLbl.BackgroundTransparency = 1; TitleLbl.Position = UDim2.new(0, 15, 0, 0); TitleLbl.Size = UDim2.new(0, 150, 1, 0); TitleLbl.Font = Theme.FontBold; TitleLbl.Text = text; TitleLbl.TextColor3 = Theme.Text; TitleLbl.TextSize = 14; TitleLbl.TextXAlignment = Enum.TextXAlignment.Left
@@ -390,7 +406,7 @@ local function BuildMovementTab(parentFrame)
         if char and char:FindFirstChild("Humanoid") then char.Humanoid.PlatformStand = false end
     end
 
-    -- >>> 2. FITUR SPEED WALK (Default 1 = Normal/16) <<<
+    -- >>> 2. FITUR SPEED WALK (DEFAULT PRESERVED) <<<
     local walkLoop
     local currentWalkMultiplier = 1 
     
@@ -401,7 +417,8 @@ local function BuildMovementTab(parentFrame)
             walkLoop = RunService.RenderStepped:Connect(function()
                 local char = Players.LocalPlayer.Character
                 if char and char:FindFirstChild("Humanoid") then 
-                    char.Humanoid.WalkSpeed = 16 * currentWalkMultiplier -- Multiplier Logic
+                    -- Gunakan DefaultStats.WalkSpeed sebagai basis
+                    char.Humanoid.WalkSpeed = DefaultStats.WalkSpeed * currentWalkMultiplier 
                 end
             end)
         else
@@ -413,10 +430,11 @@ local function BuildMovementTab(parentFrame)
     Session.StopWalk = function()
         if walkLoop then walkLoop:Disconnect() end
         local char = Players.LocalPlayer.Character
-        if char and char:FindFirstChild("Humanoid") then char.Humanoid.WalkSpeed = 16 end
+        -- KEMBALI KE NILAI DEFAULT ASLI MAP
+        if char and char:FindFirstChild("Humanoid") then char.Humanoid.WalkSpeed = DefaultStats.WalkSpeed end
     end
 
-    -- >>> 3. FITUR HIGH JUMP (Default 1 = Normal/50) <<<
+    -- >>> 3. FITUR HIGH JUMP (DEFAULT PRESERVED) <<<
     local jumpLoop
     local currentJumpMultiplier = 1
     
@@ -428,7 +446,8 @@ local function BuildMovementTab(parentFrame)
                 local char = Players.LocalPlayer.Character
                 if char and char:FindFirstChild("Humanoid") then 
                     char.Humanoid.UseJumpPower = true
-                    char.Humanoid.JumpPower = 50 * currentJumpMultiplier -- Multiplier Logic
+                    -- Gunakan DefaultStats.JumpPower sebagai basis
+                    char.Humanoid.JumpPower = DefaultStats.JumpPower * currentJumpMultiplier 
                 end
             end)
         else
@@ -440,7 +459,8 @@ local function BuildMovementTab(parentFrame)
     Session.StopJump = function()
         if jumpLoop then jumpLoop:Disconnect() end
         local char = Players.LocalPlayer.Character
-        if char and char:FindFirstChild("Humanoid") then char.Humanoid.JumpPower = 50 end
+        -- KEMBALI KE NILAI DEFAULT ASLI MAP
+        if char and char:FindFirstChild("Humanoid") then char.Humanoid.JumpPower = DefaultStats.JumpPower end
     end
 
     -- >>> 4. FITUR NO CLIP (DENGAN FIX HITBOX) <<<
@@ -523,6 +543,144 @@ local function BuildMovementTab(parentFrame)
     ResetBtn.MouseButton1Click:Connect(Session.ResetAll)
 end
 
+--// [GANTI BAGIAN TAB TELEPORT INI]
+local function BuildTeleportTab(parentFrame)
+    local Layout = Instance.new("UIListLayout"); Layout.Parent = parentFrame; Layout.SortOrder = Enum.SortOrder.LayoutOrder; Layout.Padding = UDim.new(0, 10)
+    local Padding = Instance.new("UIPadding"); Padding.Parent = parentFrame; Padding.PaddingTop = UDim.new(0, 15); Padding.PaddingLeft = UDim.new(0, 15); Padding.PaddingRight = UDim.new(0, 15)
+
+    -- Warna Status
+    local ColorSuccess = Color3.fromRGB(85, 255, 127) -- Hijau
+    local ColorError   = Color3.fromRGB(255, 85, 85)  -- Merah
+
+    -- Create Card Khusus Teleport
+    local function CreateTeleportCard(size)
+        local Card = Instance.new("Frame"); Card.Parent = parentFrame; Card.BackgroundColor3 = Theme.ActiveTab; Card.BackgroundTransparency = 0.2; Card.Size = size
+        Card.ClipsDescendants = false 
+        local C = Instance.new("UICorner"); C.CornerRadius = UDim.new(0, 10); C.Parent = Card
+        local S = Instance.new("UIStroke"); S.Parent = Card; S.Color = Theme.Accent; S.Transparency = 0.8; S.Thickness = 1
+        return Card
+    end
+
+    local TpCard = CreateTeleportCard(UDim2.new(1, 0, 0, 110))
+    
+    local Title = Instance.new("TextLabel"); Title.Parent = TpCard; Title.BackgroundTransparency = 1; Title.Position = UDim2.new(0, 15, 0, 10); Title.Size = UDim2.new(1, -30, 0, 15); Title.Font = Theme.FontBold; Title.Text = "Teleport to Player"; Title.TextColor3 = Theme.Text; Title.TextSize = 14; Title.TextXAlignment = Enum.TextXAlignment.Left
+
+    -- Container Dropdown
+    local DropContainer = Instance.new("Frame"); DropContainer.Parent = TpCard; DropContainer.BackgroundTransparency = 1; DropContainer.Position = UDim2.new(0, 15, 0, 35); DropContainer.Size = UDim2.new(1, -30, 0, 30); DropContainer.ZIndex = 5
+
+    -- Tombol Pilih Nama (Dropdown)
+    local DropBtn = Instance.new("TextButton"); DropBtn.Parent = DropContainer; DropBtn.BackgroundColor3 = Theme.Sidebar; DropBtn.Size = UDim2.new(1, -75, 1, 0); DropBtn.Font = Theme.FontMain; DropBtn.Text = "  Select Player..."; DropBtn.TextColor3 = Theme.TextDim; DropBtn.TextSize = 12; DropBtn.TextXAlignment = Enum.TextXAlignment.Left; DropBtn.AutoButtonColor = false; DropBtn.ZIndex = 5
+    local DC = Instance.new("UICorner"); DC.CornerRadius = UDim.new(0, 6); DC.Parent = DropBtn
+    local DS = Instance.new("UIStroke"); DS.Parent = DropBtn; DS.Color = Theme.Separator; DS.Thickness = 1; DS.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+
+    -- Tombol Refresh (Style TextButton)
+    local RefreshBtn = Instance.new("TextButton"); RefreshBtn.Parent = DropContainer; RefreshBtn.BackgroundColor3 = Color3.fromRGB(100, 255, 100); RefreshBtn.Position = UDim2.new(1, -70, 0, 0); RefreshBtn.Size = UDim2.new(0, 70, 1, 0); RefreshBtn.ZIndex = 5
+    RefreshBtn.Font = Theme.FontBold; RefreshBtn.Text = "REFRESH"; RefreshBtn.TextColor3 = Theme.Main; RefreshBtn.TextSize = 11
+    local RC = Instance.new("UICorner"); RC.CornerRadius = UDim.new(0, 6); RC.Parent = RefreshBtn
+
+    -- Label Status (Notifikasi)
+    local StatusLbl = Instance.new("TextLabel"); StatusLbl.Parent = TpCard; StatusLbl.BackgroundTransparency = 1; StatusLbl.Position = UDim2.new(0, 15, 0, 68); StatusLbl.Size = UDim2.new(1, -100, 0, 15); StatusLbl.Font = Theme.FontMain; StatusLbl.Text = ""; StatusLbl.TextColor3 = ColorError; StatusLbl.TextSize = 11; StatusLbl.TextXAlignment = Enum.TextXAlignment.Left
+
+    -- Tombol Execute Teleport
+    local ExecBtn = Instance.new("TextButton"); ExecBtn.Parent = TpCard; ExecBtn.BackgroundColor3 = Theme.Accent; ExecBtn.Position = UDim2.new(1, -95, 0, 70); ExecBtn.Size = UDim2.new(0, 80, 0, 25); ExecBtn.Font = Theme.FontBold; ExecBtn.Text = "TELEPORT"; ExecBtn.TextColor3 = Theme.Main; ExecBtn.TextSize = 11; ExecBtn.ZIndex = 2
+    local EC = Instance.new("UICorner"); EC.CornerRadius = UDim.new(0, 6); EC.Parent = ExecBtn
+
+    -- List Frame
+    local ListFrame = Instance.new("ScrollingFrame"); ListFrame.Parent = TpCard; ListFrame.Visible = false; ListFrame.BackgroundColor3 = Theme.Sidebar; ListFrame.BorderSizePixel = 0; ListFrame.Position = UDim2.new(0, 15, 0, 68); ListFrame.Size = UDim2.new(1, -65, 0, 120); ListFrame.ZIndex = 20; ListFrame.ScrollBarThickness = 2
+    local LS = Instance.new("UIStroke"); LS.Parent = ListFrame; LS.Color = Theme.Accent; LS.Thickness = 1
+    local LL = Instance.new("UIListLayout"); LL.Parent = ListFrame; LL.SortOrder = Enum.SortOrder.LayoutOrder
+
+    local selectedPlayer = nil
+    local isDropdownOpen = false
+    local statusTimer = nil -- Variabel untuk menyimpan timer notifikasi
+
+    -- [FUNGSI BARU] Tampilkan Notif & Auto Hilang
+    local function ShowStatus(text, color)
+        StatusLbl.Text = text
+        StatusLbl.TextColor3 = color
+        
+        -- Reset timer lama jika ada (supaya tidak bentrok kalau diklik cepat)
+        if statusTimer then task.cancel(statusTimer) end
+        
+        -- Buat timer baru: Hilang setelah 2 detik
+        statusTimer = task.delay(2, function()
+            StatusLbl.Text = ""
+            statusTimer = nil
+        end)
+    end
+
+    local function ToggleDropdown(forceClose)
+        if forceClose then isDropdownOpen = false else isDropdownOpen = not isDropdownOpen end
+        ListFrame.Visible = isDropdownOpen
+    end
+
+    local function RefreshList()
+        for _, v in pairs(ListFrame:GetChildren()) do if v:IsA("TextButton") or v:IsA("TextLabel") then v:Destroy() end end
+        
+        local count = 0
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= Players.LocalPlayer then
+                count = count + 1
+                local PBtn = Instance.new("TextButton"); PBtn.Parent = ListFrame; PBtn.BackgroundColor3 = Theme.Main; PBtn.Size = UDim2.new(1, 0, 0, 25); PBtn.Font = Theme.FontMain; PBtn.Text = "  " .. p.Name .. " (" .. p.DisplayName .. ")"; PBtn.TextColor3 = Theme.TextDim; PBtn.TextSize = 12; PBtn.TextXAlignment = Enum.TextXAlignment.Left; PBtn.AutoButtonColor = true; PBtn.ZIndex = 21
+                
+                PBtn.MouseButton1Click:Connect(function()
+                    selectedPlayer = p
+                    DropBtn.Text = "  " .. p.Name
+                    DropBtn.TextColor3 = Theme.Text
+                    ToggleDropdown(true)
+                    ShowStatus("", Theme.Text) -- Reset status saat pilih nama
+                end)
+            end
+        end
+        
+        if count == 0 then
+            local Empty = Instance.new("TextLabel"); Empty.Parent = ListFrame; Empty.Size = UDim2.new(1,0,0,25); Empty.BackgroundTransparency=1; Empty.Text="No other players"; Empty.TextColor3=Theme.TextDim; Empty.ZIndex=21
+        end
+        ListFrame.CanvasSize = UDim2.new(0, 0, 0, LL.AbsoluteContentSize.Y)
+    end
+
+    -- Event Handlers
+    DropBtn.MouseButton1Click:Connect(function() ToggleDropdown() end)
+    
+    RefreshBtn.MouseButton1Click:Connect(function()
+        ToggleDropdown(true)
+        RefreshList()
+        
+        -- Panggil Fungsi Notif Otomatis
+        ShowStatus("List Refreshed!", ColorSuccess)
+        
+        local oldColor = RefreshBtn.BackgroundColor3
+        RefreshBtn.BackgroundColor3 = Theme.Text
+        task.wait(0.1)
+        RefreshBtn.BackgroundColor3 = oldColor
+    end)
+
+    ExecBtn.MouseButton1Click:Connect(function()
+        if not selectedPlayer then
+            ShowStatus("Select a player first!", ColorError)
+            return
+        end
+        
+        local target = Players:FindFirstChild(selectedPlayer.Name)
+        if not target then
+            ShowStatus("Player is Offline/Left.", ColorError)
+            return
+        end
+        
+        local targetChar = target.Character
+        local localChar = Players.LocalPlayer.Character
+        
+        if targetChar and targetChar:FindFirstChild("HumanoidRootPart") and localChar and localChar:FindFirstChild("HumanoidRootPart") then
+            localChar.HumanoidRootPart.CFrame = targetChar.HumanoidRootPart.CFrame * CFrame.new(0, 0, 3)
+            ShowStatus("Teleported to " .. target.Name, ColorSuccess)
+        else
+            ShowStatus("Target Character not found.", ColorError)
+        end
+    end)
+    
+    RefreshList()
+end
+
 --// [BAGIAN 10] EKSEKUSI PEMBUATAN TAB
 local TabInfo = CreateTabBtn("Info", true)
 BuildInfoTab(TabInfo)
@@ -531,6 +689,7 @@ local TabMovement = CreateTabBtn("Movement", false)
 BuildMovementTab(TabMovement)
 
 local TabTeleports = CreateTabBtn("Teleports", false)
+BuildTeleportTab(TabTeleports)
 
 local TabSettings = CreateTabBtn("Settings", false)
 local SettingsLabel = Instance.new("TextLabel"); SettingsLabel.Parent = TabSettings; SettingsLabel.BackgroundTransparency = 1; SettingsLabel.Size = UDim2.new(0, 0, 0, 20); SettingsLabel.Font = Theme.FontBold; SettingsLabel.Text = "Interface Scale (DPI)"; SettingsLabel.TextColor3 = Color3.fromRGB(255, 255, 255); SettingsLabel.TextSize = 14; SettingsLabel.TextXAlignment = Enum.TextXAlignment.Left
