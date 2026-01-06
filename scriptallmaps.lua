@@ -80,7 +80,7 @@ ToggleBtn.Parent = ScreenGui
 ToggleBtn.BackgroundColor3 = Theme.Main
 ToggleBtn.BackgroundTransparency = 0.2
 ToggleBtn.AnchorPoint = Vector2.new(0.5, 0.5)
-ToggleBtn.Position = UDim2.new(0.08, 0, 0.15, 0)
+ToggleBtn.Position = UDim2.new(0.50, 0, 0.15, 0)
 ToggleBtn.Size = UDim2.new(0, 40, 0, 40)
 ToggleBtn.Image = "rbxassetid://7733960981"
 ToggleBtn.ImageColor3 = Theme.Accent
@@ -192,7 +192,7 @@ local function BuildInfoTab(parentFrame)
     local GridContainer = Instance.new("Frame"); GridContainer.Parent = parentFrame; GridContainer.BackgroundTransparency = 1; GridContainer.Size = UDim2.new(1,1, 0, 50); GridContainer.LayoutOrder = 2
     local GL = Instance.new("UIGridLayout"); GL.Parent = GridContainer; GL.CellPadding = UDim2.new(0, 5, 0, 0); GL.CellSize = UDim2.new(0.493, 0, 1, 0); GL.SortOrder = Enum.SortOrder.LayoutOrder; GL.HorizontalAlignment = Enum.HorizontalAlignment.Center
     local FPSCard = CreateCard(GridContainer, UDim2.new(0,0,0,0), 1)
-    local FPSTitle = Instance.new("TextLabel"); FPSTitle.Parent = FPSCard; FPSTitle.BackgroundTransparency = 1; FPSTitle.Position = UDim2.new(0, 12, 0, 35); FPSTitle.Size = UDim2.new(1, -24, 0, 10); FPSTitle.Font = Theme.FontMain; FPSTitle.Text = "FPS Counter"; FPSTitle.TextColor3 = Theme.TextDim; FPSTitle.TextSize = 12; FPSTitle.TextXAlignment = Enum.TextXAlignment.Left
+    local FPSTitle = Instance.new("TextLabel"); FPSTitle.Parent = FPSCard; FPSTitle.BackgroundTransparency = 1; FPSTitle.Position = UDim2.new(0, 12, 0, 35); FPSTitle.Size = UDim2.new(1, -24, 0, 10); FPSTitle.Font = Theme.FontMain; FPSTitle.Text = "Visual FPS"; FPSTitle.TextColor3 = Theme.TextDim; FPSTitle.TextSize = 12; FPSTitle.TextXAlignment = Enum.TextXAlignment.Left
     local FPSNum = Instance.new("TextLabel"); FPSNum.Parent = FPSCard; FPSNum.BackgroundTransparency = 1; FPSNum.Position = UDim2.new(0, 12, 0, 12); FPSNum.Size = UDim2.new(1, -24, 0, 10); FPSNum.Font = Theme.FontBold; FPSNum.Text = "60"; FPSNum.TextColor3 = Theme.Text; FPSNum.TextSize = 28; FPSNum.TextXAlignment = Enum.TextXAlignment.Left
     local MemCard = CreateCard(GridContainer, UDim2.new(0,0,0,0), 2)
     local MemTitle = Instance.new("TextLabel"); MemTitle.Parent = MemCard; MemTitle.BackgroundTransparency = 1; MemTitle.Position = UDim2.new(0, 12, 0, 35); MemTitle.Size = UDim2.new(1, -24, 0, 10); MemTitle.Font = Theme.FontMain; MemTitle.Text = "Memory RAM"; MemTitle.TextColor3 = Theme.TextDim; MemTitle.TextSize = 12; MemTitle.TextXAlignment = Enum.TextXAlignment.Left
@@ -217,18 +217,48 @@ local function BuildInfoTab(parentFrame)
         TS:TeleportToPlaceInstance(game.PlaceId, game.JobId, LP)
     end)
 
+    -- [OPTIMIZED] Ping, Time & FPS Logic
     task.spawn(function()
         local LocalPlayer = Players.LocalPlayer
+        
+        -- Logic Khusus FPS Smooth
+        local LastFPSTime = tick()
+        local FrameCount = 0
+        local FPS_Connection
+        
+        FPS_Connection = RunService.RenderStepped:Connect(function()
+            if not parentFrame.Parent then 
+                FPS_Connection:Disconnect()
+                return 
+            end
+            
+            FrameCount = FrameCount + 1
+            if tick() - LastFPSTime >= 0.5 then -- Update setiap 0.5 Detik
+                local fps = math.floor(FrameCount / (tick() - LastFPSTime))
+                FPSNum.Text = tostring(fps)
+                FrameCount = 0
+                LastFPSTime = tick()
+            end
+        end)
+
+        -- Loop biasa untuk Ping, Memory, Time (Hemat Resource)
         while parentFrame.Parent do
+            -- Ping & Bar
             local rawPing = LocalPlayer:GetNetworkPing(); local ping = math.round(rawPing * 1000) 
             PingValue.Text = ping .. " ms"
             local barSize = math.clamp(ping / 300, 0.05, 1) 
             TweenService:Create(BarFill, TweenInfo.new(0.5, Enum.EasingStyle.Sine), {Size = UDim2.new(barSize, 0, 1, 0), BackgroundColor3 = ping < 100 and Color3.fromRGB(100, 255, 100) or ping < 200 and Color3.fromRGB(255, 200, 0) or Color3.fromRGB(255, 80, 80)}):Play()
-            FPSNum.Text = tostring(math.floor(workspace:GetRealPhysicsFPS()))
+            
+            -- Memory
             MemNum.Text = tostring(math.floor(Stats:GetTotalMemoryUsageMb()))
+            
+            -- Time
             ClockLabel.Text = os.date("%H:%M:%S"); DateLabel.Text = os.date("%A, %d %B %Y")
-            task.wait(0.5)
+            
+            task.wait(1) -- Update tiap 1 detik cukup
         end
+        
+        if FPS_Connection then FPS_Connection:Disconnect() end
     end)
 end
 
@@ -237,7 +267,7 @@ local function BuildMovementTab(parentFrame)
     local Layout = Instance.new("UIListLayout"); Layout.Parent = parentFrame; Layout.SortOrder = Enum.SortOrder.LayoutOrder; Layout.Padding = UDim.new(0, 10)
     local Padding = Instance.new("UIPadding"); Padding.Parent = parentFrame; Padding.PaddingTop = UDim.new(0, 15); Padding.PaddingLeft = UDim.new(0, 15); Padding.PaddingRight = UDim.new(0, 15)
 
-    -- Helper Create Card Controls (Fly, Speed, Jump)
+    -- Helper Control Card (Fly, Walk, Jump)
     local function CreateControlCard(title, defaultVal, onToggle, onValChange, onUpdate)
         local Card = CreateCard(parentFrame, UDim2.new(1, 0, 0, 50), 0)
         local TitleLbl = Instance.new("TextLabel"); TitleLbl.Parent = Card; TitleLbl.BackgroundTransparency = 1; TitleLbl.Position = UDim2.new(0, 15, 0, 0); TitleLbl.Size = UDim2.new(0, 70, 1, 0); TitleLbl.Font = Theme.FontBold; TitleLbl.Text = title; TitleLbl.TextColor3 = Theme.Text; TitleLbl.TextSize = 14; TitleLbl.TextXAlignment = Enum.TextXAlignment.Left
@@ -286,30 +316,38 @@ local function BuildMovementTab(parentFrame)
         }
     end
 
-    -- Helper Switch Card (Noclip & Inf Jump)
-    local function AddSwitchCard(text, callback)
-        local Btn = Instance.new("TextButton"); Btn.Parent = parentFrame; Btn.BackgroundColor3 = Color3.fromRGB(50, 60, 80); Btn.BackgroundTransparency = 0.3; Btn.Size = UDim2.new(1, 0, 0, 40); Btn.Font = Theme.FontMain; Btn.Text = "  " .. text; Btn.TextColor3 = Theme.Text; Btn.TextSize = 12; Btn.TextXAlignment = Enum.TextXAlignment.Left; Btn.AutoButtonColor = false
-        local C = Instance.new("UICorner"); C.CornerRadius = UDim.new(0, 8); C.Parent = Btn
-        local S = Instance.new("UIStroke"); S.Parent = Btn; S.Color = Theme.Accent; S.Transparency = 0.8; S.Thickness = 1
-        local Sw = Instance.new("Frame"); Sw.Parent = Btn; Sw.BackgroundColor3 = Color3.fromRGB(20, 25, 35); Sw.Position = UDim2.new(1, -45, 0.5, -10); Sw.Size = UDim2.new(0, 36, 0, 20); local SC = Instance.new("UICorner"); SC.CornerRadius = UDim.new(1,0); SC.Parent = Sw
+    -- Helper Switch Card (Noclip & Inf Jump) - REFACTORED MENJADI CARD DE DENGAN SWITCH DI KANAN
+    local function CreateSwitchCard(text, callback)
+        -- 1. The Main Card Container
+        local Card = CreateCard(parentFrame, UDim2.new(1, 0, 0, 50), 0)
+
+        -- 2. The Title on the left
+        local TitleLbl = Instance.new("TextLabel"); TitleLbl.Parent = Card; TitleLbl.BackgroundTransparency = 1; TitleLbl.Position = UDim2.new(0, 15, 0, 0); TitleLbl.Size = UDim2.new(0, 150, 1, 0); TitleLbl.Font = Theme.FontBold; TitleLbl.Text = text; TitleLbl.TextColor3 = Theme.Text; TitleLbl.TextSize = 14; TitleLbl.TextXAlignment = Enum.TextXAlignment.Left
+
+        -- 3. The Switch Container Area on the right (Clickable)
+        local SwitchBtn = Instance.new("TextButton"); SwitchBtn.Parent = Card; SwitchBtn.BackgroundTransparency = 1; SwitchBtn.Position = UDim2.new(1, -65, 0.5, -12); SwitchBtn.Size = UDim2.new(0, 50, 0, 24); SwitchBtn.Text = ""
+
+        -- 4. The Switch Graphics (Track & Knob)
+        local Sw = Instance.new("Frame"); Sw.Parent = SwitchBtn; Sw.BackgroundColor3 = Color3.fromRGB(20, 25, 35); Sw.Position = UDim2.new(0, 0, 0.5, -10); Sw.Size = UDim2.new(0, 50, 0, 20); local SC = Instance.new("UICorner"); SC.CornerRadius = UDim.new(1,0); SC.Parent = Sw
         local K = Instance.new("Frame"); K.Parent = Sw; K.BackgroundColor3 = Theme.TextDim; K.Position = UDim2.new(0, 2, 0.5, -8); K.Size = UDim2.new(0, 16, 0, 16); local KC = Instance.new("UICorner"); KC.CornerRadius = UDim.new(1,0); KC.Parent = K
+
         local toggled = false
         
         local function SetState(state)
             toggled = state
             if state then
-                TweenService:Create(K, TweenInfo.new(0.2), {Position = UDim2.new(0, 18, 0.5, -8), BackgroundColor3 = Theme.Main}):Play()
+                -- ON Animation
+                TweenService:Create(K, TweenInfo.new(0.2), {Position = UDim2.new(1, -18, 0.5, -8), BackgroundColor3 = Theme.Main}):Play()
                 TweenService:Create(Sw, TweenInfo.new(0.2), {BackgroundColor3 = Theme.Accent}):Play()
-                TweenService:Create(S, TweenInfo.new(0.2), {Transparency = 0.2}):Play()
             else
+                -- OFF Animation
                 TweenService:Create(K, TweenInfo.new(0.2), {Position = UDim2.new(0, 2, 0.5, -8), BackgroundColor3 = Theme.TextDim}):Play()
                 TweenService:Create(Sw, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(20, 25, 35)}):Play()
-                TweenService:Create(S, TweenInfo.new(0.2), {Transparency = 0.8}):Play()
             end
             if callback then callback(toggled) end
         end
 
-        Btn.MouseButton1Click:Connect(function() SetState(not toggled) end)
+        SwitchBtn.MouseButton1Click:Connect(function() SetState(not toggled) end)
         return { SetState = SetState }
     end
 
@@ -405,9 +443,9 @@ local function BuildMovementTab(parentFrame)
         if char and char:FindFirstChild("Humanoid") then char.Humanoid.JumpPower = 50 end
     end
 
-    -- >>> 4. FITUR NO CLIP (DENGAN FORCE RESTORE & TELEPORT FIX) <<<
+    -- >>> 4. FITUR NO CLIP (DENGAN FIX HITBOX) <<<
     local noclipLoop
-    local NoclipCtrl = AddSwitchCard("No Clip Mode", function(active)
+    local NoclipCtrl = CreateSwitchCard("No Clip Mode", function(active)
         if active then
             noclipLoop = RunService.Stepped:Connect(function()
                 local char = Players.LocalPlayer.Character
@@ -427,11 +465,18 @@ local function BuildMovementTab(parentFrame)
         local char = Players.LocalPlayer.Character
         local root = char and char:FindFirstChild("HumanoidRootPart")
         if char then
-            -- 1. Restore Collision
+            -- [FIX HITBOX FISH IT] Only Restore Collision for NON-ROOT parts
             for _, part in pairs(char:GetDescendants()) do
-                if part:IsA("BasePart") then part.CanCollide = true end
+                if part:IsA("BasePart") then
+                    if part.Name == "HumanoidRootPart" then
+                        part.CanCollide = false -- Keep RootPart non-collidable
+                    else
+                        part.CanCollide = true
+                    end
+                end
             end
-            -- 2. FIX: Teleport slightly up to prevent sinking/stuck
+            
+            -- [FIX SINKING] Teleport up slightly
             if root then
                 root.CFrame = root.CFrame + Vector3.new(0, 2.3, 0)
             end
@@ -440,7 +485,7 @@ local function BuildMovementTab(parentFrame)
 
     -- >>> 5. FITUR INFINITY JUMP <<<
     local InfJumpConn
-    local InfJumpCtrl = AddSwitchCard("Infinity Jump", function(active)
+    local InfJumpCtrl = CreateSwitchCard("Infinity Jump", function(active)
         if active then
             InfJumpConn = UserInputService.JumpRequest:Connect(function()
                 local char = Players.LocalPlayer.Character
@@ -502,7 +547,7 @@ local function AddDPIOption(txt, scaleVal)
     local Opt = Instance.new("TextButton"); Opt.Parent = DPIFrame; Opt.BackgroundColor3 = Color3.fromRGB(30, 34, 45); Opt.Size = UDim2.new(1, 0, 0, 45); Opt.Font = Theme.FontMain; Opt.Text = txt; Opt.TextColor3 = Color3.fromRGB(200, 200, 200); Opt.TextSize = 14
     Opt.MouseButton1Click:Connect(function()
         TweenService:Create(UIScale, TweenInfo.new(0.5, Enum.EasingStyle.Back), {Scale = scaleVal}):Play()
-        DPIBtn.Text = "   Size: " .. txt; dpiOpen = false; TweenService:Create(DPIFrame, TweenInfo.new(0.3), {Size = UDim2.new(0.6, 0, 0, 0)}):Play()
+        DPIBtn.Text = "   Size: " .. txt; dpiOpen = false; TweenService:Create(DPIFrame, TweenInfo.new(0.3), {Size = UDim2.new(1, 0, 0, 0)}):Play()
     end)
 end
 AddDPIOption("100% (Default)", 1)
