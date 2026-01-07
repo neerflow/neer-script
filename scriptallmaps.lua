@@ -934,24 +934,39 @@ local function BuildMovementTab(parentFrame)
 
     Session.StopNoclip = function()
         if noclipLoop then noclipLoop:Disconnect() end
+        
         local char = Players.LocalPlayer.Character
         local root = char and char:FindFirstChild("HumanoidRootPart")
-        if char then
-            -- [FIX HITBOX FISH IT] Only Restore Collision for NON-ROOT parts
+        local hum = char and char:FindFirstChild("Humanoid")
+        
+        if char and root and hum then
+            -- [FIX LOGIC]
+            -- Alih-alih mengaktifkan collision untuk SEMUA part,
+            -- kita hanya aktifkan HumanoidRootPart.
+            -- Bagian tubuh lain (kaki, tangan, aksesoris) kita paksa FALSE
+            -- agar tidak bikin karakter melayang/licin.
+            
             for _, part in pairs(char:GetDescendants()) do
                 if part:IsA("BasePart") then
                     if part.Name == "HumanoidRootPart" then
-                        part.CanCollide = false -- Keep RootPart non-collidable
+                        part.CanCollide = true       -- Ini WAJIB True agar bisa berdiri
+                        part.Transparency = 1        -- Pastikan transparan
                     else
-                        part.CanCollide = true
+                        part.CanCollide = false      -- Sisa tubuh FALSE agar tidak bug hitbox
                     end
                 end
             end
             
-            -- [FIX SINKING] Teleport up slightly
-            if root then
-                root.CFrame = root.CFrame + Vector3.new(0, 2.3, 0)
-            end
+            -- [FIX SINKING/FLOATING]
+            -- Paksa Humanoid untuk hitung ulang tinggi pinggul (HipHeight)
+            -- dan reset status fisika agar tidak nyangkut.
+            local originalHip = hum.HipHeight
+            hum.HipHeight = 0 
+            task.wait()
+            hum.HipHeight = originalHip -- Mengembalikan tinggi badan normal
+            
+            -- Paksa karakter berdiri tegak
+            hum:ChangeState(Enum.HumanoidStateType.GettingUp)
         end
     end
 
@@ -1005,7 +1020,6 @@ local function BuildMovementTab(parentFrame)
     ResetBtn.MouseButton1Click:Connect(Session.ResetAll)
 end
 
---// [GANTI BAGIAN TAB TELEPORT INI]
 local function BuildTeleportTab(parentFrame)
     local Layout = Instance.new("UIListLayout"); Layout.Parent = parentFrame; Layout.SortOrder = Enum.SortOrder.LayoutOrder; Layout.Padding = UDim.new(0, 10)
     local Padding = Instance.new("UIPadding"); Padding.Parent = parentFrame; Padding.PaddingTop = UDim.new(0, 15); Padding.PaddingLeft = UDim.new(0, 15); Padding.PaddingRight = UDim.new(0, 15)
@@ -1159,6 +1173,129 @@ local function BuildTeleportTab(parentFrame)
     RefreshList()
 end
 
+--// [BAGIAN 11] KONTEN TAB: SETTINGS
+local function BuildSettingsTab(parentFrame)
+    -- 1. Setup Layout Halaman (Supaya rapi dari atas ke bawah)
+    local Layout = Instance.new("UIListLayout"); Layout.Parent = parentFrame; Layout.SortOrder = Enum.SortOrder.LayoutOrder; Layout.Padding = UDim.new(0, 10)
+    local Padding = Instance.new("UIPadding"); Padding.Parent = parentFrame; Padding.PaddingTop = UDim.new(0, 15); Padding.PaddingLeft = UDim.new(0, 15); Padding.PaddingRight = UDim.new(0, 15)
+
+    -- 2. Fungsi Helper CreateCard (Jika belum ada di scope global, kita definisikan ulang biar aman)
+    local function CreateSettingCard(size)
+        local Card = Instance.new("Frame"); Card.Parent = parentFrame; Card.BackgroundColor3 = Theme.ActiveTab; Card.BackgroundTransparency = 0.2; Card.Size = size
+        Card.ClipsDescendants = false -- Penting agar dropdown bisa keluar dari card
+        local C = Instance.new("UICorner"); C.CornerRadius = UDim.new(0, 10); C.Parent = Card
+        local S = Instance.new("UIStroke"); S.Parent = Card; S.Color = Theme.Accent; S.Transparency = 0.8; S.Thickness = 1
+        return Card
+    end
+
+    -- 3. Buat Card Utama untuk DPI
+    local DPICard = CreateSettingCard(UDim2.new(1, 0, 0, 85))
+
+    -- Label Judul
+    local SettingsLabel = Instance.new("TextLabel")
+    SettingsLabel.Parent = DPICard
+    SettingsLabel.BackgroundTransparency = 1
+    SettingsLabel.Position = UDim2.new(0, 15, 0, 10)
+    SettingsLabel.Size = UDim2.new(1, -30, 0, 20)
+    SettingsLabel.Font = Theme.FontBold
+    SettingsLabel.Text = "Interface Scale (DPI)"
+    SettingsLabel.TextColor3 = Theme.Text
+    SettingsLabel.TextSize = 14
+    SettingsLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+    -- Tombol Utama (Dropdown Trigger)
+    local DPIBtn = Instance.new("TextButton")
+    DPIBtn.Parent = DPICard
+    DPIBtn.BackgroundColor3 = Theme.Sidebar -- Menggunakan Theme agar konsisten
+    DPIBtn.Position = UDim2.new(0, 15, 0, 35)
+    DPIBtn.Size = UDim2.new(1, -30, 0, 35)
+    DPIBtn.Font = Theme.FontBold
+    DPIBtn.Text = IsMobile and "   Size: 75% (Medium)" or "   Size: 100% (Default)"
+    DPIBtn.TextColor3 = Theme.TextDim
+    DPIBtn.TextSize = 12
+    DPIBtn.TextXAlignment = Enum.TextXAlignment.Left
+    DPIBtn.AutoButtonColor = false
+    
+    local DPIB_C = Instance.new("UICorner"); DPIB_C.CornerRadius = UDim.new(0, 6); DPIB_C.Parent = DPIBtn
+    local DPIB_S = Instance.new("UIStroke"); DPIB_S.Parent = DPIBtn; DPIB_S.Color = Theme.Separator; DPIB_S.Thickness = 1; DPIB_S.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+
+    -- Frame List Dropdown (Isi Pilihan)
+    local DPIFrame = Instance.new("Frame")
+    DPIFrame.Parent = DPICard -- Parent ke Card
+    DPIFrame.BackgroundColor3 = Theme.Main
+    DPIFrame.Position = UDim2.new(0, 15, 0, 75) -- Posisi di bawah tombol
+    DPIFrame.Size = UDim2.new(1, -30, 0, 0) -- Tinggi awal 0 (tertutup)
+    DPIFrame.ClipsDescendants = true
+    DPIFrame.Visible = false
+    DPIFrame.ZIndex = 10 -- Supaya muncul di atas elemen lain
+    
+    local DPIF_C = Instance.new("UICorner"); DPIF_C.CornerRadius = UDim.new(0, 6); DPIF_C.Parent = DPIFrame
+    local DPIF_S = Instance.new("UIStroke"); DPIF_S.Parent = DPIFrame; DPIF_S.Color = Theme.Accent; DPIF_S.Transparency = 0.5; DPIF_S.Thickness = 1
+    
+    local DPIList = Instance.new("UIListLayout"); DPIList.Parent = DPIFrame; DPIList.SortOrder = Enum.SortOrder.LayoutOrder
+
+    -- LOGIKA DROPDOWN (Click Outside & Animasi)
+    local dpiOpen = false
+    local dpiConnection = nil 
+
+    local function ToggleDPI(forceClose)
+        -- 1. Atur Status
+        if forceClose then dpiOpen = false else dpiOpen = not dpiOpen end
+        
+        -- 2. Bersihkan koneksi lama
+        if dpiConnection then 
+            dpiConnection:Disconnect()
+            dpiConnection = nil 
+        end
+
+        -- 3. Animasi
+        if dpiOpen then
+            DPIFrame.Visible = true
+            TweenService:Create(DPIFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(1, -30, 0, 105)}):Play()
+            
+            -- Deteksi Klik Luar
+            dpiConnection = UserInputService.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                    local mPos = Vector2.new(input.Position.X, input.Position.Y)
+                    
+                    local btnPos, btnSize = DPIBtn.AbsolutePosition, DPIBtn.AbsoluteSize
+                    local frmPos, frmSize = DPIFrame.AbsolutePosition, DPIFrame.AbsoluteSize
+                    
+                    local function isIn(p, pos, size)
+                        return p.X >= pos.X and p.X <= pos.X + size.X and p.Y >= pos.Y and p.Y <= pos.Y + size.Y
+                    end
+                    
+                    -- Jika klik di luar Tombol DAN di luar Frame Dropdown
+                    if not isIn(mPos, btnPos, btnSize) and not isIn(mPos, frmPos, frmSize) then
+                        ToggleDPI(true)
+                    end
+                end
+            end)
+        else
+            TweenService:Create(DPIFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(1, -30, 0, 0)}):Play()
+            task.wait(0.3)
+            if not dpiOpen then DPIFrame.Visible = false end
+        end
+    end
+
+    DPIBtn.MouseButton1Click:Connect(function() ToggleDPI() end)
+
+    local function AddDPIOption(txt, scaleVal)
+        local Opt = Instance.new("TextButton"); Opt.Parent = DPIFrame; Opt.BackgroundColor3 = Theme.Main; Opt.Size = UDim2.new(1, 0, 0, 35); Opt.Font = Theme.FontMain; Opt.Text = txt; Opt.TextColor3 = Theme.TextDim; Opt.TextSize = 12; Opt.AutoButtonColor = true
+        
+        Opt.MouseButton1Click:Connect(function()
+            TweenService:Create(UIScale, TweenInfo.new(0.5, Enum.EasingStyle.Back), {Scale = scaleVal}):Play()
+            DPIBtn.Text = "   Size: " .. txt
+            DPIBtn.TextColor3 = Theme.Text -- Highlight warna teks saat dipilih
+            ToggleDPI(true)
+        end)
+    end
+
+    AddDPIOption("100% (Default)", 1)
+    AddDPIOption("75% (Medium)", 0.75)
+    AddDPIOption("50% (Small)", 0.5)
+end
+
 --// [BAGIAN 11] EKSEKUSI PEMBUATAN TAB
 local TabInfo = CreateTabBtn("Info", true)
 BuildInfoTab(TabInfo)
@@ -1170,98 +1307,7 @@ local TabTeleports = CreateTabBtn("Teleports", false)
 BuildTeleportTab(TabTeleports)
 
 local TabSettings = CreateTabBtn("Settings", false)
-
-local SettingsLabel = Instance.new("TextLabel")
-SettingsLabel.Parent = TabSettings
-SettingsLabel.BackgroundTransparency = 1
-SettingsLabel.Size = UDim2.new(0, 0, 0, 20)
-SettingsLabel.Font = Theme.FontBold
-SettingsLabel.Text = "Interface Scale (DPI)"
-SettingsLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-SettingsLabel.TextSize = 14
-SettingsLabel.TextXAlignment = Enum.TextXAlignment.Left
-
-local DPIBtn = Instance.new("TextButton")
-DPIBtn.Parent = TabSettings
-DPIBtn.BackgroundColor3 = Color3.fromRGB(50, 60, 80) 
-DPIBtn.Size = UDim2.new(1, 0, 0, 40)
-DPIBtn.Font = Theme.FontBold
-DPIBtn.Text = IsMobile and "   Size: 75% (Medium)" or "   Size: 100% (Default)"
-DPIBtn.TextColor3 = Color3.fromRGB(160, 180, 190)
-DPIBtn.TextSize = 12
-DPIBtn.TextXAlignment = Enum.TextXAlignment.Left
-local DPIB_C = Instance.new("UICorner"); DPIB_C.CornerRadius = UDim.new(0,8); DPIB_C.Parent = DPIBtn
-
--- ... (Kode SettingsLabel dan DPIBtn di atasnya biarkan saja) ...
-
--- [GANTI BLOK LOGIKA DPI DI BAWAH INI]
-local DPIFrame = Instance.new("Frame"); DPIFrame.Parent = TabSettings; DPIFrame.BackgroundColor3 = Color3.fromRGB(30, 34, 45); DPIFrame.Size = UDim2.new(1, 0, 0, 0); DPIFrame.ClipsDescendants = true; DPIFrame.Visible = false; local DPIF_C = Instance.new("UICorner"); DPIF_C.CornerRadius = UDim.new(0,8); DPIF_C.Parent = DPIFrame
-local DPIList = Instance.new("UIListLayout"); DPIList.Parent = DPIFrame; DPIList.SortOrder = Enum.SortOrder.LayoutOrder
-
-local dpiOpen = false
-local dpiConnection = nil -- Variable untuk menyimpan deteksi klik
-
--- Fungsi Toggle DPI dengan Click Outside
-local function ToggleDPI(forceClose)
-    -- 1. Atur Status
-    if forceClose then dpiOpen = false else dpiOpen = not dpiOpen end
-    
-    -- 2. Bersihkan koneksi lama agar tidak menumpuk
-    if dpiConnection then 
-        dpiConnection:Disconnect()
-        dpiConnection = nil 
-    end
-
-    -- 3. Logika Animasi & Deteksi Klik
-    if dpiOpen then
-        -- BUKA
-        DPIFrame.Visible = true
-        TweenService:Create(DPIFrame, TweenInfo.new(0.3), {Size = UDim2.new(1, 0, 0, 105)}):Play()
-        
-        -- Aktifkan deteksi klik di luar
-        dpiConnection = UserInputService.InputBegan:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                local mPos = Vector2.new(input.Position.X, input.Position.Y)
-                
-                -- Cek posisi Tombol & Kotak Menu
-                local btnPos, btnSize = DPIBtn.AbsolutePosition, DPIBtn.AbsoluteSize
-                local frmPos, frmSize = DPIFrame.AbsolutePosition, DPIFrame.AbsoluteSize
-                
-                local function isIn(p, pos, size)
-                    return p.X >= pos.X and p.X <= pos.X + size.X and p.Y >= pos.Y and p.Y <= pos.Y + size.Y
-                end
-                
-                -- Jika klik BUKAN di tombol DAN BUKAN di kotak menu -> Tutup
-                if not isIn(mPos, btnPos, btnSize) and not isIn(mPos, frmPos, frmSize) then
-                    ToggleDPI(true)
-                end
-            end
-        end)
-    else
-        -- TUTUP
-        TweenService:Create(DPIFrame, TweenInfo.new(0.3), {Size = UDim2.new(1, 0, 0, 0)}):Play()
-        task.wait(0.3)
-        if not dpiOpen then DPIFrame.Visible = false end
-    end
-end
-
--- Sambungkan tombol ke fungsi ToggleDPI
-DPIBtn.MouseButton1Click:Connect(function() 
-    ToggleDPI() 
-end)
-
-local function AddDPIOption(txt, scaleVal)
-    local Opt = Instance.new("TextButton"); Opt.Parent = DPIFrame; Opt.BackgroundColor3 = Color3.fromRGB(45, 55, 75); Opt.Size = UDim2.new(1, 0, 0, 35); Opt.Font = Theme.FontMain; Opt.Text = txt; Opt.TextColor3 = Color3.fromRGB(200, 200, 200); Opt.TextSize = 14
-    Opt.MouseButton1Click:Connect(function()
-        TweenService:Create(UIScale, TweenInfo.new(0.5, Enum.EasingStyle.Back), {Scale = scaleVal}):Play()
-        DPIBtn.Text = "   Size: " .. txt
-        ToggleDPI(true) -- Tutup menu setelah memilih
-    end)
-end
-
-AddDPIOption("100% (Default)", 1)
-AddDPIOption("75% (Medium)", 0.75)
-AddDPIOption("50% (Small)", 0.5)
+BuildSettingsTab(TabSettings)
 
 --// [BAGIAN 12] LOGIKA ANIMASI & CLEANUP (Tutup Script)
 local function ToggleAnimation()
