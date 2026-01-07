@@ -7,6 +7,7 @@ local Stats = game:GetService("Stats")
 local Workspace = game:GetService("Workspace")
 
 --// [BAGIAN 1] TEMA & PENGATURAN AWAL
+-- Mengatur palet warna dan font yang digunakan di seluruh UI
 local Theme = {
     Main        = Color3.fromRGB(20, 25, 35), 
     Sidebar     = Color3.fromRGB(22, 26, 38),
@@ -22,17 +23,19 @@ local Theme = {
     FontBold    = Enum.Font.GothamBold
 }
 
+-- Mencegah duplikasi GUI jika script dijalankan ulang
 if CoreGui:FindFirstChild("NeeR_Unified") then
     CoreGui.NeeR_Unified:Destroy()
 end
 
 --// [BAGIAN 2] SESSION MANAGER & DEFAULT STATS SAVER
+-- Menyimpan nilai WalkSpeed dan JumpPower bawaan game untuk fitur Reset
 local DefaultStats = {
     WalkSpeed = 16, -- Nilai fallback
     JumpPower = 50  -- Nilai fallback
 }
 
--- Simpan stats awal saat script dijalankan
+-- Fungsi untuk menyimpan stats karakter saat pertama kali script load
 local function SaveDefaultStats()
     local char = Players.LocalPlayer.Character
     if char and char:FindFirstChild("Humanoid") then
@@ -42,7 +45,7 @@ local function SaveDefaultStats()
 end
 SaveDefaultStats() -- Jalankan sekali di awal
 
---// [BAGIAN 2] SESSION MANAGER
+-- Table untuk menyimpan fungsi penghenti cheat (cleanup)
 local Session = {
     StopFly = function() end,
     StopWalk = function() end,
@@ -53,6 +56,7 @@ local Session = {
 }
 
 --// [BAGIAN 3] LOGIKA RESPONSIF
+-- Mendeteksi apakah user menggunakan Mobile atau PC untuk menyesuaikan ukuran UI
 local ViewportSize = workspace.CurrentCamera.ViewportSize
 local IsMobile = ViewportSize.X < 1080 
 local CurrentScale = IsMobile and 0.75 or 1 
@@ -61,6 +65,7 @@ local MobileSize = UDim2.new(0, 580, 0, 380)
 local FinalSize  = IsMobile and MobileSize or PCSize
 
 --// [BAGIAN 4] SETUP GUI DASAR
+-- Membuat ScreenGui utama
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "NeeR_Unified"
 ScreenGui.Parent = CoreGui
@@ -70,26 +75,42 @@ ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 local IsOpen = true
 local AnimationSpeed = 0.4
 
+-- Fungsi helper untuk membuat UI bisa digeser (Draggable)
 local function MakeDraggable(trigger, objectToMove)
     local dragging, dragInput, dragStart, startPos
+    
     trigger.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true; dragStart = input.Position; startPos = objectToMove.Position
-            input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dragging = false end end)
+            dragging = true
+            dragStart = input.Position
+            startPos = objectToMove.Position
+            
+            input.Changed:Connect(function() 
+                if input.UserInputState == Enum.UserInputState.End then 
+                    dragging = false 
+                end 
+            end)
         end
     end)
+    
     trigger.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then 
+            dragInput = input 
+        end
     end)
+    
     UserInputService.InputChanged:Connect(function(input)
         if input == dragInput and dragging then
             local delta = input.Position - dragStart
-            objectToMove.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+            objectToMove.Position = UDim2.new(
+                startPos.X.Scale, startPos.X.Offset + delta.X, 
+                startPos.Y.Scale, startPos.Y.Offset + delta.Y
+            )
         end
     end)
 end
 
---// [BAGIAN 5] TOMBOL TOGGLE
+--// [BAGIAN 5] TOMBOL TOGGLE (Buka/Tutup Menu)
 local ToggleBtn = Instance.new("ImageButton")
 ToggleBtn.Name = "ToggleUI"
 ToggleBtn.Parent = ScreenGui
@@ -101,11 +122,20 @@ ToggleBtn.Size = UDim2.new(0, 40, 0, 40)
 ToggleBtn.Image = "rbxassetid://7733960981"
 ToggleBtn.ImageColor3 = Theme.Accent
 ToggleBtn.ZIndex = 100
-local ToggleCorner = Instance.new("UICorner"); ToggleCorner.CornerRadius = UDim.new(1, 0); ToggleCorner.Parent = ToggleBtn
-local ToggleStroke = Instance.new("UIStroke"); ToggleStroke.Parent = ToggleBtn; ToggleStroke.Color = Theme.Accent; ToggleStroke.Thickness = 1.5; ToggleStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+
+local ToggleCorner = Instance.new("UICorner")
+ToggleCorner.CornerRadius = UDim.new(1, 0)
+ToggleCorner.Parent = ToggleBtn
+
+local ToggleStroke = Instance.new("UIStroke")
+ToggleStroke.Parent = ToggleBtn
+ToggleStroke.Color = Theme.Accent
+ToggleStroke.Thickness = 1.5
+ToggleStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+
 MakeDraggable(ToggleBtn, ToggleBtn)
 
---// [BAGIAN 6] KERANGKA UTAMA
+--// [BAGIAN 6] KERANGKA UTAMA UI (Main Frame)
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
 MainFrame.Parent = ScreenGui
@@ -116,36 +146,128 @@ MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
 MainFrame.Size = FinalSize
 MainFrame.ClipsDescendants = true
 
-local UIScale = Instance.new("UIScale"); UIScale.Parent = MainFrame; UIScale.Scale = CurrentScale
-local MainCorner = Instance.new("UICorner"); MainCorner.CornerRadius = UDim.new(0, 12); MainCorner.Parent = MainFrame
-local MainStroke = Instance.new("UIStroke"); MainStroke.Parent = MainFrame; MainStroke.Color = Theme.Accent; MainStroke.Thickness = 1; MainStroke.Transparency = 0.6
+local UIScale = Instance.new("UIScale")
+UIScale.Parent = MainFrame
+UIScale.Scale = CurrentScale
 
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 12)
+MainCorner.Parent = MainFrame
+
+local MainStroke = Instance.new("UIStroke")
+MainStroke.Parent = MainFrame
+MainStroke.Color = Theme.Accent
+MainStroke.Thickness = 1
+MainStroke.Transparency = 0.6
+
+-- Header (Judul dan Tombol Kontrol)
 local HeaderHeight = 35
-local Header = Instance.new("Frame"); Header.Parent = MainFrame; Header.Size = UDim2.new(1, 0, 0, HeaderHeight); Header.BackgroundTransparency = 1
-local Title = Instance.new("TextLabel"); Title.Parent = Header; Title.Text = "NeeR Flow <font color=\"rgb(137,207,240)\">| Script</font>"; Title.RichText = true; Title.Font = Theme.FontBold; Title.TextColor3 = Theme.Text; Title.TextSize = 14; Title.Position = UDim2.new(0, 15, 0, 0); Title.Size = UDim2.new(0, 0, 1, 0); Title.TextXAlignment = Enum.TextXAlignment.Left
+local Header = Instance.new("Frame")
+Header.Parent = MainFrame
+Header.Size = UDim2.new(1, 0, 0, HeaderHeight)
+Header.BackgroundTransparency = 1
 
-local ControlFrame = Instance.new("Frame"); ControlFrame.Parent = Header; ControlFrame.BackgroundTransparency = 1; ControlFrame.Position = UDim2.new(1, -70, 0, 0); ControlFrame.Size = UDim2.new(0, 70, 1, 0)
-local MinBtn = Instance.new("TextButton"); MinBtn.Parent = ControlFrame; MinBtn.BackgroundTransparency = 1; MinBtn.Position = UDim2.new(0, 0, 0, 0); MinBtn.Size = UDim2.new(0, 35, 1, 0); MinBtn.Font = Theme.FontBold; MinBtn.Text = "—"; MinBtn.TextColor3 = Theme.Accent; MinBtn.TextSize = 14
-local CloseBtn = Instance.new("TextButton"); CloseBtn.Parent = ControlFrame; CloseBtn.BackgroundTransparency = 1; CloseBtn.Position = UDim2.new(0, 28, 0, 0); CloseBtn.Size = UDim2.new(0, 35, 1, 0); CloseBtn.Font = Theme.FontBold; CloseBtn.Text = "X"; CloseBtn.TextColor3 = Theme.Accent; CloseBtn.TextSize = 14
-local HeaderLine = Instance.new("Frame"); HeaderLine.Parent = Header; HeaderLine.BackgroundColor3 = Theme.TextDim; HeaderLine.BorderSizePixel = 0; HeaderLine.BackgroundTransparency = 0.5; HeaderLine.Position = UDim2.new(0, 0, 1, -1); HeaderLine.Size = UDim2.new(1, 0, 0, 1)
+local Title = Instance.new("TextLabel")
+Title.Parent = Header
+Title.Text = "NeeR Flow <font color=\"rgb(137,207,240)\">| Script</font>"
+Title.RichText = true
+Title.Font = Theme.FontBold
+Title.TextColor3 = Theme.Text
+Title.TextSize = 14
+Title.Position = UDim2.new(0, 15, 0, 0)
+Title.Size = UDim2.new(0, 0, 1, 0)
+Title.TextXAlignment = Enum.TextXAlignment.Left
+
+local ControlFrame = Instance.new("Frame")
+ControlFrame.Parent = Header
+ControlFrame.BackgroundTransparency = 1
+ControlFrame.Position = UDim2.new(1, -70, 0, 0)
+ControlFrame.Size = UDim2.new(0, 70, 1, 0)
+
+local MinBtn = Instance.new("TextButton")
+MinBtn.Parent = ControlFrame
+MinBtn.BackgroundTransparency = 1
+MinBtn.Position = UDim2.new(0, 0, 0, 0)
+MinBtn.Size = UDim2.new(0, 35, 1, 0)
+MinBtn.Font = Theme.FontBold
+MinBtn.Text = "—"
+MinBtn.TextColor3 = Theme.Accent
+MinBtn.TextSize = 14
+
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Parent = ControlFrame
+CloseBtn.BackgroundTransparency = 1
+CloseBtn.Position = UDim2.new(0, 28, 0, 0)
+CloseBtn.Size = UDim2.new(0, 35, 1, 0)
+CloseBtn.Font = Theme.FontBold
+CloseBtn.Text = "X"
+CloseBtn.TextColor3 = Theme.Accent
+CloseBtn.TextSize = 14
+
+local HeaderLine = Instance.new("Frame")
+HeaderLine.Parent = Header
+HeaderLine.BackgroundColor3 = Theme.TextDim
+HeaderLine.BorderSizePixel = 0
+HeaderLine.BackgroundTransparency = 0.5
+HeaderLine.Position = UDim2.new(0, 0, 1, -1)
+HeaderLine.Size = UDim2.new(1, 0, 0, 1)
+
 MakeDraggable(Header, MainFrame)
 
-local Container = Instance.new("Frame"); Container.Parent = MainFrame; Container.BackgroundTransparency = 1; Container.Position = UDim2.new(0, 0, 0, HeaderHeight); Container.Size = UDim2.new(1, 0, 1, -HeaderHeight)
+-- Kontainer untuk Sidebar dan Konten
+local Container = Instance.new("Frame")
+Container.Parent = MainFrame
+Container.BackgroundTransparency = 1
+Container.Position = UDim2.new(0, 0, 0, HeaderHeight)
+Container.Size = UDim2.new(1, 0, 1, -HeaderHeight)
+
 local SidebarWidth = 130
-local Sidebar = Instance.new("ScrollingFrame"); Sidebar.Parent = Container; Sidebar.BackgroundColor3 = Theme.Sidebar; Sidebar.BackgroundTransparency = 0.5; Sidebar.BorderSizePixel = 0; Sidebar.Size = UDim2.new(0, SidebarWidth, 1, 0); Sidebar.ScrollBarThickness = 0; Sidebar.ZIndex = 2
-local SidebarStroke = Instance.new("UIStroke"); SidebarStroke.Parent = Sidebar; SidebarStroke.Color = Theme.Separator; SidebarStroke.Thickness = 1; SidebarStroke.Transparency = 0.5; SidebarStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-local SideList = Instance.new("UIListLayout"); SideList.Parent = Sidebar; SideList.Padding = UDim.new(0, 2); SideList.SortOrder = Enum.SortOrder.LayoutOrder
-local SidePadding = Instance.new("UIPadding"); SidePadding.Parent = Sidebar; SidePadding.PaddingTop = UDim.new(0, 8); SidePadding.PaddingLeft = UDim.new(0, 5); SidePadding.PaddingRight = UDim.new(0, 5)
+local Sidebar = Instance.new("ScrollingFrame")
+Sidebar.Parent = Container
+Sidebar.BackgroundColor3 = Theme.Sidebar
+Sidebar.BackgroundTransparency = 0.5
+Sidebar.BorderSizePixel = 0
+Sidebar.Size = UDim2.new(0, SidebarWidth, 1, 0)
+Sidebar.ScrollBarThickness = 0
+Sidebar.ZIndex = 2
 
-local ContentArea = Instance.new("Frame"); ContentArea.Parent = Container; ContentArea.BackgroundTransparency = 1; ContentArea.Position = UDim2.new(0, SidebarWidth, 0, 0); ContentArea.Size = UDim2.new(1, -SidebarWidth, 1, 0); ContentArea.ClipsDescendants = true
+local SidebarStroke = Instance.new("UIStroke")
+SidebarStroke.Parent = Sidebar
+SidebarStroke.Color = Theme.Separator
+SidebarStroke.Thickness = 1
+SidebarStroke.Transparency = 0.5
+SidebarStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 
---// [BAGIAN 7] HELPER FUNCTION
+local SideList = Instance.new("UIListLayout")
+SideList.Parent = Sidebar
+SideList.Padding = UDim.new(0, 2)
+SideList.SortOrder = Enum.SortOrder.LayoutOrder
+
+local SidePadding = Instance.new("UIPadding")
+SidePadding.Parent = Sidebar
+SidePadding.PaddingTop = UDim.new(0, 8)
+SidePadding.PaddingLeft = UDim.new(0, 5)
+SidePadding.PaddingRight = UDim.new(0, 5)
+
+local ContentArea = Instance.new("Frame")
+ContentArea.Parent = Container
+ContentArea.BackgroundTransparency = 1
+ContentArea.Position = UDim2.new(0, SidebarWidth, 0, 0)
+ContentArea.Size = UDim2.new(1, -SidebarWidth, 1, 0)
+ContentArea.ClipsDescendants = true
+
+--// [BAGIAN 7] HELPER FUNCTION (Tab & Card)
 local Tabs = {}
+
+-- Fungsi untuk berpindah tab
 local function SwitchTab(tabName)
-    for _, page in pairs(ContentArea:GetChildren()) do if page:IsA("ScrollingFrame") then page.Visible = false end end
+    for _, page in pairs(ContentArea:GetChildren()) do 
+        if page:IsA("ScrollingFrame") then page.Visible = false end 
+    end
     if Tabs[tabName] then Tabs[tabName].Visible = true end
 end
 
+-- Fungsi untuk membuat tombol Tab di Sidebar
 local function CreateTabBtn(name, isActive)
     local Btn = Instance.new("TextButton")
     Btn.Parent = Sidebar
@@ -157,8 +279,18 @@ local function CreateTabBtn(name, isActive)
     Btn.Text = name
     Btn.TextColor3 = isActive and Theme.Accent or Theme.TextDim
     Btn.TextSize = 12
-    local Corner = Instance.new("UICorner"); Corner.CornerRadius = UDim.new(0, 4); Corner.Parent = Btn
-    if isActive then local s = Instance.new("UIStroke"); s.Parent = Btn; s.Color = Theme.Accent; s.Thickness = 1; s.Transparency = 0.8 end
+    
+    local Corner = Instance.new("UICorner")
+    Corner.CornerRadius = UDim.new(0, 4)
+    Corner.Parent = Btn
+    
+    if isActive then 
+        local s = Instance.new("UIStroke")
+        s.Parent = Btn
+        s.Color = Theme.Accent
+        s.Thickness = 1
+        s.Transparency = 0.8 
+    end
 
     local Page = Instance.new("ScrollingFrame")
     Page.Name = name .. "Page"
@@ -167,73 +299,266 @@ local function CreateTabBtn(name, isActive)
     Page.Size = UDim2.new(1, 0, 1, 0)
     Page.Visible = isActive
     Page.ScrollBarThickness = 0
-    local PL = Instance.new("UIListLayout"); PL.Parent = Page; PL.Padding = UDim.new(0, 5); PL.SortOrder = Enum.SortOrder.LayoutOrder
-    local PP = Instance.new("UIPadding"); PP.Parent = Page; PP.PaddingTop = UDim.new(0, 10); PP.PaddingLeft = UDim.new(0, 10); PP.PaddingRight = UDim.new(0, 10)
+    
+    local PL = Instance.new("UIListLayout")
+    PL.Parent = Page
+    PL.Padding = UDim.new(0, 5)
+    PL.SortOrder = Enum.SortOrder.LayoutOrder
+    
+    local PP = Instance.new("UIPadding")
+    PP.Parent = Page
+    PP.PaddingTop = UDim.new(0, 10)
+    PP.PaddingLeft = UDim.new(0, 10)
+    PP.PaddingRight = UDim.new(0, 10)
+    
     Tabs[name] = Page
 
     Btn.MouseButton1Click:Connect(function()
         for _, child in pairs(Sidebar:GetChildren()) do
             if child:IsA("TextButton") then
-                child.BackgroundColor3 = Theme.Sidebar; child.BackgroundTransparency = 1; child.TextColor3 = Theme.TextDim
+                child.BackgroundColor3 = Theme.Sidebar
+                child.BackgroundTransparency = 1
+                child.TextColor3 = Theme.TextDim
                 if child:FindFirstChild("UIStroke") then child.UIStroke:Destroy() end
             end
         end
-        Btn.BackgroundColor3 = Theme.ActiveTab; Btn.BackgroundTransparency = 0; Btn.TextColor3 = Theme.Accent
-        local s = Instance.new("UIStroke"); s.Parent = Btn; s.Color = Theme.Accent; s.Thickness = 1; s.Transparency = 0.8
+        Btn.BackgroundColor3 = Theme.ActiveTab
+        Btn.BackgroundTransparency = 0
+        Btn.TextColor3 = Theme.Accent
+        
+        local s = Instance.new("UIStroke")
+        s.Parent = Btn
+        s.Color = Theme.Accent
+        s.Thickness = 1
+        s.Transparency = 0.8
+        
         SwitchTab(name)
     end)
     return Page
 end
 
+-- Helper membuat Card Container
 local function CreateCard(parent, size, layoutOrder)
-    local Card = Instance.new("Frame"); Card.Parent = parent; Card.BackgroundColor3 = Theme.ActiveTab; Card.BackgroundTransparency = 0.2; Card.Size = size; Card.LayoutOrder = layoutOrder
-    local C = Instance.new("UICorner"); C.CornerRadius = UDim.new(0, 10); C.Parent = Card
-    local S = Instance.new("UIStroke"); S.Parent = Card; S.Color = Theme.Accent; S.Transparency = 0.8; S.Thickness = 1
+    local Card = Instance.new("Frame")
+    Card.Parent = parent
+    Card.BackgroundColor3 = Theme.ActiveTab
+    Card.BackgroundTransparency = 0.2
+    Card.Size = size
+    Card.LayoutOrder = layoutOrder
+    
+    local C = Instance.new("UICorner")
+    C.CornerRadius = UDim.new(0, 10)
+    C.Parent = Card
+    
+    local S = Instance.new("UIStroke")
+    S.Parent = Card
+    S.Color = Theme.Accent
+    S.Transparency = 0.8
+    S.Thickness = 1
+    
     return Card
 end
 
 --// [BAGIAN 8] KONTEN TAB: INFO 
 local function BuildInfoTab(parentFrame)
-    local Layout = Instance.new("UIListLayout"); Layout.Parent = parentFrame; Layout.SortOrder = Enum.SortOrder.LayoutOrder; Layout.Padding = UDim.new(0, 14)
-    local Padding = Instance.new("UIPadding"); Padding.Parent = parentFrame; Padding.PaddingTop = UDim.new(0, 15); Padding.PaddingLeft = UDim.new(0, 15); Padding.PaddingRight = UDim.new(0, 15)
+    local Layout = Instance.new("UIListLayout")
+    Layout.Parent = parentFrame
+    Layout.SortOrder = Enum.SortOrder.LayoutOrder
+    Layout.Padding = UDim.new(0, 14)
+    
+    local Padding = Instance.new("UIPadding")
+    Padding.Parent = parentFrame
+    Padding.PaddingTop = UDim.new(0, 15)
+    Padding.PaddingLeft = UDim.new(0, 15)
+    Padding.PaddingRight = UDim.new(0, 15)
 
-    -- Ping
+    -- Card Ping (Latensi Jaringan)
     local PingCard = CreateCard(parentFrame, UDim2.new(1, 0, 0,60), 1) 
-    local PingTitle = Instance.new("TextLabel"); PingTitle.Parent = PingCard; PingTitle.BackgroundTransparency = 1; PingTitle.Position = UDim2.new(0, 15, 0, 5); PingTitle.Size = UDim2.new(1, -30, 0, 20); PingTitle.Font = Theme.FontBold; PingTitle.Text = "Network Ping"; PingTitle.TextColor3 = Theme.TextDim; PingTitle.TextSize = 12; PingTitle.TextXAlignment = Enum.TextXAlignment.Left
-    local PingValue = Instance.new("TextLabel"); PingValue.Parent = PingCard; PingValue.BackgroundTransparency = 1; PingValue.Position = UDim2.new(0, 15, 0, 5); PingValue.Size = UDim2.new(1, -30, 0, 20); PingValue.Font = Theme.FontBold; PingValue.Text = "0 ms"; PingValue.TextColor3 = Theme.Accent; PingValue.TextSize = 12; PingValue.TextXAlignment = Enum.TextXAlignment.Right
-    local BarBg = Instance.new("Frame"); BarBg.Parent = PingCard; BarBg.BackgroundColor3 = Color3.fromRGB(30, 30, 40); BarBg.Position = UDim2.new(0, 15, 0, 35); BarBg.Size = UDim2.new(1, -30, 0, 10); local BarBgC = Instance.new("UICorner"); BarBgC.CornerRadius = UDim.new(1, 0); BarBgC.Parent = BarBg
-    local BarFill = Instance.new("Frame"); BarFill.Parent = BarBg; BarFill.BackgroundColor3 = Theme.Accent; BarFill.Size = UDim2.new(0.5, 0, 1, 0); local BarFillC = Instance.new("UICorner"); BarFillC.CornerRadius = UDim.new(1, 0); BarFillC.Parent = BarFill
+    
+    local PingTitle = Instance.new("TextLabel")
+    PingTitle.Parent = PingCard
+    PingTitle.BackgroundTransparency = 1
+    PingTitle.Position = UDim2.new(0, 15, 0, 5)
+    PingTitle.Size = UDim2.new(1, -30, 0, 20)
+    PingTitle.Font = Theme.FontBold
+    PingTitle.Text = "Network Ping"
+    PingTitle.TextColor3 = Theme.TextDim
+    PingTitle.TextSize = 12
+    PingTitle.TextXAlignment = Enum.TextXAlignment.Left
+    
+    local PingValue = Instance.new("TextLabel")
+    PingValue.Parent = PingCard
+    PingValue.BackgroundTransparency = 1
+    PingValue.Position = UDim2.new(0, 15, 0, 5)
+    PingValue.Size = UDim2.new(1, -30, 0, 20)
+    PingValue.Font = Theme.FontBold
+    PingValue.Text = "0 ms"
+    PingValue.TextColor3 = Theme.Accent
+    PingValue.TextSize = 12
+    PingValue.TextXAlignment = Enum.TextXAlignment.Right
+    
+    local BarBg = Instance.new("Frame")
+    BarBg.Parent = PingCard
+    BarBg.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+    BarBg.Position = UDim2.new(0, 15, 0, 35)
+    BarBg.Size = UDim2.new(1, -30, 0, 10)
+    
+    local BarBgC = Instance.new("UICorner")
+    BarBgC.CornerRadius = UDim.new(1, 0)
+    BarBgC.Parent = BarBg
+    
+    local BarFill = Instance.new("Frame")
+    BarFill.Parent = BarBg
+    BarFill.BackgroundColor3 = Theme.Accent
+    BarFill.Size = UDim2.new(0.5, 0, 1, 0)
+    
+    local BarFillC = Instance.new("UICorner")
+    BarFillC.CornerRadius = UDim.new(1, 0)
+    BarFillC.Parent = BarFill
 
-    -- Stats Grid
-    local GridContainer = Instance.new("Frame"); GridContainer.Parent = parentFrame; GridContainer.BackgroundTransparency = 1; GridContainer.Size = UDim2.new(1,1, 0, 50); GridContainer.LayoutOrder = 2
-    local GL = Instance.new("UIGridLayout"); GL.Parent = GridContainer; GL.CellPadding = UDim2.new(0, 5, 0, 0); GL.CellSize = UDim2.new(0.493, 0, 1, 0); GL.SortOrder = Enum.SortOrder.LayoutOrder; GL.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    -- Stats Grid (FPS dan Memory)
+    local GridContainer = Instance.new("Frame")
+    GridContainer.Parent = parentFrame
+    GridContainer.BackgroundTransparency = 1
+    GridContainer.Size = UDim2.new(1,1, 0, 50)
+    GridContainer.LayoutOrder = 2
+    
+    local GL = Instance.new("UIGridLayout")
+    GL.Parent = GridContainer
+    GL.CellPadding = UDim2.new(0, 5, 0, 0)
+    GL.CellSize = UDim2.new(0.493, 0, 1, 0)
+    GL.SortOrder = Enum.SortOrder.LayoutOrder
+    GL.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    
     local FPSCard = CreateCard(GridContainer, UDim2.new(0,0,0,0), 1)
-    local FPSTitle = Instance.new("TextLabel"); FPSTitle.Parent = FPSCard; FPSTitle.BackgroundTransparency = 1; FPSTitle.Position = UDim2.new(0, 12, 0, 35); FPSTitle.Size = UDim2.new(1, -24, 0, 10); FPSTitle.Font = Theme.FontMain; FPSTitle.Text = "Visual FPS"; FPSTitle.TextColor3 = Theme.TextDim; FPSTitle.TextSize = 12; FPSTitle.TextXAlignment = Enum.TextXAlignment.Left
-    local FPSNum = Instance.new("TextLabel"); FPSNum.Parent = FPSCard; FPSNum.BackgroundTransparency = 1; FPSNum.Position = UDim2.new(0, 12, 0, 12); FPSNum.Size = UDim2.new(1, -24, 0, 10); FPSNum.Font = Theme.FontBold; FPSNum.Text = "60"; FPSNum.TextColor3 = Theme.Text; FPSNum.TextSize = 28; FPSNum.TextXAlignment = Enum.TextXAlignment.Left
+    
+    local FPSTitle = Instance.new("TextLabel")
+    FPSTitle.Parent = FPSCard
+    FPSTitle.BackgroundTransparency = 1
+    FPSTitle.Position = UDim2.new(0, 12, 0, 35)
+    FPSTitle.Size = UDim2.new(1, -24, 0, 10)
+    FPSTitle.Font = Theme.FontMain
+    FPSTitle.Text = "FPS Counter"
+    FPSTitle.TextColor3 = Theme.TextDim
+    FPSTitle.TextSize = 12
+    FPSTitle.TextXAlignment = Enum.TextXAlignment.Left
+    
+    local FPSNum = Instance.new("TextLabel")
+    FPSNum.Parent = FPSCard
+    FPSNum.BackgroundTransparency = 1
+    FPSNum.Position = UDim2.new(0, 12, 0, 12)
+    FPSNum.Size = UDim2.new(1, -24, 0, 10)
+    FPSNum.Font = Theme.FontBold
+    FPSNum.Text = "60"
+    FPSNum.TextColor3 = Theme.Text
+    FPSNum.TextSize = 28
+    FPSNum.TextXAlignment = Enum.TextXAlignment.Left
+    
     local MemCard = CreateCard(GridContainer, UDim2.new(0,0,0,0), 2)
-    local MemTitle = Instance.new("TextLabel"); MemTitle.Parent = MemCard; MemTitle.BackgroundTransparency = 1; MemTitle.Position = UDim2.new(0, 12, 0, 35); MemTitle.Size = UDim2.new(1, -24, 0, 10); MemTitle.Font = Theme.FontMain; MemTitle.Text = "Memory RAM"; MemTitle.TextColor3 = Theme.TextDim; MemTitle.TextSize = 12; MemTitle.TextXAlignment = Enum.TextXAlignment.Left
-    local MemNum = Instance.new("TextLabel"); MemNum.Parent = MemCard; MemNum.BackgroundTransparency = 1; MemNum.Position = UDim2.new(0, 12, 0, 12); MemNum.Size = UDim2.new(1, -24, 0, 10); MemNum.Font = Theme.FontBold; MemNum.Text = "0"; MemNum.TextColor3 = Theme.Text; MemNum.TextSize = 24; MemNum.TextXAlignment = Enum.TextXAlignment.Left
+    
+    local MemTitle = Instance.new("TextLabel")
+    MemTitle.Parent = MemCard
+    MemTitle.BackgroundTransparency = 1
+    MemTitle.Position = UDim2.new(0, 12, 0, 35)
+    MemTitle.Size = UDim2.new(1, -24, 0, 10)
+    MemTitle.Font = Theme.FontMain
+    MemTitle.Text = "Memory RAM Used"
+    MemTitle.TextColor3 = Theme.TextDim
+    MemTitle.TextSize = 12
+    MemTitle.TextXAlignment = Enum.TextXAlignment.Left
+    
+    local MemNum = Instance.new("TextLabel")
+    MemNum.Parent = MemCard
+    MemNum.BackgroundTransparency = 1
+    MemNum.Position = UDim2.new(0, 12, 0, 12)
+    MemNum.Size = UDim2.new(1, -24, 0, 10)
+    MemNum.Font = Theme.FontBold
+    MemNum.Text = "0"
+    MemNum.TextColor3 = Theme.Text
+    MemNum.TextSize = 24
+    MemNum.TextXAlignment = Enum.TextXAlignment.Left
 
-    -- Time
+    -- Card Waktu Server
     local TimeCard = CreateCard(parentFrame, UDim2.new(1, 0, 0, 55), 3) 
-    local TimeTitle = Instance.new("TextLabel"); TimeTitle.Parent = TimeCard; TimeTitle.BackgroundTransparency = 1; TimeTitle.Position = UDim2.new(0, 15, 0, 2); TimeTitle.Size = UDim2.new(1, -30, 0, 20); TimeTitle.Font = Theme.FontBold; TimeTitle.Text = "Time Server"; TimeTitle.TextColor3 = Theme.TextDim; TimeTitle.TextSize = 12; TimeTitle.TextXAlignment = Enum.TextXAlignment.Left
-    local ClockLabel = Instance.new("TextLabel"); ClockLabel.Parent = TimeCard; ClockLabel.BackgroundTransparency = 1; ClockLabel.Position = UDim2.new(0, 15, 0, 0); ClockLabel.Size = UDim2.new(1, -30, 0, 35); ClockLabel.Font = Theme.FontBold; ClockLabel.Text = "00:00:00"; ClockLabel.TextColor3 = Theme.Text; ClockLabel.TextSize = 34; ClockLabel.TextXAlignment = Enum.TextXAlignment.Right
-    local DateLabel = Instance.new("TextLabel"); DateLabel.Parent = TimeCard; DateLabel.BackgroundTransparency = 1; DateLabel.Position = UDim2.new(0, 15, 0, 30); DateLabel.Size = UDim2.new(1, -30, 0, 20); DateLabel.Font = Theme.FontMain; DateLabel.Text = "Monday, 1 Jan 2024"; DateLabel.TextColor3 = Theme.Accent; DateLabel.TextSize = 14; DateLabel.TextXAlignment = Enum.TextXAlignment.Right
+    
+    local TimeTitle = Instance.new("TextLabel")
+    TimeTitle.Parent = TimeCard
+    TimeTitle.BackgroundTransparency = 1
+    TimeTitle.Position = UDim2.new(0, 15, 0, 2)
+    TimeTitle.Size = UDim2.new(1, -30, 0, 20)
+    TimeTitle.Font = Theme.FontBold
+    TimeTitle.Text = "Time Server"
+    TimeTitle.TextColor3 = Theme.TextDim
+    TimeTitle.TextSize = 12
+    TimeTitle.TextXAlignment = Enum.TextXAlignment.Left
+    
+    local ClockLabel = Instance.new("TextLabel")
+    ClockLabel.Parent = TimeCard
+    ClockLabel.BackgroundTransparency = 1
+    ClockLabel.Position = UDim2.new(0, 15, 0, 0)
+    ClockLabel.Size = UDim2.new(1, -30, 0, 35)
+    ClockLabel.Font = Theme.FontBold
+    ClockLabel.Text = "00:00:00"
+    ClockLabel.TextColor3 = Theme.Text
+    ClockLabel.TextSize = 34
+    ClockLabel.TextXAlignment = Enum.TextXAlignment.Right
+    
+    local DateLabel = Instance.new("TextLabel")
+    DateLabel.Parent = TimeCard
+    DateLabel.BackgroundTransparency = 1
+    DateLabel.Position = UDim2.new(0, 15, 0, 30)
+    DateLabel.Size = UDim2.new(1, -30, 0, 20)
+    DateLabel.Font = Theme.FontMain
+    DateLabel.Text = "Monday, 1 Jan 2024"
+    DateLabel.TextColor3 = Theme.Accent
+    DateLabel.TextSize = 14
+    DateLabel.TextXAlignment = Enum.TextXAlignment.Right
 
-    -- Rejoin
+    -- Card Rejoin Server
     local RejoinCard = CreateCard(parentFrame, UDim2.new(1, 0, 0, 75), 4) 
-    local RejoinTitle = Instance.new("TextLabel"); RejoinTitle.Parent = RejoinCard; RejoinTitle.BackgroundTransparency = 1; RejoinTitle.Position = UDim2.new(0, 15, 0, 8); RejoinTitle.Size = UDim2.new(1, -30, 0, 10); RejoinTitle.Font = Theme.FontBold; RejoinTitle.Text = "Session Control"; RejoinTitle.TextColor3 = Theme.TextDim; RejoinTitle.TextSize = 12; RejoinTitle.TextXAlignment = Enum.TextXAlignment.Left
-    local RjBtn = Instance.new("TextButton"); RjBtn.Parent = RejoinCard; RjBtn.BackgroundColor3 = Theme.Sidebar; RjBtn.Position = UDim2.new(0, 15, 0, 30); RjBtn.Size = UDim2.new(1, -30, 0, 35); RjBtn.Font = Theme.FontBold; RjBtn.Text = "Rejoin Server"; RjBtn.TextColor3 = Theme.Accent; RjBtn.TextSize = 14; RjBtn.AutoButtonColor = true
-    local RjCorner = Instance.new("UICorner"); RjCorner.CornerRadius = UDim.new(0, 8); RjCorner.Parent = RjBtn
-    local RjStroke = Instance.new("UIStroke"); RjStroke.Parent = RjBtn; RjStroke.Color = Theme.Accent; RjStroke.Thickness = 1; RjStroke.Transparency = 0.7; RjStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    
+    local RejoinTitle = Instance.new("TextLabel")
+    RejoinTitle.Parent = RejoinCard
+    RejoinTitle.BackgroundTransparency = 1
+    RejoinTitle.Position = UDim2.new(0, 15, 0, 8)
+    RejoinTitle.Size = UDim2.new(1, -30, 0, 10)
+    RejoinTitle.Font = Theme.FontBold
+    RejoinTitle.Text = "Session Control"
+    RejoinTitle.TextColor3 = Theme.TextDim
+    RejoinTitle.TextSize = 12
+    RejoinTitle.TextXAlignment = Enum.TextXAlignment.Left
+    
+    local RjBtn = Instance.new("TextButton")
+    RjBtn.Parent = RejoinCard
+    RjBtn.BackgroundColor3 = Theme.Sidebar
+    RjBtn.Position = UDim2.new(0, 15, 0, 30)
+    RjBtn.Size = UDim2.new(1, -30, 0, 35)
+    RjBtn.Font = Theme.FontBold
+    RjBtn.Text = "Rejoin Server"
+    RjBtn.TextColor3 = Theme.Accent
+    RjBtn.TextSize = 14
+    RjBtn.AutoButtonColor = true
+    
+    local RjCorner = Instance.new("UICorner")
+    RjCorner.CornerRadius = UDim.new(0, 8)
+    RjCorner.Parent = RjBtn
+    
+    local RjStroke = Instance.new("UIStroke")
+    RjStroke.Parent = RjBtn
+    RjStroke.Color = Theme.Accent
+    RjStroke.Thickness = 1
+    RjStroke.Transparency = 0.7
+    RjStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 
     RjBtn.MouseButton1Click:Connect(function()
-        local TS = game:GetService("TeleportService"); local LP = game:GetService("Players").LocalPlayer
-        RjBtn.Text = "Rejoining..."; RjBtn.BackgroundTransparency = 0.5
+        local TS = game:GetService("TeleportService")
+        local LP = game:GetService("Players").LocalPlayer
+        RjBtn.Text = "Rejoining..."
+        RjBtn.BackgroundTransparency = 0.5
         TS:TeleportToPlaceInstance(game.PlaceId, game.JobId, LP)
     end)
 
-    -- [OPTIMIZED] Ping, Time & FPS Logic
+    -- [OPTIMIZED] Logic untuk Ping, Time & FPS
     task.spawn(function()
         local LocalPlayer = Players.LocalPlayer
         
@@ -260,16 +585,22 @@ local function BuildInfoTab(parentFrame)
         -- Loop biasa untuk Ping, Memory, Time (Hemat Resource)
         while parentFrame.Parent do
             -- Ping & Bar
-            local rawPing = LocalPlayer:GetNetworkPing(); local ping = math.round(rawPing * 1000) 
+            local rawPing = LocalPlayer:GetNetworkPing()
+            local ping = math.round(rawPing * 1000) 
             PingValue.Text = ping .. " ms"
+            
             local barSize = math.clamp(ping / 300, 0.05, 1) 
-            TweenService:Create(BarFill, TweenInfo.new(0.5, Enum.EasingStyle.Sine), {Size = UDim2.new(barSize, 0, 1, 0), BackgroundColor3 = ping < 100 and Color3.fromRGB(100, 255, 100) or ping < 200 and Color3.fromRGB(255, 200, 0) or Color3.fromRGB(255, 80, 80)}):Play()
+            TweenService:Create(BarFill, TweenInfo.new(0.5, Enum.EasingStyle.Sine), {
+                Size = UDim2.new(barSize, 0, 1, 0), 
+                BackgroundColor3 = ping < 100 and Color3.fromRGB(100, 255, 100) or ping < 200 and Color3.fromRGB(255, 200, 0) or Color3.fromRGB(255, 80, 80)
+            }):Play()
             
             -- Memory
             MemNum.Text = tostring(math.floor(Stats:GetTotalMemoryUsageMb()))
             
             -- Time
-            ClockLabel.Text = os.date("%H:%M:%S"); DateLabel.Text = os.date("%A, %d %B %Y")
+            ClockLabel.Text = os.date("%H:%M:%S")
+            DateLabel.Text = os.date("%A, %d %B %Y")
             
             task.wait(1) -- Update tiap 1 detik cukup
         end
@@ -280,19 +611,93 @@ end
 
 --// [BAGIAN 9] KONTEN TAB: MOVEMENT
 local function BuildMovementTab(parentFrame)
-    local Layout = Instance.new("UIListLayout"); Layout.Parent = parentFrame; Layout.SortOrder = Enum.SortOrder.LayoutOrder; Layout.Padding = UDim.new(0, 10)
-    local Padding = Instance.new("UIPadding"); Padding.Parent = parentFrame; Padding.PaddingTop = UDim.new(0, 15); Padding.PaddingLeft = UDim.new(0, 15); Padding.PaddingRight = UDim.new(0, 15)
+    local Layout = Instance.new("UIListLayout")
+    Layout.Parent = parentFrame
+    Layout.SortOrder = Enum.SortOrder.LayoutOrder
+    Layout.Padding = UDim.new(0, 10)
+    
+    local Padding = Instance.new("UIPadding")
+    Padding.Parent = parentFrame
+    Padding.PaddingTop = UDim.new(0, 15)
+    Padding.PaddingLeft = UDim.new(0, 15)
+    Padding.PaddingRight = UDim.new(0, 15)
 
-    -- Helper Control Card (Fly, Walk, Jump)
+    -- Helper Control Card (Untuk Fly, Walk, Jump dengan tombol +/-)
     local function CreateControlCard(title, defaultVal, onToggle, onValChange, onUpdate)
         local Card = CreateCard(parentFrame, UDim2.new(1, 0, 0, 50), 0)
-        local TitleLbl = Instance.new("TextLabel"); TitleLbl.Parent = Card; TitleLbl.BackgroundTransparency = 1; TitleLbl.Position = UDim2.new(0, 15, 0, 0); TitleLbl.Size = UDim2.new(0, 70, 1, 0); TitleLbl.Font = Theme.FontBold; TitleLbl.Text = title; TitleLbl.TextColor3 = Theme.Text; TitleLbl.TextSize = 14; TitleLbl.TextXAlignment = Enum.TextXAlignment.Left
         
-        local Controls = Instance.new("Frame"); Controls.Parent = Card; Controls.BackgroundTransparency = 1; Controls.Position = UDim2.new(1, -170, 0, 0); Controls.Size = UDim2.new(0, 160, 1, 0)
-        local MinusBtn = Instance.new("TextButton"); MinusBtn.Parent = Controls; MinusBtn.BackgroundColor3 = Theme.Sidebar; MinusBtn.Position = UDim2.new(0, 0, 0.5, -12); MinusBtn.Size = UDim2.new(0, 24, 0, 24); MinusBtn.Font = Theme.FontBold; MinusBtn.Text = "-"; MinusBtn.TextColor3 = Theme.Accent; MinusBtn.TextSize = 16; local M_Corner = Instance.new("UICorner"); M_Corner.CornerRadius = UDim.new(0, 6); M_Corner.Parent = MinusBtn
-        local ValTxt = Instance.new("TextLabel"); ValTxt.Parent = Controls; ValTxt.BackgroundTransparency = 1; ValTxt.Position = UDim2.new(0, 28, 0.5, -12); ValTxt.Size = UDim2.new(0, 30, 0, 24); ValTxt.Font = Theme.FontBold; ValTxt.Text = tostring(defaultVal); ValTxt.TextColor3 = Theme.Text; ValTxt.TextSize = 14
-        local PlusBtn = Instance.new("TextButton"); PlusBtn.Parent = Controls; PlusBtn.BackgroundColor3 = Theme.Sidebar; PlusBtn.Position = UDim2.new(0, 62, 0.5, -12); PlusBtn.Size = UDim2.new(0, 24, 0, 24); PlusBtn.Font = Theme.FontBold; PlusBtn.Text = "+"; PlusBtn.TextColor3 = Theme.Accent; PlusBtn.TextSize = 16; local P_Corner = Instance.new("UICorner"); P_Corner.CornerRadius = UDim.new(0, 6); P_Corner.Parent = PlusBtn
-        local Toggle = Instance.new("TextButton"); Toggle.Parent = Controls; Toggle.BackgroundColor3 = Theme.Sidebar; Toggle.Position = UDim2.new(1, -55, 0.5, -12); Toggle.Size = UDim2.new(0, 50, 0, 24); Toggle.Font = Theme.FontBold; Toggle.Text = "OFF"; Toggle.TextColor3 = Theme.TextDim; Toggle.TextSize = 11; local FT_Corner = Instance.new("UICorner"); FT_Corner.CornerRadius = UDim.new(0, 6); FT_Corner.Parent = Toggle; local FT_Stroke = Instance.new("UIStroke"); FT_Stroke.Parent = Toggle; FT_Stroke.Color = Theme.TextDim; FT_Stroke.Transparency = 0.8; FT_Stroke.Thickness = 1
+        local TitleLbl = Instance.new("TextLabel")
+        TitleLbl.Parent = Card
+        TitleLbl.BackgroundTransparency = 1
+        TitleLbl.Position = UDim2.new(0, 15, 0, 0)
+        TitleLbl.Size = UDim2.new(0, 70, 1, 0)
+        TitleLbl.Font = Theme.FontBold
+        TitleLbl.Text = title
+        TitleLbl.TextColor3 = Theme.Text
+        TitleLbl.TextSize = 14
+        TitleLbl.TextXAlignment = Enum.TextXAlignment.Left
+        
+        local Controls = Instance.new("Frame")
+        Controls.Parent = Card
+        Controls.BackgroundTransparency = 1
+        Controls.Position = UDim2.new(1, -170, 0, 0)
+        Controls.Size = UDim2.new(0, 160, 1, 0)
+        
+        -- Tombol Kurang (-)
+        local MinusBtn = Instance.new("TextButton")
+        MinusBtn.Parent = Controls
+        MinusBtn.BackgroundColor3 = Theme.Sidebar
+        MinusBtn.Position = UDim2.new(0, 0, 0.5, -12)
+        MinusBtn.Size = UDim2.new(0, 24, 0, 24)
+        MinusBtn.Font = Theme.FontBold
+        MinusBtn.Text = "-"
+        MinusBtn.TextColor3 = Theme.Accent
+        MinusBtn.TextSize = 16
+        local M_Corner = Instance.new("UICorner"); M_Corner.CornerRadius = UDim.new(0, 6); M_Corner.Parent = MinusBtn
+        
+        -- Label Nilai
+        local ValTxt = Instance.new("TextLabel")
+        ValTxt.Parent = Controls
+        ValTxt.BackgroundTransparency = 1
+        ValTxt.Position = UDim2.new(0, 28, 0.5, -12)
+        ValTxt.Size = UDim2.new(0, 30, 0, 24)
+        ValTxt.Font = Theme.FontBold
+        ValTxt.Text = tostring(defaultVal)
+        ValTxt.TextColor3 = Theme.Text
+        ValTxt.TextSize = 14
+        
+        -- Tombol Tambah (+)
+        local PlusBtn = Instance.new("TextButton")
+        PlusBtn.Parent = Controls
+        PlusBtn.BackgroundColor3 = Theme.Sidebar
+        PlusBtn.Position = UDim2.new(0, 62, 0.5, -12)
+        PlusBtn.Size = UDim2.new(0, 24, 0, 24)
+        PlusBtn.Font = Theme.FontBold
+        PlusBtn.Text = "+"
+        PlusBtn.TextColor3 = Theme.Accent
+        PlusBtn.TextSize = 16
+        local P_Corner = Instance.new("UICorner"); P_Corner.CornerRadius = UDim.new(0, 6); P_Corner.Parent = PlusBtn
+        
+        -- Tombol ON/OFF
+        local Toggle = Instance.new("TextButton")
+        Toggle.Parent = Controls
+        Toggle.BackgroundColor3 = Theme.Sidebar
+        Toggle.Position = UDim2.new(1, -55, 0.5, -12)
+        Toggle.Size = UDim2.new(0, 50, 0, 24)
+        Toggle.Font = Theme.FontBold
+        Toggle.Text = "OFF"
+        Toggle.TextColor3 = Theme.TextDim
+        Toggle.TextSize = 11
+        
+        local FT_Corner = Instance.new("UICorner")
+        FT_Corner.CornerRadius = UDim.new(0, 6)
+        FT_Corner.Parent = Toggle
+        
+        local FT_Stroke = Instance.new("UIStroke")
+        FT_Stroke.Parent = Toggle
+        FT_Stroke.Color = Theme.TextDim
+        FT_Stroke.Transparency = 0.8
+        FT_Stroke.Thickness = 1
 
         local isActive = false
         local currentVal = defaultVal
@@ -315,9 +720,17 @@ local function BuildMovementTab(parentFrame)
         local function SetToggleState(state)
             isActive = state
             if isActive then
-                Toggle.Text = "ON"; Toggle.TextColor3 = Theme.Main; Toggle.BackgroundColor3 = Theme.Accent; FT_Stroke.Color = Theme.Accent; FT_Stroke.Transparency = 0
+                Toggle.Text = "ON"
+                Toggle.TextColor3 = Theme.Main
+                Toggle.BackgroundColor3 = Theme.Accent
+                FT_Stroke.Color = Theme.Accent
+                FT_Stroke.Transparency = 0
             else
-                Toggle.Text = "OFF"; Toggle.TextColor3 = Theme.TextDim; Toggle.BackgroundColor3 = Theme.Sidebar; FT_Stroke.Color = Theme.TextDim; FT_Stroke.Transparency = 0.8
+                Toggle.Text = "OFF"
+                Toggle.TextColor3 = Theme.TextDim
+                Toggle.BackgroundColor3 = Theme.Sidebar
+                FT_Stroke.Color = Theme.TextDim
+                FT_Stroke.Transparency = 0.8
             end
             onToggle(isActive, currentVal)
         end
@@ -327,36 +740,57 @@ local function BuildMovementTab(parentFrame)
         return {
             SetState = SetToggleState,
             Reset = function() 
-                currentVal = defaultVal; ValTxt.Text = tostring(currentVal); SetToggleState(false)
+                currentVal = defaultVal
+                ValTxt.Text = tostring(currentVal)
+                SetToggleState(false)
             end
         }
     end
 
-    -- Helper Switch Card (Noclip & Inf Jump) - REFACTORED MENJADI CARD DE DENGAN SWITCH DI KANAN
+    -- Helper Switch Card (Noclip & Inf Jump)
     local function CreateSwitchCard(text, callback)
-        -- 1. The Main Card Container
         local Card = CreateCard(parentFrame, UDim2.new(1, 0, 0, 35), 0)
 
-        -- 2. The Title on the left
-        local TitleLbl = Instance.new("TextLabel"); TitleLbl.Parent = Card; TitleLbl.BackgroundTransparency = 1; TitleLbl.Position = UDim2.new(0, 15, 0, 0); TitleLbl.Size = UDim2.new(0, 150, 1, 0); TitleLbl.Font = Theme.FontBold; TitleLbl.Text = text; TitleLbl.TextColor3 = Theme.Text; TitleLbl.TextSize = 14; TitleLbl.TextXAlignment = Enum.TextXAlignment.Left
+        local TitleLbl = Instance.new("TextLabel")
+        TitleLbl.Parent = Card
+        TitleLbl.BackgroundTransparency = 1
+        TitleLbl.Position = UDim2.new(0, 15, 0, 0)
+        TitleLbl.Size = UDim2.new(0, 150, 1, 0)
+        TitleLbl.Font = Theme.FontBold
+        TitleLbl.Text = text
+        TitleLbl.TextColor3 = Theme.Text
+        TitleLbl.TextSize = 14
+        TitleLbl.TextXAlignment = Enum.TextXAlignment.Left
 
-        -- 3. The Switch Container Area on the right (Clickable)
-        local SwitchBtn = Instance.new("TextButton"); SwitchBtn.Parent = Card; SwitchBtn.BackgroundTransparency = 1; SwitchBtn.Position = UDim2.new(1, -65, 0.5, -12); SwitchBtn.Size = UDim2.new(0, 50, 0, 24); SwitchBtn.Text = ""
+        local SwitchBtn = Instance.new("TextButton")
+        SwitchBtn.Parent = Card
+        SwitchBtn.BackgroundTransparency = 1
+        SwitchBtn.Position = UDim2.new(1, -65, 0.5, -12)
+        SwitchBtn.Size = UDim2.new(0, 50, 0, 24)
+        SwitchBtn.Text = ""
 
-        -- 4. The Switch Graphics (Track & Knob)
-        local Sw = Instance.new("Frame"); Sw.Parent = SwitchBtn; Sw.BackgroundColor3 = Color3.fromRGB(20, 25, 35); Sw.Position = UDim2.new(0, 0, 0.5, -10); Sw.Size = UDim2.new(0, 50, 0, 20); local SC = Instance.new("UICorner"); SC.CornerRadius = UDim.new(1,0); SC.Parent = Sw
-        local K = Instance.new("Frame"); K.Parent = Sw; K.BackgroundColor3 = Theme.TextDim; K.Position = UDim2.new(0, 2, 0.5, -8); K.Size = UDim2.new(0, 16, 0, 16); local KC = Instance.new("UICorner"); KC.CornerRadius = UDim.new(1,0); KC.Parent = K
+        local Sw = Instance.new("Frame")
+        Sw.Parent = SwitchBtn
+        Sw.BackgroundColor3 = Color3.fromRGB(20, 25, 35)
+        Sw.Position = UDim2.new(0, 0, 0.5, -10)
+        Sw.Size = UDim2.new(0, 50, 0, 20)
+        local SC = Instance.new("UICorner"); SC.CornerRadius = UDim.new(1,0); SC.Parent = Sw
+        
+        local K = Instance.new("Frame")
+        K.Parent = Sw
+        K.BackgroundColor3 = Theme.TextDim
+        K.Position = UDim2.new(0, 2, 0.5, -8)
+        K.Size = UDim2.new(0, 16, 0, 16)
+        local KC = Instance.new("UICorner"); KC.CornerRadius = UDim.new(1,0); KC.Parent = K
 
         local toggled = false
         
         local function SetState(state)
             toggled = state
             if state then
-                -- ON Animation
                 TweenService:Create(K, TweenInfo.new(0.2), {Position = UDim2.new(1, -18, 0.5, -8), BackgroundColor3 = Theme.Main}):Play()
                 TweenService:Create(Sw, TweenInfo.new(0.2), {BackgroundColor3 = Theme.Accent}):Play()
             else
-                -- OFF Animation
                 TweenService:Create(K, TweenInfo.new(0.2), {Position = UDim2.new(0, 2, 0.5, -8), BackgroundColor3 = Theme.TextDim}):Play()
                 TweenService:Create(Sw, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(20, 25, 35)}):Play()
             end
@@ -380,19 +814,35 @@ local function BuildMovementTab(parentFrame)
             local hum = char and char:FindFirstChildOfClass("Humanoid")
             local cam = workspace.CurrentCamera
             if not root or not hum then return end
-            bv = Instance.new("BodyVelocity"); bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge); bv.Velocity = Vector3.new(0,0,0); bv.Parent = root
-            bg = Instance.new("BodyGyro"); bg.MaxTorque = Vector3.new(math.huge, math.huge, math.huge); bg.P = 10000; bg.D = 100; bg.CFrame = root.CFrame; bg.Parent = root
+            
+            bv = Instance.new("BodyVelocity")
+            bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+            bv.Velocity = Vector3.new(0,0,0)
+            bv.Parent = root
+            
+            bg = Instance.new("BodyGyro")
+            bg.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
+            bg.P = 10000; bg.D = 100
+            bg.CFrame = root.CFrame
+            bg.Parent = root
+            
             hum.PlatformStand = true
+            
             flyLoop = RunService.Heartbeat:Connect(function()
                 if not flying or not char or not root.Parent then Session.StopFly() return end
-                local moveDir = hum.MoveDirection; local camCF = cam.CFrame
+                
+                local moveDir = hum.MoveDirection
+                local camCF = cam.CFrame
+                
                 if moveDir.Magnitude > 0 then
                     local relDir = camCF:VectorToObjectSpace(moveDir)
                     local forwardVec = camCF.LookVector * -relDir.Z 
                     local rightVec = camCF.RightVector * relDir.X
                     local targetVel = (forwardVec + rightVec) * (flySpeed * 50)
                     bv.Velocity = bv.Velocity:Lerp(targetVel, 0.2)
-                else bv.Velocity = Vector3.new(0,0,0) end
+                else 
+                    bv.Velocity = Vector3.new(0,0,0) 
+                end
                 bg.CFrame = cam.CFrame
             end)
         end
@@ -401,7 +851,9 @@ local function BuildMovementTab(parentFrame)
     
     Session.StopFly = function()
         flying = false
-        if bv then bv:Destroy() end; if bg then bg:Destroy() end; if flyLoop then flyLoop:Disconnect() end
+        if bv then bv:Destroy() end
+        if bg then bg:Destroy() end
+        if flyLoop then flyLoop:Disconnect() end
         local char = Players.LocalPlayer.Character
         if char and char:FindFirstChild("Humanoid") then char.Humanoid.PlatformStand = false end
     end
@@ -523,7 +975,17 @@ local function BuildMovementTab(parentFrame)
     end
 
     -- >>> 6. RESET ALL BUTTON <<<
-    local ResetBtn = Instance.new("TextButton"); ResetBtn.Parent = parentFrame; ResetBtn.BackgroundColor3 = Theme.Red; ResetBtn.BackgroundTransparency = 0.2; ResetBtn.Size = UDim2.new(1, 0, 0, 35); ResetBtn.Font = Theme.FontBold; ResetBtn.Text = "RESET DEFAULT"; ResetBtn.TextColor3 = Theme.Text; ResetBtn.TextSize = 12; ResetBtn.AutoButtonColor = true
+    local ResetBtn = Instance.new("TextButton")
+    ResetBtn.Parent = parentFrame
+    ResetBtn.BackgroundColor3 = Theme.Red
+    ResetBtn.BackgroundTransparency = 0.2
+    ResetBtn.Size = UDim2.new(1, 0, 0, 35)
+    ResetBtn.Font = Theme.FontBold
+    ResetBtn.Text = "RESET DEFAULT"
+    ResetBtn.TextColor3 = Theme.Text
+    ResetBtn.TextSize = 12
+    ResetBtn.AutoButtonColor = true
+    
     local RC = Instance.new("UICorner"); RC.CornerRadius = UDim.new(0, 8); RC.Parent = ResetBtn
     local RS = Instance.new("UIStroke"); RS.Parent = ResetBtn; RS.Color = Theme.Red; RS.Thickness = 1; RS.Transparency = 0.5
     
@@ -573,103 +1035,119 @@ local function BuildTeleportTab(parentFrame)
     local DC = Instance.new("UICorner"); DC.CornerRadius = UDim.new(0, 6); DC.Parent = DropBtn
     local DS = Instance.new("UIStroke"); DS.Parent = DropBtn; DS.Color = Theme.Separator; DS.Thickness = 1; DS.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 
-    -- Tombol Refresh (Style TextButton)
+    -- Tombol Refresh
     local RefreshBtn = Instance.new("TextButton"); RefreshBtn.Parent = DropContainer; RefreshBtn.BackgroundColor3 = Color3.fromRGB(100, 255, 100); RefreshBtn.Position = UDim2.new(1, -70, 0, 0); RefreshBtn.Size = UDim2.new(0, 70, 1, 0); RefreshBtn.ZIndex = 5
     RefreshBtn.Font = Theme.FontBold; RefreshBtn.Text = "REFRESH"; RefreshBtn.TextColor3 = Theme.Main; RefreshBtn.TextSize = 11
     local RC = Instance.new("UICorner"); RC.CornerRadius = UDim.new(0, 6); RC.Parent = RefreshBtn
 
-    -- Label Status (Notifikasi)
-    local StatusLbl = Instance.new("TextLabel"); StatusLbl.Parent = TpCard; StatusLbl.BackgroundTransparency = 1; StatusLbl.Position = UDim2.new(0, 15, 0, 68); StatusLbl.Size = UDim2.new(1, -100, 0, 15); StatusLbl.Font = Theme.FontMain; StatusLbl.Text = ""; StatusLbl.TextColor3 = ColorError; StatusLbl.TextSize = 11; StatusLbl.TextXAlignment = Enum.TextXAlignment.Left
+    -- Label Status
+    local StatusLbl = Instance.new("TextLabel"); StatusLbl.Parent = TpCard; StatusLbl.BackgroundTransparency = 1; StatusLbl.Position = UDim2.new(0, 15, 0, 68); StatusLbl.Size = UDim2.new(1, -100, 0, 15); StatusLbl.Font = Theme.FontMain; StatusLbl.Text = ""; StatusLbl.TextColor3 = ColorError; StatusLbl.TextSize = 13; StatusLbl.TextXAlignment = Enum.TextXAlignment.Left
 
     -- Tombol Execute Teleport
     local ExecBtn = Instance.new("TextButton"); ExecBtn.Parent = TpCard; ExecBtn.BackgroundColor3 = Theme.Accent; ExecBtn.Position = UDim2.new(1, -95, 0, 70); ExecBtn.Size = UDim2.new(0, 80, 0, 25); ExecBtn.Font = Theme.FontBold; ExecBtn.Text = "TELEPORT"; ExecBtn.TextColor3 = Theme.Main; ExecBtn.TextSize = 11; ExecBtn.ZIndex = 2
     local EC = Instance.new("UICorner"); EC.CornerRadius = UDim.new(0, 6); EC.Parent = ExecBtn
 
     -- List Frame
-    local ListFrame = Instance.new("ScrollingFrame"); ListFrame.Parent = TpCard; ListFrame.Visible = false; ListFrame.BackgroundColor3 = Theme.Sidebar; ListFrame.BorderSizePixel = 0; ListFrame.Position = UDim2.new(0, 15, 0, 68); ListFrame.Size = UDim2.new(1, -65, 0, 120); ListFrame.ZIndex = 20; ListFrame.ScrollBarThickness = 2
+    local ListFrame = Instance.new("ScrollingFrame"); ListFrame.Parent = TpCard; ListFrame.Visible = false; ListFrame.BackgroundColor3 = Theme.Sidebar; ListFrame.BorderSizePixel = 0; ListFrame.Position = UDim2.new(0, 15, 0, 68); ListFrame.Size = UDim2.new(0.90, -65, 0, 120); ListFrame.ZIndex = 20; ListFrame.ScrollBarThickness = 2
     local LS = Instance.new("UIStroke"); LS.Parent = ListFrame; LS.Color = Theme.Accent; LS.Thickness = 1
     local LL = Instance.new("UIListLayout"); LL.Parent = ListFrame; LL.SortOrder = Enum.SortOrder.LayoutOrder
 
     local selectedPlayer = nil
     local isDropdownOpen = false
-    local statusTimer = nil -- Variabel untuk menyimpan timer notifikasi
+    local statusTimer = nil
+    
+    -- [LOGIKA BARU] Variable untuk menyimpan koneksi input
+    local clickOutsideConnection = nil
 
-    -- [FUNGSI BARU] Tampilkan Notif & Auto Hilang
     local function ShowStatus(text, color)
-        StatusLbl.Text = text
-        StatusLbl.TextColor3 = color
-        
-        -- Reset timer lama jika ada (supaya tidak bentrok kalau diklik cepat)
+        StatusLbl.Text = text; StatusLbl.TextColor3 = color
         if statusTimer then task.cancel(statusTimer) end
-        
-        -- Buat timer baru: Hilang setelah 2 detik
-        statusTimer = task.delay(2, function()
-            StatusLbl.Text = ""
-            statusTimer = nil
-        end)
+        statusTimer = task.delay(2, function() StatusLbl.Text = ""; statusTimer = nil end)
     end
 
+    -- [MODIFIKASI] Fungsi Toggle Dropdown dengan fitur "Click Outside"
     local function ToggleDropdown(forceClose)
+        -- 1. Atur status buka/tutup
         if forceClose then isDropdownOpen = false else isDropdownOpen = not isDropdownOpen end
         ListFrame.Visible = isDropdownOpen
+        
+        -- 2. Bersihkan koneksi lama (agar tidak menumpuk)
+        if clickOutsideConnection then 
+            clickOutsideConnection:Disconnect() 
+            clickOutsideConnection = nil 
+        end
+
+        -- 3. Jika Dropdown TERBUKA, pasang "mata-mata" klik mouse
+        if isDropdownOpen then
+            clickOutsideConnection = UserInputService.InputBegan:Connect(function(input)
+                -- Hanya proses klik kiri mouse atau sentuhan layar
+                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                    
+                    -- Cek Posisi Mouse
+                    local mousePos = Vector2.new(input.Position.X, input.Position.Y)
+                    
+                    -- Ambil posisi & ukuran ListFrame (Kotak daftar pemain)
+                    local listPos = ListFrame.AbsolutePosition
+                    local listSize = ListFrame.AbsoluteSize
+                    
+                    -- Ambil posisi & ukuran DropBtn (Tombol pembuka)
+                    local btnPos = DropBtn.AbsolutePosition
+                    local btnSize = DropBtn.AbsoluteSize
+
+                    -- Fungsi kecil untuk mengecek apakah mouse ada di dalam kotak
+                    local function isInRect(mPos, rPos, rSize)
+                        return mPos.X >= rPos.X and mPos.X <= (rPos.X + rSize.X) and
+                               mPos.Y >= rPos.Y and mPos.Y <= (rPos.Y + rSize.Y)
+                    end
+
+                    -- LOGIKA UTAMA:
+                    -- Jika klik mouse TIDAK di dalam ListFrame DAN TIDAK di dalam Tombol Dropdown...
+                    if not isInRect(mousePos, listPos, listSize) and not isInRect(mousePos, btnPos, btnSize) then
+                        -- ...Maka tutup dropdownnya!
+                        ToggleDropdown(true)
+                    end
+                end
+            end)
+        end
     end
 
     local function RefreshList()
         for _, v in pairs(ListFrame:GetChildren()) do if v:IsA("TextButton") or v:IsA("TextLabel") then v:Destroy() end end
-        
         local count = 0
         for _, p in pairs(Players:GetPlayers()) do
             if p ~= Players.LocalPlayer then
                 count = count + 1
                 local PBtn = Instance.new("TextButton"); PBtn.Parent = ListFrame; PBtn.BackgroundColor3 = Theme.Main; PBtn.Size = UDim2.new(1, 0, 0, 25); PBtn.Font = Theme.FontMain; PBtn.Text = "  " .. p.Name .. " (" .. p.DisplayName .. ")"; PBtn.TextColor3 = Theme.TextDim; PBtn.TextSize = 12; PBtn.TextXAlignment = Enum.TextXAlignment.Left; PBtn.AutoButtonColor = true; PBtn.ZIndex = 21
-                
                 PBtn.MouseButton1Click:Connect(function()
                     selectedPlayer = p
                     DropBtn.Text = "  " .. p.Name
                     DropBtn.TextColor3 = Theme.Text
-                    ToggleDropdown(true)
-                    ShowStatus("", Theme.Text) -- Reset status saat pilih nama
+                    ToggleDropdown(true) -- Tutup otomatis setelah memilih
+                    ShowStatus("", Theme.Text)
                 end)
             end
         end
-        
         if count == 0 then
             local Empty = Instance.new("TextLabel"); Empty.Parent = ListFrame; Empty.Size = UDim2.new(1,0,0,25); Empty.BackgroundTransparency=1; Empty.Text="No other players"; Empty.TextColor3=Theme.TextDim; Empty.ZIndex=21
         end
         ListFrame.CanvasSize = UDim2.new(0, 0, 0, LL.AbsoluteContentSize.Y)
     end
 
-    -- Event Handlers
     DropBtn.MouseButton1Click:Connect(function() ToggleDropdown() end)
-    
-    RefreshBtn.MouseButton1Click:Connect(function()
-        ToggleDropdown(true)
-        RefreshList()
-        
-        -- Panggil Fungsi Notif Otomatis
+
+	RefreshBtn.MouseButton1Click:Connect(function()
+        -- HAPUS baris ToggleDropdown(...) yang ada sebelumnya di sini.
+        RefreshList() -- Cukup jalankan fungsi refresh list saja
         ShowStatus("List Refreshed!", ColorSuccess)
-        
-        local oldColor = RefreshBtn.BackgroundColor3
-        RefreshBtn.BackgroundColor3 = Theme.Text
-        task.wait(0.1)
-        RefreshBtn.BackgroundColor3 = oldColor
+        local oldColor = RefreshBtn.BackgroundColor3; RefreshBtn.BackgroundColor3 = Theme.Text; task.wait(0.1); RefreshBtn.BackgroundColor3 = oldColor
     end)
 
     ExecBtn.MouseButton1Click:Connect(function()
-        if not selectedPlayer then
-            ShowStatus("Select a player first!", ColorError)
-            return
-        end
-        
+        if not selectedPlayer then ShowStatus("Select a player first!", ColorError) return end
         local target = Players:FindFirstChild(selectedPlayer.Name)
-        if not target then
-            ShowStatus("Player is Offline/Left.", ColorError)
-            return
-        end
-        
+        if not target then ShowStatus("Player is Offline/Left.", ColorError) return end
         local targetChar = target.Character
         local localChar = Players.LocalPlayer.Character
-        
         if targetChar and targetChar:FindFirstChild("HumanoidRootPart") and localChar and localChar:FindFirstChild("HumanoidRootPart") then
             localChar.HumanoidRootPart.CFrame = targetChar.HumanoidRootPart.CFrame * CFrame.new(0, 0, 3)
             ShowStatus("Teleported to " .. target.Name, ColorSuccess)
@@ -681,7 +1159,7 @@ local function BuildTeleportTab(parentFrame)
     RefreshList()
 end
 
---// [BAGIAN 10] EKSEKUSI PEMBUATAN TAB
+--// [BAGIAN 11] EKSEKUSI PEMBUATAN TAB
 local TabInfo = CreateTabBtn("Info", true)
 BuildInfoTab(TabInfo)
 
@@ -692,38 +1170,126 @@ local TabTeleports = CreateTabBtn("Teleports", false)
 BuildTeleportTab(TabTeleports)
 
 local TabSettings = CreateTabBtn("Settings", false)
-local SettingsLabel = Instance.new("TextLabel"); SettingsLabel.Parent = TabSettings; SettingsLabel.BackgroundTransparency = 1; SettingsLabel.Size = UDim2.new(0, 0, 0, 20); SettingsLabel.Font = Theme.FontBold; SettingsLabel.Text = "Interface Scale (DPI)"; SettingsLabel.TextColor3 = Color3.fromRGB(255, 255, 255); SettingsLabel.TextSize = 14; SettingsLabel.TextXAlignment = Enum.TextXAlignment.Left
-local DPIBtn = Instance.new("TextButton"); DPIBtn.Parent = TabSettings; DPIBtn.BackgroundColor3 = Color3.fromRGB(35, 40, 55); DPIBtn.Size = UDim2.new(1, 0, 0, 40); DPIBtn.Font = Theme.FontBold; DPIBtn.Text = IsMobile and "   Size: 75% (Medium)" or "   Size: 100% (Default)"; DPIBtn.TextColor3 = Color3.fromRGB(160, 180, 190); DPIBtn.TextSize = 12; DPIBtn.TextXAlignment = Enum.TextXAlignment.Left; local DPIB_C = Instance.new("UICorner"); DPIB_C.CornerRadius = UDim.new(0,8); DPIB_C.Parent = DPIBtn
+
+local SettingsLabel = Instance.new("TextLabel")
+SettingsLabel.Parent = TabSettings
+SettingsLabel.BackgroundTransparency = 1
+SettingsLabel.Size = UDim2.new(0, 0, 0, 20)
+SettingsLabel.Font = Theme.FontBold
+SettingsLabel.Text = "Interface Scale (DPI)"
+SettingsLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+SettingsLabel.TextSize = 14
+SettingsLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+local DPIBtn = Instance.new("TextButton")
+DPIBtn.Parent = TabSettings
+DPIBtn.BackgroundColor3 = Color3.fromRGB(50, 60, 80) 
+DPIBtn.Size = UDim2.new(1, 0, 0, 40)
+DPIBtn.Font = Theme.FontBold
+DPIBtn.Text = IsMobile and "   Size: 75% (Medium)" or "   Size: 100% (Default)"
+DPIBtn.TextColor3 = Color3.fromRGB(160, 180, 190)
+DPIBtn.TextSize = 12
+DPIBtn.TextXAlignment = Enum.TextXAlignment.Left
+local DPIB_C = Instance.new("UICorner"); DPIB_C.CornerRadius = UDim.new(0,8); DPIB_C.Parent = DPIBtn
+
+-- ... (Kode SettingsLabel dan DPIBtn di atasnya biarkan saja) ...
+
+-- [GANTI BLOK LOGIKA DPI DI BAWAH INI]
 local DPIFrame = Instance.new("Frame"); DPIFrame.Parent = TabSettings; DPIFrame.BackgroundColor3 = Color3.fromRGB(30, 34, 45); DPIFrame.Size = UDim2.new(1, 0, 0, 0); DPIFrame.ClipsDescendants = true; DPIFrame.Visible = false; local DPIF_C = Instance.new("UICorner"); DPIF_C.CornerRadius = UDim.new(0,8); DPIF_C.Parent = DPIFrame
 local DPIList = Instance.new("UIListLayout"); DPIList.Parent = DPIFrame; DPIList.SortOrder = Enum.SortOrder.LayoutOrder
+
 local dpiOpen = false
-DPIBtn.MouseButton1Click:Connect(function()
-    dpiOpen = not dpiOpen; DPIFrame.Visible = true
-    if dpiOpen then TweenService:Create(DPIFrame, TweenInfo.new(0.3), {Size = UDim2.new(1, 0, 0, 135)}):Play()
-    else TweenService:Create(DPIFrame, TweenInfo.new(0.3), {Size = UDim2.new(1, 0, 0, 0)}):Play(); task.wait(0.3); if not dpiOpen then DPIFrame.Visible = false end end
+local dpiConnection = nil -- Variable untuk menyimpan deteksi klik
+
+-- Fungsi Toggle DPI dengan Click Outside
+local function ToggleDPI(forceClose)
+    -- 1. Atur Status
+    if forceClose then dpiOpen = false else dpiOpen = not dpiOpen end
+    
+    -- 2. Bersihkan koneksi lama agar tidak menumpuk
+    if dpiConnection then 
+        dpiConnection:Disconnect()
+        dpiConnection = nil 
+    end
+
+    -- 3. Logika Animasi & Deteksi Klik
+    if dpiOpen then
+        -- BUKA
+        DPIFrame.Visible = true
+        TweenService:Create(DPIFrame, TweenInfo.new(0.3), {Size = UDim2.new(1, 0, 0, 105)}):Play()
+        
+        -- Aktifkan deteksi klik di luar
+        dpiConnection = UserInputService.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                local mPos = Vector2.new(input.Position.X, input.Position.Y)
+                
+                -- Cek posisi Tombol & Kotak Menu
+                local btnPos, btnSize = DPIBtn.AbsolutePosition, DPIBtn.AbsoluteSize
+                local frmPos, frmSize = DPIFrame.AbsolutePosition, DPIFrame.AbsoluteSize
+                
+                local function isIn(p, pos, size)
+                    return p.X >= pos.X and p.X <= pos.X + size.X and p.Y >= pos.Y and p.Y <= pos.Y + size.Y
+                end
+                
+                -- Jika klik BUKAN di tombol DAN BUKAN di kotak menu -> Tutup
+                if not isIn(mPos, btnPos, btnSize) and not isIn(mPos, frmPos, frmSize) then
+                    ToggleDPI(true)
+                end
+            end
+        end)
+    else
+        -- TUTUP
+        TweenService:Create(DPIFrame, TweenInfo.new(0.3), {Size = UDim2.new(1, 0, 0, 0)}):Play()
+        task.wait(0.3)
+        if not dpiOpen then DPIFrame.Visible = false end
+    end
+end
+
+-- Sambungkan tombol ke fungsi ToggleDPI
+DPIBtn.MouseButton1Click:Connect(function() 
+    ToggleDPI() 
 end)
+
 local function AddDPIOption(txt, scaleVal)
-    local Opt = Instance.new("TextButton"); Opt.Parent = DPIFrame; Opt.BackgroundColor3 = Color3.fromRGB(30, 34, 45); Opt.Size = UDim2.new(1, 0, 0, 45); Opt.Font = Theme.FontMain; Opt.Text = txt; Opt.TextColor3 = Color3.fromRGB(200, 200, 200); Opt.TextSize = 14
+    local Opt = Instance.new("TextButton"); Opt.Parent = DPIFrame; Opt.BackgroundColor3 = Color3.fromRGB(45, 55, 75); Opt.Size = UDim2.new(1, 0, 0, 35); Opt.Font = Theme.FontMain; Opt.Text = txt; Opt.TextColor3 = Color3.fromRGB(200, 200, 200); Opt.TextSize = 14
     Opt.MouseButton1Click:Connect(function()
         TweenService:Create(UIScale, TweenInfo.new(0.5, Enum.EasingStyle.Back), {Scale = scaleVal}):Play()
-        DPIBtn.Text = "   Size: " .. txt; dpiOpen = false; TweenService:Create(DPIFrame, TweenInfo.new(0.3), {Size = UDim2.new(1, 0, 0, 0)}):Play()
+        DPIBtn.Text = "   Size: " .. txt
+        ToggleDPI(true) -- Tutup menu setelah memilih
     end)
 end
+
 AddDPIOption("100% (Default)", 1)
 AddDPIOption("75% (Medium)", 0.75)
 AddDPIOption("50% (Small)", 0.5)
 
---// [BAGIAN 11] LOGIKA ANIMASI & CLEANUP
+--// [BAGIAN 12] LOGIKA ANIMASI & CLEANUP (Tutup Script)
 local function ToggleAnimation()
     if IsOpen then
         IsOpen = false
-        TweenService:Create(MainFrame, TweenInfo.new(AnimationSpeed, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(0, 0, 0, 0), Position = ToggleBtn.Position, BackgroundTransparency = 1}):Play()
-        for _, v in pairs(MainFrame:GetChildren()) do if v:IsA("GuiObject") and v ~= MainCorner and v ~= UIScale and v ~= MainStroke then v.Visible = false end end
+        TweenService:Create(MainFrame, TweenInfo.new(AnimationSpeed, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+            Size = UDim2.new(0, 0, 0, 0), 
+            Position = ToggleBtn.Position, 
+            BackgroundTransparency = 1
+        }):Play()
+        
+        for _, v in pairs(MainFrame:GetChildren()) do 
+            if v:IsA("GuiObject") and v ~= MainCorner and v ~= UIScale and v ~= MainStroke then 
+                v.Visible = false 
+            end 
+        end
     else
         IsOpen = true
-        for _, v in pairs(MainFrame:GetChildren()) do if v:IsA("GuiObject") then v.Visible = true end end
-        MainFrame.Position = ToggleBtn.Position; MainFrame.Size = UDim2.new(0, 0, 0, 0)
-        TweenService:Create(MainFrame, TweenInfo.new(AnimationSpeed, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = FinalSize, Position = UDim2.new(0.5, 0, 0.5, 0), BackgroundTransparency = Theme.Transp}):Play()
+        for _, v in pairs(MainFrame:GetChildren()) do 
+            if v:IsA("GuiObject") then v.Visible = true end 
+        end
+        MainFrame.Position = ToggleBtn.Position
+        MainFrame.Size = UDim2.new(0, 0, 0, 0)
+        TweenService:Create(MainFrame, TweenInfo.new(AnimationSpeed, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+            Size = FinalSize, 
+            Position = UDim2.new(0.5, 0, 0.5, 0), 
+            BackgroundTransparency = Theme.Transp
+        }):Play()
     end
 end
 
