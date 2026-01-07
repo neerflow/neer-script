@@ -117,18 +117,31 @@ local function SwitchTab(tabName)
     if Tabs[tabName] then Tabs[tabName].Visible = true end
 end
 
+-- Fungsi Buat Tombol Tab Samping (FIXED SCROLLING)
 local function CreateTabBtn(name, isActive)
     local Btn = Instance.new("TextButton")
     Btn.Parent = Sidebar; Btn.BackgroundColor3 = isActive and Theme.ActiveTab or Theme.Sidebar; Btn.BackgroundTransparency = isActive and 0 or 1; Btn.Size = UDim2.new(1, 0, 0, 28); Btn.AutoButtonColor = false; Btn.Font = Theme.FontMain; Btn.Text = name; Btn.TextColor3 = isActive and Theme.Accent or Theme.TextDim; Btn.TextSize = 12
     local Corner = Instance.new("UICorner"); Corner.CornerRadius = UDim.new(0, 4); Corner.Parent = Btn
     if isActive then local s = Instance.new("UIStroke"); s.Parent = Btn; s.Color = Theme.Accent; s.Thickness = 1; s.Transparency = 0.8 end
-    local Page = Instance.new("ScrollingFrame"); Page.Name = name .. "Page"; Page.Parent = ContentArea; Page.BackgroundTransparency = 1; Page.Size = UDim2.new(1, 0, 1, 0); Page.Visible = isActive; Page.ScrollBarThickness = 0
+
+    local Page = Instance.new("ScrollingFrame"); Page.Name = name .. "Page"; Page.Parent = ContentArea; Page.BackgroundTransparency = 1; Page.Size = UDim2.new(1, 0, 1, 0); Page.Visible = isActive; Page.ScrollBarThickness = 2
     local PL = Instance.new("UIListLayout"); PL.Parent = Page; PL.Padding = UDim.new(0, 5); PL.SortOrder = Enum.SortOrder.LayoutOrder
     local PP = Instance.new("UIPadding"); PP.Parent = Page; PP.PaddingTop = UDim.new(0, 10); PP.PaddingLeft = UDim.new(0, 10); PP.PaddingRight = UDim.new(0, 10)
     Tabs[name] = Page
+
+    -- [AUTO RESIZE LOGIC] Update CanvasSize saat isi berubah
+    PL:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        local currentScale = UIScale.Scale
+        -- Tambahkan buffer sedikit (+20) agar tidak ngepas banget di bawah
+        Page.CanvasSize = UDim2.new(0, 0, 0, (PL.AbsoluteContentSize.Y / currentScale) + 20)
+    end)
+
     Btn.MouseButton1Click:Connect(function()
         for _, child in pairs(Sidebar:GetChildren()) do
-            if child:IsA("TextButton") then child.BackgroundColor3 = Theme.Sidebar; child.BackgroundTransparency = 1; child.TextColor3 = Theme.TextDim; if child:FindFirstChild("UIStroke") then child.UIStroke:Destroy() end end
+            if child:IsA("TextButton") then
+                child.BackgroundColor3 = Theme.Sidebar; child.BackgroundTransparency = 1; child.TextColor3 = Theme.TextDim
+                if child:FindFirstChild("UIStroke") then child.UIStroke:Destroy() end
+            end
         end
         Btn.BackgroundColor3 = Theme.ActiveTab; Btn.BackgroundTransparency = 0; Btn.TextColor3 = Theme.Accent
         local s = Instance.new("UIStroke"); s.Parent = Btn; s.Color = Theme.Accent; s.Thickness = 1; s.Transparency = 0.8
@@ -144,28 +157,46 @@ local function CreateCard(parent, size, layoutOrder)
     return Card
 end
 
+-- [HELPER] Expandable Section (FIXED DPI)
 local function CreateExpandableSection(parent, title)
     local SectionContainer = Instance.new("Frame"); SectionContainer.Name = "Section_" .. title; SectionContainer.Parent = parent; SectionContainer.BackgroundTransparency = 1; SectionContainer.Size = UDim2.new(1, 0, 0, 30); SectionContainer.ClipsDescendants = true
+    
     local HeaderBtn = Instance.new("TextButton"); HeaderBtn.Parent = SectionContainer; HeaderBtn.BackgroundColor3 = Theme.ActiveTab; HeaderBtn.Size = UDim2.new(1, 0, 0, 30); HeaderBtn.AutoButtonColor = true; HeaderBtn.Text = ""
     local HC = Instance.new("UICorner"); HC.CornerRadius = UDim.new(0, 6); HC.Parent = HeaderBtn
     local HS = Instance.new("UIStroke"); HS.Parent = HeaderBtn; HS.Color = Theme.Accent; HS.Transparency = 0.6; HS.Thickness = 1
+    
     local TitleLbl = Instance.new("TextLabel"); TitleLbl.Parent = HeaderBtn; TitleLbl.BackgroundTransparency = 1; TitleLbl.Position = UDim2.new(0, 10, 0, 0); TitleLbl.Size = UDim2.new(1, -40, 1, 0); TitleLbl.Font = Theme.FontBold; TitleLbl.Text = title; TitleLbl.TextColor3 = Theme.Text; TitleLbl.TextSize = 13; TitleLbl.TextXAlignment = Enum.TextXAlignment.Left
     local Arrow = Instance.new("TextLabel"); Arrow.Parent = HeaderBtn; Arrow.BackgroundTransparency = 1; Arrow.Position = UDim2.new(1, -30, 0, 0); Arrow.Size = UDim2.new(0, 30, 1, 0); Arrow.Font = Theme.FontBold; Arrow.Text = "+"; Arrow.TextColor3 = Theme.Accent; Arrow.TextSize = 18
+
     local ContentFrame = Instance.new("Frame"); ContentFrame.Name = "Content"; ContentFrame.Parent = SectionContainer; ContentFrame.BackgroundColor3 = Color3.fromRGB(0,0,0); ContentFrame.BackgroundTransparency = 0.9; ContentFrame.Position = UDim2.new(0, 0, 0, 35); ContentFrame.Size = UDim2.new(1, 0, 0, 0)
     local CC = Instance.new("UICorner"); CC.CornerRadius = UDim.new(0, 6); CC.Parent = ContentFrame
     local CL = Instance.new("UIListLayout"); CL.Parent = ContentFrame; CL.SortOrder = Enum.SortOrder.LayoutOrder; CL.Padding = UDim.new(0, 5)
     local CP = Instance.new("UIPadding"); CP.Parent = ContentFrame; CP.PaddingTop = UDim.new(0, 5); CP.PaddingBottom = UDim.new(0, 5); CP.PaddingLeft = UDim.new(0, 5); CP.PaddingRight = UDim.new(0, 5)
+
     local isOpen = false
     HeaderBtn.MouseButton1Click:Connect(function()
         isOpen = not isOpen
-        if isOpen then Arrow.Text = "-"; Arrow.TextColor3 = Theme.Red; local contentHeight = CL.AbsoluteContentSize.Y + 15; TweenService:Create(SectionContainer, TweenInfo.new(0.3, Enum.EasingStyle.Quart), {Size = UDim2.new(1, 0, 0, 35 + contentHeight)}):Play(); TweenService:Create(ContentFrame, TweenInfo.new(0.3), {Size = UDim2.new(1, 0, 0, contentHeight)}):Play()
-        else Arrow.Text = "+"; Arrow.TextColor3 = Theme.Accent; TweenService:Create(SectionContainer, TweenInfo.new(0.3, Enum.EasingStyle.Quart), {Size = UDim2.new(1, 0, 0, 30)}):Play() end
+        if isOpen then
+            Arrow.Text = "-"; Arrow.TextColor3 = Theme.Red
+            
+            -- [FIX DPI] Bagi dengan Scale agar ukurannya akurat
+            local currentScale = UIScale.Scale 
+            local rawHeight = CL.AbsoluteContentSize.Y + 15
+            local scaledHeight = rawHeight / currentScale -- Rumus Anti-Potong
+            
+            TweenService:Create(SectionContainer, TweenInfo.new(0.3, Enum.EasingStyle.Quart), {Size = UDim2.new(1, 0, 0, (35/currentScale) + scaledHeight)}):Play()
+            TweenService:Create(ContentFrame, TweenInfo.new(0.3), {Size = UDim2.new(1, 0, 0, scaledHeight)}):Play()
+        else
+            Arrow.Text = "+"; Arrow.TextColor3 = Theme.Accent
+            -- [FIX DPI] Kembalikan ke tinggi header (30) yang disesuaikan scale
+            TweenService:Create(SectionContainer, TweenInfo.new(0.3, Enum.EasingStyle.Quart), {Size = UDim2.new(1, 0, 0, 30)}):Play()
+        end
     end)
     return ContentFrame
 end
 
 local function CreateSwitchCard(targetParent, text, callback)
-    local Card = Instance.new("Frame"); Card.Parent = targetParent; Card.BackgroundColor3 = Theme.Sidebar; Card.BackgroundTransparency = 0.5; Card.Size = UDim2.new(1, 0, 0, 30)
+    local Card = Instance.new("Frame"); Card.Parent = targetParent; Card.BackgroundColor3 = Theme.ActiveTab; Card.BackgroundTransparency = 0.5; Card.Size = UDim2.new(1, 0, 0, 30)
     local C = Instance.new("UICorner"); C.CornerRadius = UDim.new(0, 6); C.Parent = Card
     local TitleLbl = Instance.new("TextLabel"); TitleLbl.Parent = Card; TitleLbl.BackgroundTransparency = 1; TitleLbl.Position = UDim2.new(0, 10, 0, 0); TitleLbl.Size = UDim2.new(0, 150, 1, 0); TitleLbl.Font = Theme.FontMain; TitleLbl.Text = text; TitleLbl.TextColor3 = Theme.TextDim; TitleLbl.TextSize = 12; TitleLbl.TextXAlignment = Enum.TextXAlignment.Left
     local SwitchBtn = Instance.new("TextButton"); SwitchBtn.Parent = Card; SwitchBtn.BackgroundTransparency = 1; SwitchBtn.Position = UDim2.new(1, -45, 0.5, -10); SwitchBtn.Size = UDim2.new(0, 40, 0, 20); SwitchBtn.Text = ""
@@ -183,7 +214,7 @@ local function CreateSwitchCard(targetParent, text, callback)
 end
 
 local function CreateButtonCard(targetParent, text, btnText, callback)
-    local Card = Instance.new("Frame"); Card.Parent = targetParent; Card.BackgroundColor3 = Theme.Sidebar; Card.BackgroundTransparency = 0.5; Card.Size = UDim2.new(1, 0, 0, 30)
+    local Card = Instance.new("Frame"); Card.Parent = targetParent; Card.BackgroundColor3 = Theme.ActiveTab; Card.BackgroundTransparency = 0.5; Card.Size = UDim2.new(1, 0, 0, 30)
     local C = Instance.new("UICorner"); C.CornerRadius = UDim.new(0, 6); C.Parent = Card
     local TitleLbl = Instance.new("TextLabel"); TitleLbl.Parent = Card; TitleLbl.BackgroundTransparency = 1; TitleLbl.Position = UDim2.new(0, 10, 0, 0); TitleLbl.Size = UDim2.new(0, 150, 1, 0); TitleLbl.Font = Theme.FontMain; TitleLbl.Text = text; TitleLbl.TextColor3 = Theme.TextDim; TitleLbl.TextSize = 12; TitleLbl.TextXAlignment = Enum.TextXAlignment.Left
     local ActBtn = Instance.new("TextButton"); ActBtn.Parent = Card; ActBtn.BackgroundColor3 = Theme.Main; ActBtn.Position = UDim2.new(1, -75, 0.5, -10); ActBtn.Size = UDim2.new(0, 70, 0, 20); ActBtn.Font = Theme.FontBold; ActBtn.Text = btnText; ActBtn.TextColor3 = Theme.Accent; ActBtn.TextSize = 10; local AC = Instance.new("UICorner"); AC.CornerRadius = UDim.new(0, 4); AC.Parent = ActBtn; local AS = Instance.new("UIStroke"); AS.Parent = ActBtn; AS.Color = Theme.Accent; AS.Transparency = 0.5; AS.Thickness = 1; AS.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
@@ -191,7 +222,7 @@ local function CreateButtonCard(targetParent, text, btnText, callback)
 end
 
 local function CreateSliderCard(targetParent, text, min, max, default, callback)
-    local Card = Instance.new("Frame"); Card.Parent = targetParent; Card.BackgroundColor3 = Theme.Sidebar; Card.BackgroundTransparency = 0.5; Card.Size = UDim2.new(1, 0, 0, 45)
+    local Card = Instance.new("Frame"); Card.Parent = targetParent; Card.BackgroundColor3 = Theme.ActiveTab; Card.BackgroundTransparency = 0.5; Card.Size = UDim2.new(1, 0, 0, 45)
     local C = Instance.new("UICorner"); C.CornerRadius = UDim.new(0, 6); C.Parent = Card
     local TitleLbl = Instance.new("TextLabel"); TitleLbl.Parent = Card; TitleLbl.BackgroundTransparency = 1; TitleLbl.Position = UDim2.new(0, 10, 0, 5); TitleLbl.Size = UDim2.new(1, -20, 0, 15); TitleLbl.Font = Theme.FontMain; TitleLbl.Text = text; TitleLbl.TextColor3 = Theme.TextDim; TitleLbl.TextSize = 12; TitleLbl.TextXAlignment = Enum.TextXAlignment.Left
     local ValueLbl = Instance.new("TextLabel"); ValueLbl.Parent = Card; ValueLbl.BackgroundTransparency = 1; ValueLbl.Position = UDim2.new(0, 10, 0, 5); ValueLbl.Size = UDim2.new(1, -20, 0, 15); ValueLbl.Font = Theme.FontBold; ValueLbl.Text = tostring(default); ValueLbl.TextColor3 = Theme.Accent; ValueLbl.TextSize = 12; ValueLbl.TextXAlignment = Enum.TextXAlignment.Right
@@ -506,7 +537,7 @@ local function BuildSettingsTab(parentFrame)
 end
 
 --// [BAGIAN 13] EKSEKUSI PEMBUATAN TAB
-local TabInfo = CreateTabBtn("Info", true)
+local TabInfo = CreateTabBtn("Information", true)
 BuildInfoTab(TabInfo)
 
 local TabMovement = CreateTabBtn("Movement", false)
