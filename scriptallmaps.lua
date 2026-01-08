@@ -323,21 +323,64 @@ local function BuildMovementTab(parentFrame)
 	end, function(old, change) return math.max(1, old + change) end, function(newSpeed) flySpeed = newSpeed end)
 	Session.StopFly = function() flying = false; if bv then bv:Destroy() end; if bg then bg:Destroy() end; if flyLoop then flyLoop:Disconnect() end; local char = Players.LocalPlayer.Character; if char and char:FindFirstChild("Humanoid") then char.Humanoid.PlatformStand = false end end
 
-	-- 2. Speed Walk
+	-- 2. Speed Walk (OPTIMIZED)
 	local walkLoop; local currentWalkMultiplier = 1
 	local SpeedCtrl = CreateControlCard("Speed Walk", 1, function(active, mul)
 		if walkLoop then walkLoop:Disconnect() end; currentWalkMultiplier = mul
-		if active then walkLoop = RunService.RenderStepped:Connect(function() local char = Players.LocalPlayer.Character; if char and char:FindFirstChild("Humanoid") then char.Humanoid.WalkSpeed = DefaultStats.WalkSpeed * currentWalkMultiplier end end) else Session.StopWalk() end
+		if active then 
+			-- Menggunakan Heartbeat (lebih ramah resource) & Smart Check (Hanya ubah jika beda)
+			walkLoop = RunService.Heartbeat:Connect(function() 
+				local char = Players.LocalPlayer.Character
+				if char and char:FindFirstChild("Humanoid") then 
+					local targetSpeed = DefaultStats.WalkSpeed * currentWalkMultiplier
+					-- OPTIMASI: Cek dulu, jangan spam set property
+					if char.Humanoid.WalkSpeed ~= targetSpeed then
+						char.Humanoid.WalkSpeed = targetSpeed 
+					end
+				end 
+			end) 
+		else 
+			Session.StopWalk() 
+		end
 	end, function(old, change) return math.max(1, old + change) end, function(newMul) currentWalkMultiplier = newMul end)
-	Session.StopWalk = function() if walkLoop then walkLoop:Disconnect() end; local char = Players.LocalPlayer.Character; if char and char:FindFirstChild("Humanoid") then char.Humanoid.WalkSpeed = DefaultStats.WalkSpeed end end
+	
+	Session.StopWalk = function() 
+		if walkLoop then walkLoop:Disconnect() end; 
+		local char = Players.LocalPlayer.Character; 
+		if char and char:FindFirstChild("Humanoid") then 
+			char.Humanoid.WalkSpeed = DefaultStats.WalkSpeed 
+		end 
+	end
 
-	-- 3. High Jump
+	-- 3. High Jump (OPTIMIZED)
 	local jumpLoop; local currentJumpMultiplier = 1
 	local JumpCtrl = CreateControlCard("High Jump", 1, function(active, mul)
 		if jumpLoop then jumpLoop:Disconnect() end; currentJumpMultiplier = mul
-		if active then jumpLoop = RunService.RenderStepped:Connect(function() local char = Players.LocalPlayer.Character; if char and char:FindFirstChild("Humanoid") then char.Humanoid.UseJumpPower = true; char.Humanoid.JumpPower = DefaultStats.JumpPower * currentJumpMultiplier end end) else Session.StopJump() end
+		if active then 
+			-- Menggunakan Heartbeat (lebih ramah resource) & Smart Check
+			jumpLoop = RunService.Heartbeat:Connect(function() 
+				local char = Players.LocalPlayer.Character
+				if char and char:FindFirstChild("Humanoid") then 
+					local targetJump = DefaultStats.JumpPower * currentJumpMultiplier
+					if not char.Humanoid.UseJumpPower then char.Humanoid.UseJumpPower = true end
+					-- OPTIMASI: Cek dulu, jangan spam set property
+					if char.Humanoid.JumpPower ~= targetJump then
+						char.Humanoid.JumpPower = targetJump 
+					end
+				end 
+			end) 
+		else 
+			Session.StopJump() 
+		end
 	end, function(old, change) return math.max(1, old + change) end, function(newMul) currentJumpMultiplier = newMul end)
-	Session.StopJump = function() if jumpLoop then jumpLoop:Disconnect() end; local char = Players.LocalPlayer.Character; if char and char:FindFirstChild("Humanoid") then char.Humanoid.JumpPower = DefaultStats.JumpPower end end
+	
+	Session.StopJump = function() 
+		if jumpLoop then jumpLoop:Disconnect() end; 
+		local char = Players.LocalPlayer.Character; 
+		if char and char:FindFirstChild("Humanoid") then 
+			char.Humanoid.JumpPower = DefaultStats.JumpPower 
+		end 
+	end
 
 	-- 4. No Clip Mode
 	local noclipLoop
@@ -416,54 +459,88 @@ local function BuildMovementTab(parentFrame)
 	ResetBtn.MouseButton1Click:Connect(Session.ResetAll)
 end
 
---// [BAGIAN 10] KONTEN TAB: TELEPORT
+--// [BAGIAN 10] KONTEN TAB: TELEPORT & SPECTATE (OPTIMIZED)
 local function BuildTeleportTab(parentFrame)
+	-- [A] Layout Setup
 	local Layout = Instance.new("UIListLayout"); Layout.Parent = parentFrame; Layout.SortOrder = Enum.SortOrder.LayoutOrder; Layout.Padding = UDim.new(0, 10)
 	local Padding = Instance.new("UIPadding"); Padding.Parent = parentFrame; Padding.PaddingTop = UDim.new(0, 15); Padding.PaddingLeft = UDim.new(0, 15); Padding.PaddingRight = UDim.new(0, 15)
 
-	-- Warna Status
-	local ColorSuccess = Theme.Green
-	local ColorError   = Theme.Red
+	-- [B] Variabel & Konstanta Lokal
+	local ColorSuccess     = Theme.Green
+	local ColorError       = Theme.Red
+	local ColorSpectateOff = Color3.fromRGB(70, 85, 105) -- Abu-abu Kebiruan
+	local ColorSpectateOn  = Theme.Sidebar
+	
+	local selectedPlayer   = nil
+	local isDropdownOpen   = false
+	local statusTimer      = nil
+	local spectateLoop     = nil -- Variabel untuk menyimpan loop spectate
+	local clickOutsideConn = nil
 
+	-- [C] Container Utama (Card)
 	local TpCard = CreateCard(parentFrame, UDim2.new(1, 0, 0, 110))
 	TpCard.ClipsDescendants = false 
-	local Title = Instance.new("TextLabel"); Title.Parent = TpCard; Title.BackgroundTransparency = 1; Title.Position = UDim2.new(0, 15, 0, 10); Title.Size = UDim2.new(1, -30, 0, 15); Title.Font = Theme.FontBold; Title.Text = "Teleport to Player"; Title.TextColor3 = Theme.Text; Title.TextSize = 14; Title.TextXAlignment = Enum.TextXAlignment.Left
-
-	local DropContainer = Instance.new("Frame"); DropContainer.Parent = TpCard; DropContainer.BackgroundTransparency = 1; DropContainer.Position = UDim2.new(0, 15, 0, 35); DropContainer.Size = UDim2.new(1, -30, 0, 30); DropContainer.ZIndex = 5
-	local DropBtn = Instance.new("TextButton"); DropBtn.Parent = DropContainer; DropBtn.BackgroundColor3 = Theme.Sidebar; DropBtn.Size = UDim2.new(1, -75, 1, 0); DropBtn.Font = Theme.FontMain; DropBtn.Text = "  Select Player..."; DropBtn.TextColor3 = Theme.TextDim; DropBtn.TextSize = 12; DropBtn.TextXAlignment = Enum.TextXAlignment.Left; DropBtn.AutoButtonColor = false; DropBtn.ZIndex = 5; local DC = Instance.new("UICorner"); DC.CornerRadius = UDim.new(0, 6); DC.Parent = DropBtn; local DS = Instance.new("UIStroke"); DS.Parent = DropBtn; DS.Color = Theme.Separator; DS.Thickness = 1
-	local RefreshBtn = Instance.new("TextButton"); RefreshBtn.Parent = DropContainer; RefreshBtn.BackgroundColor3 = Theme.Green; RefreshBtn.Position = UDim2.new(1, -70, 0, 0); RefreshBtn.Size = UDim2.new(0, 70, 1, 0); RefreshBtn.ZIndex = 5; RefreshBtn.Font = Theme.FontBold; RefreshBtn.Text = "REFRESH"; RefreshBtn.TextColor3 = Theme.Main; RefreshBtn.TextSize = 11; local RC = Instance.new("UICorner"); RC.CornerRadius = UDim.new(0, 6); RC.Parent = RefreshBtn
-
-	local StatusLbl = Instance.new("TextLabel"); StatusLbl.Parent = TpCard; StatusLbl.BackgroundTransparency = 1; StatusLbl.Position = UDim2.new(0, 15, 0, 68); StatusLbl.Size = UDim2.new(1, -100, 0, 15); StatusLbl.Font = Theme.FontMain; StatusLbl.Text = ""; StatusLbl.TextColor3 = ColorError; StatusLbl.TextSize = 13; StatusLbl.TextXAlignment = Enum.TextXAlignment.Left
 	
-	local ExecBtn = Instance.new("TextButton"); ExecBtn.Parent = TpCard; ExecBtn.BackgroundColor3 = Theme.Accent; ExecBtn.Position = UDim2.new(1, -95, 0, 70); ExecBtn.Size = UDim2.new(0, 80, 0, 25); ExecBtn.Font = Theme.FontBold; ExecBtn.Text = "TELEPORT"; ExecBtn.TextColor3 = Theme.Main; ExecBtn.TextSize = 11; ExecBtn.ZIndex = 2; local EC = Instance.new("UICorner"); EC.CornerRadius = UDim.new(0, 6); EC.Parent = ExecBtn
+	local Title = Instance.new("TextLabel"); Title.Parent = TpCard; Title.BackgroundTransparency = 1; Title.Position = UDim2.new(0, 15, 0, 10); Title.Size = UDim2.new(1, -30, 0, 15); Title.Font = Theme.FontBold; Title.Text = "Teleport & Spectate"; Title.TextColor3 = Theme.Text; Title.TextSize = 14; Title.TextXAlignment = Enum.TextXAlignment.Left
 
-	local ListFrame = Instance.new("ScrollingFrame"); ListFrame.Parent = TpCard; ListFrame.Visible = false; ListFrame.BackgroundColor3 = Theme.Sidebar; ListFrame.BorderSizePixel = 0; ListFrame.Position = UDim2.new(0, 15, 0, 68); ListFrame.Size = UDim2.new(0.90, -65, 0, 120); ListFrame.ZIndex = 20; ListFrame.ScrollBarThickness = 2; local LS = Instance.new("UIStroke"); LS.Parent = ListFrame; LS.Color = Theme.Accent; LS.Thickness = 1; local LL = Instance.new("UIListLayout"); LL.Parent = ListFrame; LL.SortOrder = Enum.SortOrder.LayoutOrder
+	-- [D] Sistem Notifikasi Status
+	local StatusLbl = Instance.new("TextLabel"); StatusLbl.Parent = TpCard; StatusLbl.BackgroundTransparency = 1; StatusLbl.Position = UDim2.new(0, 15, 0, 68); StatusLbl.Size = UDim2.new(1, -180, 0, 15); StatusLbl.Font = Theme.FontMain; StatusLbl.Text = ""; StatusLbl.TextColor3 = ColorError; StatusLbl.TextSize = 11; StatusLbl.TextXAlignment = Enum.TextXAlignment.Left
 
-	local selectedPlayer, isDropdownOpen, statusTimer, clickOutsideConnection = nil, false, nil, nil
-	local function ShowStatus(text, color) StatusLbl.Text = text; StatusLbl.TextColor3 = color; if statusTimer then task.cancel(statusTimer) end; statusTimer = task.delay(2, function() StatusLbl.Text = ""; statusTimer = nil end) end
+	local function ShowStatus(text, color)
+		StatusLbl.Text = text
+		StatusLbl.TextColor3 = color or Theme.Text
+		if statusTimer then task.cancel(statusTimer) end
+		statusTimer = task.delay(3, function() if StatusLbl then StatusLbl.Text = "" end statusTimer = nil end)
+	end
 
+	-- [E] Dropdown Komponen
+	local DropContainer = Instance.new("Frame"); DropContainer.Parent = TpCard; DropContainer.BackgroundTransparency = 1; DropContainer.Position = UDim2.new(0, 15, 0, 35); DropContainer.Size = UDim2.new(1, -30, 0, 30); DropContainer.ZIndex = 5
+	
+	local DropBtn = Instance.new("TextButton"); DropBtn.Parent = DropContainer; DropBtn.BackgroundColor3 = Theme.Sidebar; DropBtn.Size = UDim2.new(1, -75, 1, 0); DropBtn.Font = Theme.FontMain; DropBtn.Text = "  Select Player..."; DropBtn.TextColor3 = Theme.TextDim; DropBtn.TextSize = 12; DropBtn.TextXAlignment = Enum.TextXAlignment.Left; DropBtn.AutoButtonColor = false; DropBtn.ZIndex = 5
+	local DC = Instance.new("UICorner"); DC.CornerRadius = UDim.new(0, 6); DC.Parent = DropBtn
+	local DS = Instance.new("UIStroke"); DS.Parent = DropBtn; DS.Color = Theme.Separator; DS.Thickness = 1
+	
+	local RefreshBtn = Instance.new("TextButton"); RefreshBtn.Parent = DropContainer; RefreshBtn.BackgroundColor3 = Theme.Green; RefreshBtn.Position = UDim2.new(1, -70, 0, 0); RefreshBtn.Size = UDim2.new(0, 70, 1, 0); RefreshBtn.ZIndex = 5; RefreshBtn.Font = Theme.FontBold; RefreshBtn.Text = "REFRESH"; RefreshBtn.TextColor3 = Theme.Main; RefreshBtn.TextSize = 11
+	local RC = Instance.new("UICorner"); RC.CornerRadius = UDim.new(0, 6); RC.Parent = RefreshBtn
+
+	local ListFrame = Instance.new("ScrollingFrame"); ListFrame.Parent = TpCard; ListFrame.Visible = false; ListFrame.BackgroundColor3 = Theme.Sidebar; ListFrame.BorderSizePixel = 0; ListFrame.Position = UDim2.new(0, 15, 0, 68); ListFrame.Size = UDim2.new(0.90, -65, 0, 120); ListFrame.ZIndex = 20; ListFrame.ScrollBarThickness = 2
+	local LS = Instance.new("UIStroke"); LS.Parent = ListFrame; LS.Color = Theme.Accent; LS.Thickness = 1
+	local LL = Instance.new("UIListLayout"); LL.Parent = ListFrame; LL.SortOrder = Enum.SortOrder.LayoutOrder
+
+	-- [F] Logika Dropdown
 	local function ToggleDropdown(forceClose)
 		if forceClose then isDropdownOpen = false else isDropdownOpen = not isDropdownOpen end
 		ListFrame.Visible = isDropdownOpen
-		if clickOutsideConnection then clickOutsideConnection:Disconnect(); clickOutsideConnection = nil end
+		
+		if clickOutsideConn then clickOutsideConn:Disconnect(); clickOutsideConn = nil end
+		
 		if isDropdownOpen then
-			clickOutsideConnection = UserInputService.InputBegan:Connect(function(input)
+			clickOutsideConn = UserInputService.InputBegan:Connect(function(input)
 				if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-					local mPos = Vector2.new(input.Position.X, input.Position.Y); local listPos, listSize = ListFrame.AbsolutePosition, ListFrame.AbsoluteSize; local btnPos, btnSize = DropBtn.AbsolutePosition, DropBtn.AbsoluteSize
-					if not (mPos.X >= listPos.X and mPos.X <= listPos.X + listSize.X and mPos.Y >= listPos.Y and mPos.Y <= listPos.Y + listSize.Y) and not (mPos.X >= btnPos.X and mPos.X <= btnPos.X + btnSize.X and mPos.Y >= btnPos.Y and mPos.Y <= btnPos.Y + btnSize.Y) then ToggleDropdown(true) end
+					local mPos = Vector2.new(input.Position.X, input.Position.Y)
+					local function isInRect(obj)
+						local pos, size = obj.AbsolutePosition, obj.AbsoluteSize
+						return mPos.X >= pos.X and mPos.X <= pos.X + size.X and mPos.Y >= pos.Y and mPos.Y <= pos.Y + size.Y
+					end
+					if not isInRect(ListFrame) and not isInRect(DropBtn) then ToggleDropdown(true) end
 				end
 			end)
 		end
 	end
 
 	local function RefreshList()
-		for _, v in pairs(ListFrame:GetChildren()) do if v:IsA("TextButton") or v:IsA("TextLabel") then v:Destroy() end end
-		local count = 0
+		for _, v in pairs(ListFrame:GetChildren()) do if v:IsA("TextButton") then v:Destroy() end end
 		for _, p in pairs(Players:GetPlayers()) do
 			if p ~= Players.LocalPlayer then
-				count = count + 1
-				local PBtn = Instance.new("TextButton"); PBtn.Parent = ListFrame; PBtn.BackgroundColor3 = Theme.Main; PBtn.Size = UDim2.new(1, 0, 0, 25); PBtn.Font = Theme.FontMain; PBtn.Text = "  " .. p.Name; PBtn.TextColor3 = Theme.TextDim; PBtn.TextSize = 12; PBtn.TextXAlignment = Enum.TextXAlignment.Left; PBtn.AutoButtonColor = true; PBtn.ZIndex = 21
-				PBtn.MouseButton1Click:Connect(function() selectedPlayer = p; DropBtn.Text = "  " .. p.Name; DropBtn.TextColor3 = Theme.Text; ToggleDropdown(true) end)
+				local PBtn = Instance.new("TextButton"); PBtn.Parent = ListFrame; PBtn.BackgroundColor3 = Theme.Main; PBtn.Size = UDim2.new(1, 0, 0, 25); PBtn.Font = Theme.FontMain; PBtn.TextSize = 12; PBtn.TextXAlignment = Enum.TextXAlignment.Left; PBtn.AutoButtonColor = true; PBtn.ZIndex = 21
+				local labelText = "  " .. p.DisplayName .. " (@" .. p.Name .. ")"
+				PBtn.Text = labelText; PBtn.TextColor3 = Theme.TextDim
+				PBtn.MouseButton1Click:Connect(function() 
+					selectedPlayer = p
+					DropBtn.Text = labelText
+					DropBtn.TextColor3 = Theme.Text
+					ToggleDropdown(true) 
+				end)
 			end
 		end
 		ListFrame.CanvasSize = UDim2.new(0, 0, 0, LL.AbsoluteContentSize.Y)
@@ -471,38 +548,100 @@ local function BuildTeleportTab(parentFrame)
 
 	DropBtn.MouseButton1Click:Connect(function() ToggleDropdown() end)
 	RefreshBtn.MouseButton1Click:Connect(function() RefreshList(); ShowStatus("List Refreshed!", ColorSuccess) end)
+
+	-- [G] Action Buttons Container
+	local ActionContainer = Instance.new("Frame"); ActionContainer.Parent = TpCard; ActionContainer.BackgroundTransparency = 1; ActionContainer.Position = UDim2.new(1, -175, 0, 70); ActionContainer.Size = UDim2.new(0, 160, 0, 25)
 	
-	-- [LOGIKA TELEPORT YANG DIPERBAIKI]
-	ExecBtn.MouseButton1Click:Connect(function()
-		-- 1. Cek User sudah pilih nama belum
-		if not selectedPlayer then 
-			ShowStatus("Select a player first!", ColorError) 
-			return 
-		end
+	-- Tombol SPECTATE
+	local SpectateBtn = Instance.new("TextButton"); SpectateBtn.Parent = ActionContainer
+	SpectateBtn.BackgroundColor3 = ColorSpectateOff
+	SpectateBtn.BackgroundTransparency = 0
+	SpectateBtn.Position = UDim2.new(0, 0, 0, 0); SpectateBtn.Size = UDim2.new(0, 75, 1, 0)
+	SpectateBtn.Font = Theme.FontBold; SpectateBtn.Text = "SPECTATE"; SpectateBtn.TextColor3 = Theme.Text; SpectateBtn.TextSize = 10
+	local SC = Instance.new("UICorner"); SC.CornerRadius = UDim.new(0, 6); SC.Parent = SpectateBtn
+	local SS = Instance.new("UIStroke"); SS.Parent = SpectateBtn; SS.Color = Theme.Accent; SS.Transparency = 0.8; SS.Thickness = 1
+	
+	-- Tombol TELEPORT
+	local TeleportBtn = Instance.new("TextButton"); TeleportBtn.Parent = ActionContainer; TeleportBtn.BackgroundColor3 = Theme.Accent; TeleportBtn.Position = UDim2.new(1, -80, 0, 0); TeleportBtn.Size = UDim2.new(0, 80, 1, 0); TeleportBtn.Font = Theme.FontBold; TeleportBtn.Text = "TELEPORT"; TeleportBtn.TextColor3 = Theme.Main; TeleportBtn.TextSize = 10; TeleportBtn.ZIndex = 2
+	local TC = Instance.new("UICorner"); TC.CornerRadius = UDim.new(0, 6); TC.Parent = TeleportBtn
+
+	-- [H] Advanced Spectate Logic
+	local function StopSpectate()
+		if spectateLoop then spectateLoop:Disconnect(); spectateLoop = nil end
+		workspace.CurrentCamera.CameraSubject = Players.LocalPlayer.Character and Players.LocalPlayer.Character:FindFirstChild("Humanoid")
+		SpectateBtn.BackgroundColor3 = ColorSpectateOff
+		SpectateBtn.TextColor3 = Theme.Text; SpectateBtn.Text = "SPECTATE"
+		SS.Color = Theme.Accent; SS.Transparency = 0.8
+	end
+
+	-- [H] Advanced Spectate Logic (Dengan Auto-Stop)
+	local function StopSpectate()
+		if spectateLoop then spectateLoop:Disconnect(); spectateLoop = nil end
 		
-		-- 2. Cek User masih di server apa nggak
-		local target = Players:FindFirstChild(selectedPlayer.Name)
-		if not target then 
-			ShowStatus("Player has Left.", ColorError) 
-			return 
-		end
-		
-		-- 3. Cek Karakter Musuh (Validasi Jarak/StreamingEnabled)
-		local targetChar = target.Character
-		if not targetChar or not targetChar:FindFirstChild("HumanoidRootPart") then
-			-- Ini pesan yang kamu minta
-			ShowStatus("Target Unreachable / Too Far", ColorError)
-			return
-		end
-		
-		-- 4. Cek Karakter Kita Sendiri
-		local localChar = Players.LocalPlayer.Character
-		if not localChar or not localChar:FindFirstChild("HumanoidRootPart") then
-			ShowStatus("Wait for respawn...", ColorError)
-			return
+		-- Kembalikan kamera ke kita
+		if Players.LocalPlayer.Character and Players.LocalPlayer.Character:FindFirstChild("Humanoid") then
+			workspace.CurrentCamera.CameraSubject = Players.LocalPlayer.Character.Humanoid
 		end
 
-		-- 5. Eksekusi Teleport
+		-- Reset Tampilan Tombol
+		SpectateBtn.BackgroundColor3 = ColorSpectateOff
+		SpectateBtn.TextColor3 = Theme.Text; SpectateBtn.Text = "SPECTATE"
+		SS.Color = Theme.Accent; SS.Transparency = 0.8
+	end
+
+	SpectateBtn.MouseButton1Click:Connect(function()
+		if spectateLoop then
+			StopSpectate() -- Manual Stop
+		else
+			-- Start Spectate
+			if not selectedPlayer then ShowStatus("Select Player!", ColorError); return end
+			local target = Players:FindFirstChild(selectedPlayer.Name)
+			
+			if target then
+				-- Visual Update (Aktif)
+				SpectateBtn.BackgroundColor3 = ColorSpectateOn
+				SpectateBtn.TextColor3 = Theme.Accent; SpectateBtn.Text = "STOP"
+				SS.Color = Theme.ActiveTab; SS.Transparency = 0
+				ShowStatus("Viewing Target", ColorSuccess)
+
+				-- Loop Update Camera
+				spectateLoop = RunService.RenderStepped:Connect(function()
+					-- [FITUR BARU] Cek: Apakah target keluar server?
+					if not target or not target.Parent then
+						StopSpectate() -- Otomatis berhenti
+						ShowStatus("Target Left Game", ColorError)
+						return
+					end
+
+					-- Logic Kamera
+					local tChar = target.Character
+					local tHum = tChar and tChar:FindFirstChild("Humanoid")
+					if tHum then
+						workspace.CurrentCamera.CameraSubject = tHum
+					end
+				end)
+			else
+				ShowStatus("Player Unavailable", ColorError)
+			end
+		end
+	end)
+
+	-- [I] Teleport Logic
+	TeleportBtn.MouseButton1Click:Connect(function()
+		if not selectedPlayer then ShowStatus("Select a player!", ColorError); return end
+		local target = Players:FindFirstChild(selectedPlayer.Name)
+		if not target then ShowStatus("Player Left.", ColorError); return end
+		
+		local targetChar = target.Character
+		if not targetChar or not targetChar:FindFirstChild("HumanoidRootPart") then
+			ShowStatus("Target Unreachable", ColorError); return
+		end
+		
+		local localChar = Players.LocalPlayer.Character
+		if not localChar or not localChar:FindFirstChild("HumanoidRootPart") then
+			ShowStatus("Wait for respawn...", ColorError); return
+		end
+
 		localChar.HumanoidRootPart.CFrame = targetChar.HumanoidRootPart.CFrame * CFrame.new(0, 0, 3)
 		ShowStatus("Teleported!", ColorSuccess)
 	end)
@@ -510,12 +649,13 @@ local function BuildTeleportTab(parentFrame)
 	RefreshList()
 end
 
---// [BAGIAN 11] KONTEN TAB: VISUALS (FINAL UPDATE)
+--// [BAGIAN 11] KONTEN TAB: VISUALS (UPDATE: CINEMATIC, SMART LIGHTING, FOG SLIDER)
 local function BuildVisualsTab(parentFrame)
 	local Layout = Instance.new("UIListLayout"); Layout.Parent = parentFrame; Layout.SortOrder = Enum.SortOrder.LayoutOrder; Layout.Padding = UDim.new(0, 10)
 	local Padding = Instance.new("UIPadding"); Padding.Parent = parentFrame; Padding.PaddingTop = UDim.new(0, 15); Padding.PaddingLeft = UDim.new(0, 15); Padding.PaddingRight = UDim.new(0, 15)
+	local Lighting = game:GetService("Lighting")
 
-	-- Helper Lokal untuk Loop Player (ESP)
+	-- Helper Lokal untuk ESP (Tidak berubah)
 	local function ToggleFeature(isActive, storageTable, onAdd, onRemove)
 		if isActive then
 			local function SetupPlayer(player)
@@ -539,7 +679,7 @@ local function BuildVisualsTab(parentFrame)
 	local ESP_Container = CreateExpandableSection(parentFrame, "ESP Features")
 	
 	local HL_Conn = {}
-	CreateSwitchCard(ESP_Container, "ESP Player", function(active)
+	CreateSwitchCard(ESP_Container, "ESP Player (Highlight)", function(active)
 		ToggleFeature(active, HL_Conn, 
 			function(char) if char:FindFirstChild("NeeR_Highlight") then char.NeeR_Highlight:Destroy() end; local hl = Instance.new("Highlight"); hl.Name="NeeR_Highlight"; hl.Parent=char; hl.Adornee=char; hl.FillColor=Theme.Red; hl.FillTransparency=0.5; hl.OutlineColor=Color3.new(1,1,1); hl.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop end,
 			function(char) if char:FindFirstChild("NeeR_Highlight") then char.NeeR_Highlight:Destroy() end end
@@ -573,64 +713,112 @@ local function BuildVisualsTab(parentFrame)
 	end)
 
 	-- =================================================================
-	-- SECTION 2: CAMERA OPTIONS
+	-- SECTION 2: WORLD & LIGHTING (DENGAN POINTER/KNOB)
 	-- =================================================================
-	local Cam_Container = CreateExpandableSection(parentFrame, "Camera Options")
+	local World_Container = CreateExpandableSection(parentFrame, "World & Lighting")
+
+	-- [HELPER] Smart Slider (Update: Ditambah Knob/Pointer)
+	local function CreateSmartSlider(parent, title, min, max, getStartVal, callback)
+		local Card = Instance.new("Frame"); Card.Parent = parent; Card.BackgroundColor3 = Theme.ActiveTab; Card.BackgroundTransparency = 0.5; Card.Size = UDim2.new(1, 0, 0, 45)
+		local C = Instance.new("UICorner"); C.CornerRadius = UDim.new(0, 6); C.Parent = Card
+		
+		local startVal = getStartVal() or min
+		local safeMin, safeMax = math.min(min, max), math.max(min, max)
+		startVal = math.clamp(startVal, safeMin, safeMax)
+
+		local TitleLbl = Instance.new("TextLabel"); TitleLbl.Parent = Card; TitleLbl.BackgroundTransparency = 1; TitleLbl.Position = UDim2.new(0, 10, 0, 5); TitleLbl.Size = UDim2.new(1, -20, 0, 15); TitleLbl.Font = Theme.FontMain; TitleLbl.Text = title; TitleLbl.TextColor3 = Theme.TextDim; TitleLbl.TextSize = 12; TitleLbl.TextXAlignment = Enum.TextXAlignment.Left
+		local ValueLbl = Instance.new("TextLabel"); ValueLbl.Parent = Card; ValueLbl.BackgroundTransparency = 1; ValueLbl.Position = UDim2.new(0, 10, 0, 5); ValueLbl.Size = UDim2.new(1, -20, 0, 15); ValueLbl.Font = Theme.FontBold; ValueLbl.Text = string.format("%.1f", startVal); ValueLbl.TextColor3 = Theme.Accent; ValueLbl.TextSize = 12; ValueLbl.TextXAlignment = Enum.TextXAlignment.Right
+		
+		local SliderBG = Instance.new("TextButton"); SliderBG.Parent = Card; SliderBG.BackgroundColor3 = Color3.fromRGB(20, 25, 35); SliderBG.Position = UDim2.new(0, 10, 0, 28); SliderBG.Size = UDim2.new(1, -20, 0, 6); SliderBG.Text = ""; SliderBG.AutoButtonColor = false; local SBC = Instance.new("UICorner"); SBC.CornerRadius = UDim.new(1, 0); SBC.Parent = SliderBG
+		local SliderFill = Instance.new("Frame"); SliderFill.Parent = SliderBG; SliderFill.BackgroundColor3 = Theme.Accent; SliderFill.BorderSizePixel = 0; local SFC = Instance.new("UICorner"); SFC.CornerRadius = UDim.new(1, 0); SFC.Parent = SliderFill
+		
+		-- [UPDATE] Menambahkan Knob (Pointer Bulat)
+		local Knob = Instance.new("Frame"); Knob.Parent = SliderBG; Knob.BackgroundColor3 = Theme.Text; Knob.Size = UDim2.new(0, 12, 0, 12); Knob.AnchorPoint = Vector2.new(0.5, 0.5); local KC = Instance.new("UICorner"); KC.CornerRadius = UDim.new(1, 0); KC.Parent = Knob
+		
+		-- Hitung posisi awal
+		local defaultPercent = (startVal - min) / (max - min)
+		local clampedPercent = math.clamp(defaultPercent, 0, 1)
+		SliderFill.Size = UDim2.new(clampedPercent, 0, 1, 0)
+		Knob.Position = UDim2.new(clampedPercent, 0, 0.5, 0) -- Posisi Knob Awal
+
+		local dragging = false
+		local function Update(input)
+			local pos = math.clamp((input.Position.X - SliderBG.AbsolutePosition.X) / SliderBG.AbsoluteSize.X, 0, 1)
+			
+			-- Update Visual (Fill & Knob)
+			SliderFill.Size = UDim2.new(pos, 0, 1, 0)
+			Knob.Position = UDim2.new(pos, 0, 0.5, 0) -- Update Knob ikut gerak
+			
+			-- Kalkulasi Nilai
+			local val = min + ((max - min) * pos)
+			
+			if math.abs(max - min) > 50 then 
+				val = math.floor(val)
+				ValueLbl.Text = tostring(val)
+			else
+				ValueLbl.Text = string.format("%.1f", val)
+			end
+			
+			if callback then callback(val) end
+		end
+
+		SliderBG.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = true; Update(i) end end)
+		UserInputService.InputChanged:Connect(function(i) if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then Update(i) end end)
+		UserInputService.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end end)
+	end
+
+	-- [A] Smart Full Brightness
+	local fb_loop
+	local LightingBackup = {} 
+	CreateSwitchCard(World_Container, "Full Brightness", function(active)
+		if active then
+			LightingBackup = { Brightness = Lighting.Brightness, ClockTime = Lighting.ClockTime, FogEnd = Lighting.FogEnd, GlobalShadows = Lighting.GlobalShadows, OutdoorAmbient = Lighting.OutdoorAmbient }
+			fb_loop = RunService.RenderStepped:Connect(function()
+				Lighting.Brightness = 2; Lighting.ClockTime = 14; Lighting.FogEnd = 100000; Lighting.GlobalShadows = false; Lighting.OutdoorAmbient = Color3.fromRGB(128, 128, 128)
+			end)
+		else
+			if fb_loop then fb_loop:Disconnect(); fb_loop = nil end
+			if LightingBackup.Brightness then
+				Lighting.Brightness = LightingBackup.Brightness; Lighting.ClockTime = LightingBackup.ClockTime; Lighting.FogEnd = LightingBackup.FogEnd; Lighting.GlobalShadows = LightingBackup.GlobalShadows; Lighting.OutdoorAmbient = LightingBackup.OutdoorAmbient
+			end
+		end
+	end)
+
+	-- [B] Fog Density Slider
+	CreateSmartSlider(World_Container, "Fog Density (Ketebalan)", 2500, 10, 
+		function() return Lighting.FogEnd end,
+		function(val) Lighting.FogStart = 0; Lighting.FogEnd = val end
+	)
+
+	-- [C] Smooth Time Changer
+	CreateSmartSlider(World_Container, "Time of Day (Smooth)", 0, 24, 
+		function() return Lighting.ClockTime end, 
+		function(val) if not fb_loop then Lighting.ClockTime = val end end
+	)
+
+	-- =================================================================
+	-- SECTION 3: CINEMATIC CAMERA (NEW SUB-TAB)
+	-- =================================================================
+	local Cine_Container = CreateExpandableSection(parentFrame, "Cinematic Camera")
 	
-	-- 1. FOV Changer (Standard Slider)
-	CreateSliderCard(Cam_Container, "Field of View (FOV)", 70, 120, 70, function(val)
-		workspace.CurrentCamera.FieldOfView = val
-	end)
+	-- Function Internal SuperCam (Dipindah ke sini)
+	local function CreateSuperCamCard(parent)
+		local Card = CreateCard(parent, UDim2.new(1, 0, 0, 120))
+		local startY = 15
 
-	-- 2. Unlock Max Zoom (Switch)
-	CreateSwitchCard(Cam_Container, "Unlock Max Zoom (Limitless)", function(active)
-		if active then
-			Players.LocalPlayer.CameraMaxZoomDistance = 100000 -- Jauh banget
-		else
-			Players.LocalPlayer.CameraMaxZoomDistance = 128 -- Default Roblox
-		end
-	end)
-
-	-- 3. Camera Noclip (Switch)
-	CreateSwitchCard(Cam_Container, "Camera Noclip (Anti-Zoom)", function(active)
-		if active then
-			Players.LocalPlayer.DevCameraOcclusionMode = Enum.DevCameraOcclusionMode.Invisicam
-		else
-			Players.LocalPlayer.DevCameraOcclusionMode = Enum.DevCameraOcclusionMode.Zoom
-		end
-	end)
-
-	-- =========================================================
-	-- FUNGSI HELPER KHUSUS: SUPER CARD (ShiftLock + Offset)
-	-- =========================================================
-	local function CreateSuperCamCard(parent, showTitleInside)
-		-- Jika Title di dalam, tinggi 140. Jika Title di luar, tinggi 120.
-		local cardHeight = showTitleInside and 140 or 120
-		local startY = showTitleInside and 35 or 15 
-
-		local Card = CreateCard(parent, UDim2.new(1, 0, 0, cardHeight))
-		
-		-- Judul Internal (Opsional)
-		if showTitleInside then
-			local Title = Instance.new("TextLabel"); Title.Parent = Card; Title.BackgroundTransparency=1; Title.Position=UDim2.new(0,15,0,8); Title.Size=UDim2.new(1,-30,0,20); Title.Font=Theme.FontBold; Title.Text="Cinematic Mode"; Title.TextColor3=Theme.Text; Title.TextSize=14; Title.TextXAlignment=Enum.TextXAlignment.Left
-		end
-
-		-- [A] FITUR SHIFT LOCK
+		-- A. Shift Lock Switch
 		local SL_Label = Instance.new("TextLabel"); SL_Label.Parent = Card; SL_Label.BackgroundTransparency=1; SL_Label.Position=UDim2.new(0,15,0,startY); SL_Label.Size=UDim2.new(0,100,0,20); SL_Label.Font=Theme.FontMain; SL_Label.Text="Force Shift Lock"; SL_Label.TextColor3=Theme.TextDim; SL_Label.TextSize=12; SL_Label.TextXAlignment=Enum.TextXAlignment.Left
-		
 		local SL_Btn = Instance.new("TextButton"); SL_Btn.Parent = Card; SL_Btn.BackgroundTransparency=1; SL_Btn.Position=UDim2.new(1,-60,0,startY); SL_Btn.Size=UDim2.new(0,45,0,20); SL_Btn.Text=""
 		local SL_Sw = Instance.new("Frame"); SL_Sw.Parent=SL_Btn; SL_Sw.BackgroundColor3=Color3.fromRGB(20,25,35); SL_Sw.Position=UDim2.new(0,0,0.5,-8); SL_Sw.Size=UDim2.new(0,36,0,16); local SLC=Instance.new("UICorner"); SLC.CornerRadius=UDim.new(1,0); SLC.Parent=SL_Sw
 		local SL_K = Instance.new("Frame"); SL_K.Parent=SL_Sw; SL_K.BackgroundColor3=Theme.TextDim; SL_K.Position=UDim2.new(0,2,0.5,-6); SL_K.Size=UDim2.new(0,12,0,12); local SLKC=Instance.new("UICorner"); SLKC.CornerRadius=UDim.new(1,0); SLKC.Parent=SL_K
 
-		local sl_conn
-		local sl_active = false
+		local sl_conn, sl_active = nil, false
 		SL_Btn.MouseButton1Click:Connect(function()
 			sl_active = not sl_active
 			if sl_active then
 				TweenService:Create(SL_K, TweenInfo.new(0.2), {Position=UDim2.new(1,-14,0.5,-6), BackgroundColor3=Theme.Main}):Play()
 				TweenService:Create(SL_Sw, TweenInfo.new(0.2), {BackgroundColor3=Theme.Accent}):Play()
 				SL_Label.TextColor3 = Theme.Text
-				
 				sl_conn = RunService.RenderStepped:Connect(function()
 					UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
 					local char = Players.LocalPlayer.Character
@@ -649,64 +837,61 @@ local function BuildVisualsTab(parentFrame)
 			end
 		end)
 
-		-- [B] OFFSET SLIDERS (X & Y)
+		-- B. Offset Sliders
 		local camOffX, camOffY = 0, 0
-		local function UpdateOffset()
-			local c = Players.LocalPlayer.Character
-			if c and c:FindFirstChild("Humanoid") then c.Humanoid.CameraOffset = Vector3.new(camOffX, camOffY, 0) end
-		end
+		local function UpdateOffset() local c = Players.LocalPlayer.Character; if c and c:FindFirstChild("Humanoid") then c.Humanoid.CameraOffset = Vector3.new(camOffX, camOffY, 0) end end
 		Players.LocalPlayer.CharacterAdded:Connect(function() task.wait(1); UpdateOffset() end)
 
 		local function AddKnobSlider(yPos, text, min, max, callback)
 			local Lbl = Instance.new("TextLabel"); Lbl.Parent=Card; Lbl.BackgroundTransparency=1; Lbl.Position=UDim2.new(0,15,0,yPos); Lbl.Size=UDim2.new(0,100,0,15); Lbl.Font=Theme.FontMain; Lbl.Text=text; Lbl.TextColor3=Theme.TextDim; Lbl.TextSize=11; Lbl.TextXAlignment=Enum.TextXAlignment.Left
 			local Val = Instance.new("TextLabel"); Val.Parent=Card; Val.BackgroundTransparency=1; Val.Position=UDim2.new(1,-45,0,yPos); Val.Size=UDim2.new(0,30,0,15); Val.Font=Theme.FontBold; Val.Text="0"; Val.TextColor3=Theme.Accent; Val.TextSize=11; Val.TextXAlignment=Enum.TextXAlignment.Right
-			
 			local SBG = Instance.new("TextButton"); SBG.Parent=Card; SBG.BackgroundColor3=Color3.fromRGB(20,25,35); SBG.Position=UDim2.new(0,15,0,yPos+18); SBG.Size=UDim2.new(1,-30,0,4); SBG.Text=""; SBG.AutoButtonColor=false; local SBC=Instance.new("UICorner"); SBC.CornerRadius=UDim.new(1,0); SBC.Parent=SBG
 			local SF = Instance.new("Frame"); SF.Parent=SBG; SF.BackgroundColor3=Theme.Accent; SF.Size=UDim2.new(0.5,0,1,0); SF.BorderSizePixel=0; local SFC=Instance.new("UICorner"); SFC.CornerRadius=UDim.new(1,0); SFC.Parent=SF
-			
-			-- *** KNOB (BULATAN) ***
 			local Knob = Instance.new("Frame"); Knob.Parent=SBG; Knob.BackgroundColor3=Theme.Text; Knob.Size=UDim2.new(0,12,0,12); Knob.AnchorPoint=Vector2.new(0.5, 0.5); Knob.Position=UDim2.new(0.5, 0, 0.5, 0); local KC=Instance.new("UICorner"); KC.CornerRadius=UDim.new(1,0); KC.Parent=Knob
 			
 			local dragging = false
 			local function Upd(input)
 				local pos = math.clamp((input.Position.X - SBG.AbsolutePosition.X)/SBG.AbsoluteSize.X, 0, 1)
-				SF.Size = UDim2.new(pos,0,1,0)
-				Knob.Position = UDim2.new(pos, 0, 0.5, 0) -- Knob ikut gerak
-				local value = math.floor((min + ((max-min)*pos)) * 10) / 10
-				Val.Text = tostring(value)
-				callback(value)
+				SF.Size = UDim2.new(pos,0,1,0); Knob.Position = UDim2.new(pos, 0, 0.5, 0)
+				local value = math.floor((min + ((max-min)*pos)) * 10) / 10; Val.Text = tostring(value); callback(value)
 			end
 			SBG.InputBegan:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then dragging=true; Upd(i) end end)
 			UserInputService.InputChanged:Connect(function(i) if dragging and (i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch) then Upd(i) end end)
 			UserInputService.InputEnded:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then dragging=false end end)
 		end
-
 		AddKnobSlider(startY+30, "Offset X (Side)", -4, 4, function(v) camOffX=v; UpdateOffset() end)
 		AddKnobSlider(startY+65, "Offset Y (Height)", -4, 4, function(v) camOffY=v; UpdateOffset() end)
 	end
-
-	-- [OPSI A: JUDUL DI DALAM CARD]
-	-- Hapus blok ini jika kamu lebih suka Opsi B
-	-- local LabelA = Instance.new("TextLabel"); LabelA.Parent = Cam_Container; LabelA.BackgroundTransparency=1; LabelA.Size=UDim2.new(1,0,0,20); LabelA.Text="----- [OPSI A: JUDUL DI DALAM] -----"; LabelA.TextColor3=Color3.new(1,1,0); LabelA.Font=Theme.FontBold; LabelA.TextSize=10
-	-- CreateSuperCamCard(Cam_Container, true) -- true = judul di dalam
-
-	-- [OPSI B: JUDUL DI LUAR CARD]
-	-- Hapus blok ini jika kamu lebih suka Opsi A
-	-- local LabelB = Instance.new("TextLabel"); LabelB.Parent = Cam_Container; LabelB.BackgroundTransparency=1; LabelB.Size=UDim2.new(1,0,0,20); LabelB.Text="----- [OPSI B: JUDUL DI LUAR] -----"; LabelB.TextColor3=Color3.new(1,1,0); LabelB.Font=Theme.FontBold; LabelB.TextSize=10
-	
-	local OutsideTitle = Instance.new("TextLabel"); OutsideTitle.Parent = Cam_Container; OutsideTitle.BackgroundTransparency=1; OutsideTitle.Size=UDim2.new(1,0,0,20); OutsideTitle.Position=UDim2.new(0,5,0,0); OutsideTitle.Font=Theme.FontBold; OutsideTitle.Text="Position & Mode"; OutsideTitle.TextColor3=Theme.Accent; OutsideTitle.TextSize=12; OutsideTitle.TextXAlignment=Enum.TextXAlignment.Left
-	
-	CreateSuperCamCard(Cam_Container, false) -- false = judul di dalam mati
+	CreateSuperCamCard(Cine_Container)
 
 	-- =================================================================
-	-- SECTION 3: FPS
+	-- SECTION 4: CAMERA OPTIONS
+	-- =================================================================
+	local Cam_Container = CreateExpandableSection(parentFrame, "Camera Options")
+	
+	-- 1. FOV Changer
+	CreateSliderCard(Cam_Container, "Field of View (FOV)", 70, 120, 70, function(val)
+		workspace.CurrentCamera.FieldOfView = val
+	end)
+
+	-- 2. Unlock Max Zoom
+	CreateSwitchCard(Cam_Container, "Unlock Max Zoom", function(active)
+		Players.LocalPlayer.CameraMaxZoomDistance = active and 100000 or 128
+	end)
+
+	-- 3. Camera Noclip
+	CreateSwitchCard(Cam_Container, "Camera Noclip", function(active)
+		Players.LocalPlayer.DevCameraOcclusionMode = active and Enum.DevCameraOcclusionMode.Invisicam or Enum.DevCameraOcclusionMode.Zoom
+	end)
+
+	-- =================================================================
+	-- SECTION 5: PERFORMANCE / FPS
 	-- =================================================================
 	local FPS_Container = CreateExpandableSection(parentFrame, "Performance / FPS")
 	
 	CreateSwitchCard(FPS_Container, "Remove Shadows & Effects", function(active)
-		local L = game:GetService("Lighting")
-		L.GlobalShadows = not active
-		for _,v in pairs(L:GetChildren()) do if v:IsA("PostEffect") then v.Enabled = not active end end
+		Lighting.GlobalShadows = not active
+		for _,v in pairs(Lighting:GetChildren()) do if v:IsA("PostEffect") then v.Enabled = not active end end
 	end)
 
 	CreateButtonCard(FPS_Container, "Potato Mode (Low Poly)", "EXECUTE", function()
