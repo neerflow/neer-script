@@ -459,7 +459,7 @@ local function BuildMovementTab(parentFrame)
 	ResetBtn.MouseButton1Click:Connect(Session.ResetAll)
 end
 
---// [BAGIAN 10] KONTEN TAB: TELEPORT & SPECTATE (OPTIMIZED)
+--// [BAGIAN 10] KONTEN TAB: TELEPORT (SEPARATED TAP TP)
 local function BuildTeleportTab(parentFrame)
 	-- [A] Layout Setup
 	local Layout = Instance.new("UIListLayout"); Layout.Parent = parentFrame; Layout.SortOrder = Enum.SortOrder.LayoutOrder; Layout.Padding = UDim.new(0, 10)
@@ -468,22 +468,25 @@ local function BuildTeleportTab(parentFrame)
 	-- [B] Variabel & Konstanta Lokal
 	local ColorSuccess     = Theme.Green
 	local ColorError       = Theme.Red
-	local ColorSpectateOff = Color3.fromRGB(70, 85, 105) -- Abu-abu Kebiruan
+	local ColorSpectateOff = Color3.fromRGB(70, 85, 105)
 	local ColorSpectateOn  = Theme.Sidebar
 	
 	local selectedPlayer   = nil
 	local isDropdownOpen   = false
 	local statusTimer      = nil
-	local spectateLoop     = nil -- Variabel untuk menyimpan loop spectate
+	local spectateLoop     = nil 
 	local clickOutsideConn = nil
 
-	-- [C] Container Utama (Card)
+	-- =========================================================================
+	-- CARD 1: TELEPORT & SPECTATE PLAYER (DROPDOWN)
+	-- =========================================================================
 	local TpCard = CreateCard(parentFrame, UDim2.new(1, 0, 0, 110))
 	TpCard.ClipsDescendants = false 
+	TpCard.LayoutOrder = 1 -- Pastikan ini di urutan pertama
 	
-	local Title = Instance.new("TextLabel"); Title.Parent = TpCard; Title.BackgroundTransparency = 1; Title.Position = UDim2.new(0, 15, 0, 10); Title.Size = UDim2.new(1, -30, 0, 15); Title.Font = Theme.FontBold; Title.Text = "Teleport & Spectate"; Title.TextColor3 = Theme.Text; Title.TextSize = 14; Title.TextXAlignment = Enum.TextXAlignment.Left
+	local Title = Instance.new("TextLabel"); Title.Parent = TpCard; Title.BackgroundTransparency = 1; Title.Position = UDim2.new(0, 15, 0, 10); Title.Size = UDim2.new(1, -30, 0, 15); Title.Font = Theme.FontBold; Title.Text = "Player Teleport & Spectate"; Title.TextColor3 = Theme.Text; Title.TextSize = 14; Title.TextXAlignment = Enum.TextXAlignment.Left
 
-	-- [D] Sistem Notifikasi Status
+	-- Status Label
 	local StatusLbl = Instance.new("TextLabel"); StatusLbl.Parent = TpCard; StatusLbl.BackgroundTransparency = 1; StatusLbl.Position = UDim2.new(0, 15, 0, 68); StatusLbl.Size = UDim2.new(1, -180, 0, 15); StatusLbl.Font = Theme.FontMain; StatusLbl.Text = ""; StatusLbl.TextColor3 = ColorError; StatusLbl.TextSize = 11; StatusLbl.TextXAlignment = Enum.TextXAlignment.Left
 
 	local function ShowStatus(text, color)
@@ -493,7 +496,7 @@ local function BuildTeleportTab(parentFrame)
 		statusTimer = task.delay(3, function() if StatusLbl then StatusLbl.Text = "" end statusTimer = nil end)
 	end
 
-	-- [E] Dropdown Komponen
+	-- Dropdown Component
 	local DropContainer = Instance.new("Frame"); DropContainer.Parent = TpCard; DropContainer.BackgroundTransparency = 1; DropContainer.Position = UDim2.new(0, 15, 0, 35); DropContainer.Size = UDim2.new(1, -30, 0, 30); DropContainer.ZIndex = 5
 	
 	local DropBtn = Instance.new("TextButton"); DropBtn.Parent = DropContainer; DropBtn.BackgroundColor3 = Theme.Sidebar; DropBtn.Size = UDim2.new(1, -75, 1, 0); DropBtn.Font = Theme.FontMain; DropBtn.Text = "  Select Player..."; DropBtn.TextColor3 = Theme.TextDim; DropBtn.TextSize = 12; DropBtn.TextXAlignment = Enum.TextXAlignment.Left; DropBtn.AutoButtonColor = false; DropBtn.ZIndex = 5
@@ -507,21 +510,16 @@ local function BuildTeleportTab(parentFrame)
 	local LS = Instance.new("UIStroke"); LS.Parent = ListFrame; LS.Color = Theme.Accent; LS.Thickness = 1
 	local LL = Instance.new("UIListLayout"); LL.Parent = ListFrame; LL.SortOrder = Enum.SortOrder.LayoutOrder
 
-	-- [F] Logika Dropdown
+	-- Dropdown Logic
 	local function ToggleDropdown(forceClose)
 		if forceClose then isDropdownOpen = false else isDropdownOpen = not isDropdownOpen end
 		ListFrame.Visible = isDropdownOpen
-		
 		if clickOutsideConn then clickOutsideConn:Disconnect(); clickOutsideConn = nil end
-		
 		if isDropdownOpen then
 			clickOutsideConn = UserInputService.InputBegan:Connect(function(input)
 				if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 					local mPos = Vector2.new(input.Position.X, input.Position.Y)
-					local function isInRect(obj)
-						local pos, size = obj.AbsolutePosition, obj.AbsoluteSize
-						return mPos.X >= pos.X and mPos.X <= pos.X + size.X and mPos.Y >= pos.Y and mPos.Y <= pos.Y + size.Y
-					end
+					local function isInRect(obj) local pos, size = obj.AbsolutePosition, obj.AbsoluteSize; return mPos.X >= pos.X and mPos.X <= pos.X + size.X and mPos.Y >= pos.Y and mPos.Y <= pos.Y + size.Y end
 					if not isInRect(ListFrame) and not isInRect(DropBtn) then ToggleDropdown(true) end
 				end
 			end)
@@ -535,12 +533,7 @@ local function BuildTeleportTab(parentFrame)
 				local PBtn = Instance.new("TextButton"); PBtn.Parent = ListFrame; PBtn.BackgroundColor3 = Theme.Main; PBtn.Size = UDim2.new(1, 0, 0, 25); PBtn.Font = Theme.FontMain; PBtn.TextSize = 12; PBtn.TextXAlignment = Enum.TextXAlignment.Left; PBtn.AutoButtonColor = true; PBtn.ZIndex = 21
 				local labelText = "  " .. p.DisplayName .. " (@" .. p.Name .. ")"
 				PBtn.Text = labelText; PBtn.TextColor3 = Theme.TextDim
-				PBtn.MouseButton1Click:Connect(function() 
-					selectedPlayer = p
-					DropBtn.Text = labelText
-					DropBtn.TextColor3 = Theme.Text
-					ToggleDropdown(true) 
-				end)
+				PBtn.MouseButton1Click:Connect(function() selectedPlayer = p; DropBtn.Text = labelText; DropBtn.TextColor3 = Theme.Text; ToggleDropdown(true) end)
 			end
 		end
 		ListFrame.CanvasSize = UDim2.new(0, 0, 0, LL.AbsoluteContentSize.Y)
@@ -549,102 +542,76 @@ local function BuildTeleportTab(parentFrame)
 	DropBtn.MouseButton1Click:Connect(function() ToggleDropdown() end)
 	RefreshBtn.MouseButton1Click:Connect(function() RefreshList(); ShowStatus("List Refreshed!", ColorSuccess) end)
 
-	-- [G] Action Buttons Container
+	-- Action Buttons
 	local ActionContainer = Instance.new("Frame"); ActionContainer.Parent = TpCard; ActionContainer.BackgroundTransparency = 1; ActionContainer.Position = UDim2.new(1, -175, 0, 70); ActionContainer.Size = UDim2.new(0, 160, 0, 25)
 	
-	-- Tombol SPECTATE
-	local SpectateBtn = Instance.new("TextButton"); SpectateBtn.Parent = ActionContainer
-	SpectateBtn.BackgroundColor3 = ColorSpectateOff
-	SpectateBtn.BackgroundTransparency = 0
-	SpectateBtn.Position = UDim2.new(0, 0, 0, 0); SpectateBtn.Size = UDim2.new(0, 75, 1, 0)
-	SpectateBtn.Font = Theme.FontBold; SpectateBtn.Text = "SPECTATE"; SpectateBtn.TextColor3 = Theme.Text; SpectateBtn.TextSize = 10
-	local SC = Instance.new("UICorner"); SC.CornerRadius = UDim.new(0, 6); SC.Parent = SpectateBtn
-	local SS = Instance.new("UIStroke"); SS.Parent = SpectateBtn; SS.Color = Theme.Accent; SS.Transparency = 0.8; SS.Thickness = 1
-	
-	-- Tombol TELEPORT
-	local TeleportBtn = Instance.new("TextButton"); TeleportBtn.Parent = ActionContainer; TeleportBtn.BackgroundColor3 = Theme.Accent; TeleportBtn.Position = UDim2.new(1, -80, 0, 0); TeleportBtn.Size = UDim2.new(0, 80, 1, 0); TeleportBtn.Font = Theme.FontBold; TeleportBtn.Text = "TELEPORT"; TeleportBtn.TextColor3 = Theme.Main; TeleportBtn.TextSize = 10; TeleportBtn.ZIndex = 2
-	local TC = Instance.new("UICorner"); TC.CornerRadius = UDim.new(0, 6); TC.Parent = TeleportBtn
+	local SpectateBtn = Instance.new("TextButton"); SpectateBtn.Parent = ActionContainer; SpectateBtn.BackgroundColor3 = ColorSpectateOff; SpectateBtn.Position = UDim2.new(0, 0, 0, 0); SpectateBtn.Size = UDim2.new(0, 75, 1, 0); SpectateBtn.Font = Theme.FontBold; SpectateBtn.Text = "SPECTATE"; SpectateBtn.TextColor3 = Theme.Text; SpectateBtn.TextSize = 10; local SC = Instance.new("UICorner"); SC.CornerRadius = UDim.new(0, 6); SC.Parent = SpectateBtn; local SS = Instance.new("UIStroke"); SS.Parent = SpectateBtn; SS.Color = Theme.Accent; SS.Transparency = 0.8; SS.Thickness = 1
+	local TeleportBtn = Instance.new("TextButton"); TeleportBtn.Parent = ActionContainer; TeleportBtn.BackgroundColor3 = Theme.Accent; TeleportBtn.Position = UDim2.new(1, -80, 0, 0); TeleportBtn.Size = UDim2.new(0, 80, 1, 0); TeleportBtn.Font = Theme.FontBold; TeleportBtn.Text = "TELEPORT"; TeleportBtn.TextColor3 = Theme.Main; TeleportBtn.TextSize = 10; TeleportBtn.ZIndex = 2; local TC = Instance.new("UICorner"); TC.CornerRadius = UDim.new(0, 6); TC.Parent = TeleportBtn
 
-	-- [H] Advanced Spectate Logic
 	local function StopSpectate()
 		if spectateLoop then spectateLoop:Disconnect(); spectateLoop = nil end
-		workspace.CurrentCamera.CameraSubject = Players.LocalPlayer.Character and Players.LocalPlayer.Character:FindFirstChild("Humanoid")
-		SpectateBtn.BackgroundColor3 = ColorSpectateOff
-		SpectateBtn.TextColor3 = Theme.Text; SpectateBtn.Text = "SPECTATE"
-		SS.Color = Theme.Accent; SS.Transparency = 0.8
-	end
-
-	-- [H] Advanced Spectate Logic (Dengan Auto-Stop)
-	local function StopSpectate()
-		if spectateLoop then spectateLoop:Disconnect(); spectateLoop = nil end
-		
-		-- Kembalikan kamera ke kita
-		if Players.LocalPlayer.Character and Players.LocalPlayer.Character:FindFirstChild("Humanoid") then
-			workspace.CurrentCamera.CameraSubject = Players.LocalPlayer.Character.Humanoid
-		end
-
-		-- Reset Tampilan Tombol
-		SpectateBtn.BackgroundColor3 = ColorSpectateOff
-		SpectateBtn.TextColor3 = Theme.Text; SpectateBtn.Text = "SPECTATE"
-		SS.Color = Theme.Accent; SS.Transparency = 0.8
+		if Players.LocalPlayer.Character and Players.LocalPlayer.Character:FindFirstChild("Humanoid") then workspace.CurrentCamera.CameraSubject = Players.LocalPlayer.Character.Humanoid end
+		SpectateBtn.BackgroundColor3 = ColorSpectateOff; SpectateBtn.TextColor3 = Theme.Text; SpectateBtn.Text = "SPECTATE"; SS.Color = Theme.Accent; SS.Transparency = 0.8
 	end
 
 	SpectateBtn.MouseButton1Click:Connect(function()
-		if spectateLoop then
-			StopSpectate() -- Manual Stop
-		else
-			-- Start Spectate
+		if spectateLoop then StopSpectate() else
 			if not selectedPlayer then ShowStatus("Select Player!", ColorError); return end
 			local target = Players:FindFirstChild(selectedPlayer.Name)
-			
 			if target then
-				-- Visual Update (Aktif)
-				SpectateBtn.BackgroundColor3 = ColorSpectateOn
-				SpectateBtn.TextColor3 = Theme.Accent; SpectateBtn.Text = "STOP"
-				SS.Color = Theme.ActiveTab; SS.Transparency = 0
+				SpectateBtn.BackgroundColor3 = ColorSpectateOn; SpectateBtn.TextColor3 = Theme.Accent; SpectateBtn.Text = "STOP"; SS.Color = Theme.ActiveTab; SS.Transparency = 0
 				ShowStatus("Viewing Target", ColorSuccess)
-
-				-- Loop Update Camera
 				spectateLoop = RunService.RenderStepped:Connect(function()
-					-- [FITUR BARU] Cek: Apakah target keluar server?
-					if not target or not target.Parent then
-						StopSpectate() -- Otomatis berhenti
-						ShowStatus("Target Left Game", ColorError)
-						return
-					end
-
-					-- Logic Kamera
-					local tChar = target.Character
-					local tHum = tChar and tChar:FindFirstChild("Humanoid")
-					if tHum then
-						workspace.CurrentCamera.CameraSubject = tHum
-					end
+					if not target or not target.Parent then StopSpectate(); ShowStatus("Target Left Game", ColorError); return end
+					if target.Character and target.Character:FindFirstChild("Humanoid") then workspace.CurrentCamera.CameraSubject = target.Character.Humanoid end
 				end)
-			else
-				ShowStatus("Player Unavailable", ColorError)
-			end
+			else ShowStatus("Player Unavailable", ColorError) end
 		end
 	end)
 
-	-- [I] Teleport Logic
 	TeleportBtn.MouseButton1Click:Connect(function()
 		if not selectedPlayer then ShowStatus("Select a player!", ColorError); return end
-		local target = Players:FindFirstChild(selectedPlayer.Name)
-		if not target then ShowStatus("Player Left.", ColorError); return end
-		
-		local targetChar = target.Character
-		if not targetChar or not targetChar:FindFirstChild("HumanoidRootPart") then
-			ShowStatus("Target Unreachable", ColorError); return
-		end
-		
-		local localChar = Players.LocalPlayer.Character
-		if not localChar or not localChar:FindFirstChild("HumanoidRootPart") then
-			ShowStatus("Wait for respawn...", ColorError); return
-		end
-
-		localChar.HumanoidRootPart.CFrame = targetChar.HumanoidRootPart.CFrame * CFrame.new(0, 0, 3)
-		ShowStatus("Teleported!", ColorSuccess)
+		local target = Players:FindFirstChild(selectedPlayer.Name); if not target then ShowStatus("Player Left.", ColorError); return end
+		local tChar = target.Character; local lChar = Players.LocalPlayer.Character
+		if tChar and tChar:FindFirstChild("HumanoidRootPart") and lChar and lChar:FindFirstChild("HumanoidRootPart") then
+			lChar.HumanoidRootPart.CFrame = tChar.HumanoidRootPart.CFrame * CFrame.new(0, 0, 3); ShowStatus("Teleported!", ColorSuccess)
+		else ShowStatus("Target/Local Unreachable", ColorError) end
 	end)
+
+	-- =========================================================================
+	-- CARD 2: TELEPORT TAP (SEPARATED CARD)
+	-- =========================================================================
+	-- Menggunakan helper CreateSwitchCard yang menempel pada parentFrame (bukan TpCard)
+	local tapConnection
+	local TapSwitch = CreateSwitchCard(parentFrame, "Teleport Tap (Click / Touch)", function(active)
+		if active then
+			tapConnection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
+				if gameProcessed then return end
+				if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+					local mouse = Players.LocalPlayer:GetMouse()
+					local targetPos = mouse.Hit
+					local char = Players.LocalPlayer.Character
+					
+					if char and char:FindFirstChild("HumanoidRootPart") and targetPos then
+						char.HumanoidRootPart.CFrame = CFrame.new(targetPos.X, targetPos.Y + 3, targetPos.Z)
+					end
+				end
+			end)
+		else
+			if tapConnection then tapConnection:Disconnect(); tapConnection = nil end
+		end
+	end)
+	
+	-- [Modifikasi Style Manual untuk Tap Switch]
+	if TapSwitch.Card then
+		TapSwitch.Card.LayoutOrder = 2 -- Urutan kedua
+		-- Ubah warna judul agar terlihat spesial
+		local titleLbl = TapSwitch.Card:FindFirstChildOfClass("TextLabel")
+		if titleLbl then
+			titleLbl.Font = Theme.FontBold
+			titleLbl.TextColor3 = Theme.Accent
+		end
+	end
 	
 	RefreshList()
 end
