@@ -49,7 +49,7 @@ function Loader.Start()
 	local SpinGrad = Instance.new("UIGradient"); SpinGrad.Parent = Spinner; SpinGrad.Color = ColorSequence.new({ColorSequenceKeypoint.new(0, Theme.Accent), ColorSequenceKeypoint.new(0.5, Theme.Main), ColorSequenceKeypoint.new(1, Theme.Accent)}); SpinGrad.Rotation = 45
 
 	-- Logo
-	local Logo = Instance.new("TextLabel"); Logo.Parent = Container; Logo.BackgroundTransparency = 1; Logo.Position = UDim2.new(0, 0, 0.4, -10); Logo.Size = UDim2.new(1, 0, 0, 20); Logo.Font = Enum.Font.GothamBold; Logo.Text = "NeeR"; Logo.TextColor3 = Theme.Text; Logo.TextSize = 18
+	local Logo = Instance.new("TextLabel"); Logo.Parent = Container; Logo.BackgroundTransparency = 1; Logo.Position = UDim2.new(0, 0, 0.4, -10); Logo.Size = UDim2.new(1, 0, 0, 20); Logo.Font = Enum.Font.GothamBold; Logo.Text = "NF"; Logo.TextColor3 = Theme.Text; Logo.TextSize = 18
 	
 	-- Progress Bar
 	local BarBG = Instance.new("Frame"); BarBG.Parent = Container; BarBG.BackgroundColor3 = Color3.fromRGB(60, 70, 90); BarBG.Position = UDim2.new(0.1, 0, 0.75, 0); BarBG.Size = UDim2.new(0.8, 0, 0, 4); local BarCorner = Instance.new("UICorner"); BarCorner.CornerRadius=UDim.new(1,0); BarCorner.Parent=BarBG
@@ -77,15 +77,26 @@ end
 function Loader.Finish(onFinishCallback)
 	if not Loader.Gui then if onFinishCallback then onFinishCallback() end return end
 	Loader.Update("Welcome!", 1)
-	task.wait(0.8)
-	TweenService:Create(Loader.Container, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.6, 0)}):Play()
+	task.wait(0.5) -- Tahan sebentar
+	
+	-- Animasi Keluar: Mengecil & Turun (Liquid Effect)
+	local exitInfo = TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.In)
+	TweenService:Create(Loader.Container, exitInfo, {Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.6, 0)}):Play()
+	
+	-- Blur & Background hilang perlahan
 	TweenService:Create(Loader.Blur, TweenInfo.new(0.8), {Size = 0}):Play()
 	local fade = TweenService:Create(Loader.MainBG, TweenInfo.new(0.8), {BackgroundTransparency = 1})
 	fade:Play()
+	
+	-- [KUNCI] Panggil Menu Utama di detik ke-0.65 (Sebelum loader hilang total)
+	task.delay(0.65, function()
+		if onFinishCallback then onFinishCallback() end
+	end)
+	
+	-- Cleanup setelah semuanya selesai
 	fade.Completed:Connect(function()
 		if Loader.SpinLoop then Loader.SpinLoop:Disconnect() end
 		Loader.Blur:Destroy(); Loader.Gui:Destroy()
-		if onFinishCallback then onFinishCallback() end
 	end)
 end
 
@@ -413,14 +424,22 @@ local function BuildTeleportTab(parentFrame)
 	local ColorSuccess = Theme.Green; local ColorError = Theme.Red; local ColorSpectateOff = Color3.fromRGB(70, 85, 105); local ColorSpectateOn = Theme.Sidebar
 	local selectedPlayer = nil; local isDropdownOpen = false; local statusTimer = nil; local spectateLoop = nil; local clickOutsideConn = nil
 
-	local TpCard = CreateCard(parentFrame, UDim2.new(1, 0, 0, 110)); TpCard.ClipsDescendants = false; TpCard.LayoutOrder = 1
+	-- [PERBAIKAN] Tambahkan ZIndex = 10 agar Dropdown menimpa card di bawahnya
+	local TpCard = CreateCard(parentFrame, UDim2.new(1, 0, 0, 110))
+	TpCard.ClipsDescendants = false
+	TpCard.LayoutOrder = 1
+	TpCard.ZIndex = 10 -- << INI KUNCINYA (Agar list tidak tertutup Teleport Tap)
+
 	local Title = Instance.new("TextLabel"); Title.Parent = TpCard; Title.BackgroundTransparency = 1; Title.Position = UDim2.new(0, 15, 0, 10); Title.Size = UDim2.new(1, -30, 0, 15); Title.Font = Theme.FontBold; Title.Text = "Player Teleport & Spectate"; Title.TextColor3 = Theme.Text; Title.TextSize = 14; Title.TextXAlignment = Enum.TextXAlignment.Left
 	local StatusLbl = Instance.new("TextLabel"); StatusLbl.Parent = TpCard; StatusLbl.BackgroundTransparency = 1; StatusLbl.Position = UDim2.new(0, 15, 0, 68); StatusLbl.Size = UDim2.new(1, -180, 0, 15); StatusLbl.Font = Theme.FontMain; StatusLbl.Text = ""; StatusLbl.TextColor3 = ColorError; StatusLbl.TextSize = 11; StatusLbl.TextXAlignment = Enum.TextXAlignment.Left
 	local function ShowStatus(text, color) StatusLbl.Text = text; StatusLbl.TextColor3 = color or Theme.Text; if statusTimer then task.cancel(statusTimer) end; statusTimer = task.delay(3, function() if StatusLbl then StatusLbl.Text = "" end statusTimer = nil end) end
 
-	local DropContainer = Instance.new("Frame"); DropContainer.Parent = TpCard; DropContainer.BackgroundTransparency = 1; DropContainer.Position = UDim2.new(0, 15, 0, 35); DropContainer.Size = UDim2.new(1, -30, 0, 30); DropContainer.ZIndex = 5
-	local DropBtn = Instance.new("TextButton"); DropBtn.Parent = DropContainer; DropBtn.BackgroundColor3 = Theme.Sidebar; DropBtn.Size = UDim2.new(1, -75, 1, 0); DropBtn.Font = Theme.FontMain; DropBtn.Text = "  Select Player..."; DropBtn.TextColor3 = Theme.TextDim; DropBtn.TextSize = 12; DropBtn.TextXAlignment = Enum.TextXAlignment.Left; DropBtn.AutoButtonColor = false; DropBtn.ZIndex = 5; local DC = Instance.new("UICorner"); DC.CornerRadius = UDim.new(0, 6); DC.Parent = DropBtn; local DS = Instance.new("UIStroke"); DS.Parent = DropBtn; DS.Color = Theme.Separator; DS.Thickness = 1
-	local RefreshBtn = Instance.new("TextButton"); RefreshBtn.Parent = DropContainer; RefreshBtn.BackgroundColor3 = Theme.Green; RefreshBtn.Position = UDim2.new(1, -70, 0, 0); RefreshBtn.Size = UDim2.new(0, 70, 1, 0); RefreshBtn.ZIndex = 5; RefreshBtn.Font = Theme.FontBold; RefreshBtn.Text = "REFRESH"; RefreshBtn.TextColor3 = Theme.Main; RefreshBtn.TextSize = 11; local RC = Instance.new("UICorner"); RC.CornerRadius = UDim.new(0, 6); RC.Parent = RefreshBtn
+	local DropContainer = Instance.new("Frame"); DropContainer.Parent = TpCard; DropContainer.BackgroundTransparency = 1; DropContainer.Position = UDim2.new(0, 15, 0, 35); DropContainer.Size = UDim2.new(1, -30, 0, 30); DropContainer.ZIndex = 11 -- ZIndex lebih tinggi dari Card
+	
+	local DropBtn = Instance.new("TextButton"); DropBtn.Parent = DropContainer; DropBtn.BackgroundColor3 = Theme.Sidebar; DropBtn.Size = UDim2.new(1, -75, 1, 0); DropBtn.Font = Theme.FontMain; DropBtn.Text = "  Select Player..."; DropBtn.TextColor3 = Theme.TextDim; DropBtn.TextSize = 12; DropBtn.TextXAlignment = Enum.TextXAlignment.Left; DropBtn.AutoButtonColor = false; DropBtn.ZIndex = 11; local DC = Instance.new("UICorner"); DC.CornerRadius = UDim.new(0, 6); DC.Parent = DropBtn; local DS = Instance.new("UIStroke"); DS.Parent = DropBtn; DS.Color = Theme.Separator; DS.Thickness = 1
+	local RefreshBtn = Instance.new("TextButton"); RefreshBtn.Parent = DropContainer; RefreshBtn.BackgroundColor3 = Theme.Green; RefreshBtn.Position = UDim2.new(1, -70, 0, 0); RefreshBtn.Size = UDim2.new(0, 70, 1, 0); RefreshBtn.ZIndex = 11; RefreshBtn.Font = Theme.FontBold; RefreshBtn.Text = "REFRESH"; RefreshBtn.TextColor3 = Theme.Main; RefreshBtn.TextSize = 11; local RC = Instance.new("UICorner"); RC.CornerRadius = UDim.new(0, 6); RC.Parent = RefreshBtn
+	
+	-- List Frame ZIndex harus sangat tinggi
 	local ListFrame = Instance.new("ScrollingFrame"); ListFrame.Parent = TpCard; ListFrame.Visible = false; ListFrame.BackgroundColor3 = Theme.Sidebar; ListFrame.BorderSizePixel = 0; ListFrame.Position = UDim2.new(0, 15, 0, 68); ListFrame.Size = UDim2.new(0.90, -65, 0, 120); ListFrame.ZIndex = 20; ListFrame.ScrollBarThickness = 2; local LS = Instance.new("UIStroke"); LS.Parent = ListFrame; LS.Color = Theme.Accent; LS.Thickness = 1; local LL = Instance.new("UIListLayout"); LL.Parent = ListFrame; LL.SortOrder = Enum.SortOrder.LayoutOrder
 
 	local function ToggleDropdown(forceClose)
@@ -476,7 +495,15 @@ local function BuildTeleportTab(parentFrame)
 			end)
 		else if tapConnection then tapConnection:Disconnect(); tapConnection = nil end end
 	end)
-	if TapSwitch.Card then TapSwitch.Card.LayoutOrder = 2; local titleLbl = TapSwitch.Card:FindFirstChildOfClass("TextLabel"); if titleLbl then titleLbl.Font = Theme.FontBold; titleLbl.TextColor3 = Theme.Accent end end
+	
+	-- Pastikan LayoutOrder Card kedua aman
+	if TapSwitch.Card then 
+		TapSwitch.Card.LayoutOrder = 2
+		TapSwitch.Card.ZIndex = 1 -- ZIndex rendah agar di bawah TpCard
+		local titleLbl = TapSwitch.Card:FindFirstChildOfClass("TextLabel"); 
+		if titleLbl then titleLbl.Font = Theme.FontBold; titleLbl.TextColor3 = Theme.Accent end 
+	end
+	
 	RefreshList()
 end
 
@@ -585,6 +612,7 @@ end
 Loader.Start()
 
 task.spawn(function()
+	-- Timing Loading (Slow & Satisfying)
 	Loader.Update("Initializing Modules...", 0.1); task.wait(1)
 	
 	Loader.Update("Loading Informations...", 0.3); local TabInfo = CreateTabBtn("Informations", true); BuildInfoTab(TabInfo); task.wait(0.5)
@@ -594,10 +622,15 @@ task.spawn(function()
 	Loader.Update("Loading Settings...", 0.9); local TabSettings = CreateTabBtn("Settings", false); BuildSettingsTab(TabSettings); task.wait(0.5)
 	
 	Loader.Finish(function()
-		-- Animasi Masuk Main UI
+		-- Animasi Masuk Main UI (Disinkronkan)
 		MainFrame.Visible = true
 		MainFrame.Size = UDim2.new(0, 0, 0, 0)
-		TweenService:Create(MainFrame, TweenInfo.new(AnimationSpeed, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = FinalSize}):Play()
+		
+		-- Menggunakan durasi 0.8s + Elastic agar menu "mekar" dengan elegan
+		TweenService:Create(MainFrame, TweenInfo.new(0.8, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+			Size = FinalSize,
+			Position = UDim2.new(0.5, 0, 0.5, 0)
+		}):Play()
 	end)
 end)
 
