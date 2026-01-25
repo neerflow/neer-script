@@ -11,18 +11,18 @@ local LocalPlayer = Players.LocalPlayer
 
 --// [BAGIAN 1] TEMA & PENGATURAN AWAL
 local Theme = {
-	Main        = Color3.fromRGB(20, 25, 35),
-	Sidebar     = Color3.fromRGB(22, 26, 38),
-	ActiveTab   = Color3.fromRGB(45, 55, 75),
-	Accent      = Color3.fromRGB(137, 207, 240), -- Baby Blue
-	Text        = Color3.fromRGB(255, 255, 255),
-	TextDim     = Color3.fromRGB(160, 180, 190),
-	Separator   = Color3.fromRGB(50, 60, 80),
-	Transp      = 0.15,
-	Red         = Color3.fromRGB(255, 80, 80),
-	Green       = Color3.fromRGB(85, 255, 127),
-	FontMain    = Enum.Font.GothamMedium,
-	FontBold    = Enum.Font.GothamBold
+	Main = Color3.fromRGB(20, 25, 35),
+	Sidebar = Color3.fromRGB(22, 26, 38),
+	ActiveTab = Color3.fromRGB(45, 55, 75),
+	Accent = Color3.fromRGB(137, 207, 240), -- Baby Blue
+	Text = Color3.fromRGB(255, 255, 255),
+	TextDim = Color3.fromRGB(160, 180, 190),
+	Separator = Color3.fromRGB(50, 60, 80),
+	Transp = 0.15,
+	Red = Color3.fromRGB(255, 80, 80),
+	Green = Color3.fromRGB(85, 255, 127),
+	FontMain = Enum.Font.GothamMedium,
+	FontBold = Enum.Font.GothamBold
 }
 
 if CoreGui:FindFirstChild("NeeR_Unified") then CoreGui.NeeR_Unified:Destroy() end
@@ -130,7 +130,7 @@ local Session = { StopFly = function() end, StopWalk = function() end, StopJump 
 local ViewportSize = workspace.CurrentCamera.ViewportSize
 local IsMobile = ViewportSize.X < 1080
 local CurrentScale = IsMobile and 0.75 or 1
-local FinalSize  = UDim2.new(0, 580, 0, 380)
+local FinalSize = UDim2.new(0, 580, 0, 380)
 
 local ScreenGui = Instance.new("ScreenGui"); ScreenGui.Name = "NeeR_Unified"; ScreenGui.Parent = CoreGui; ScreenGui.IgnoreGuiInset = true; ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
@@ -197,6 +197,61 @@ HeaderLine.BackgroundColor3 = Theme.TextDim; HeaderLine.BorderSizePixel = 0
 HeaderLine.BackgroundTransparency = 0.5; HeaderLine.Position = UDim2.new(0, 0, 1, -1); HeaderLine.Size = UDim2.new(1, 0, 0, 1)
 MakeDraggable(Header, MainFrame)
 
+--// [BAGIAN] EXIT CONFIRMATION POPUP SYSTEM
+local ExitFrame = Instance.new("Frame"); ExitFrame.Name = "ExitFrame"; ExitFrame.Parent = ScreenGui
+ExitFrame.BackgroundColor3 = Theme.Main; ExitFrame.BackgroundTransparency = 0.1
+ExitFrame.Size = UDim2.new(0, 0, 0, 0); ExitFrame.Position = UDim2.new(0.5, 0, 0.5, 0) -- Mulai dari kecil
+ExitFrame.AnchorPoint = Vector2.new(0.5, 0.5); ExitFrame.Visible = false
+ExitFrame.ClipsDescendants = true
+Instance.new("UICorner", ExitFrame).CornerRadius = UDim.new(0, 10)
+local ES = Instance.new("UIStroke"); ES.Parent = ExitFrame; ES.Color = Theme.Red; ES.Thickness = 1
+
+local ExitTitle = Instance.new("TextLabel"); ExitTitle.Parent = ExitFrame
+ExitTitle.Text = "EXIT SCRIPT?"; ExitTitle.Font = Theme.FontBold; ExitTitle.TextColor3 = Theme.Red
+ExitTitle.Position = UDim2.new(0, 0, 0.15, 0); ExitTitle.Size = UDim2.new(1, 0, 0, 20); ExitTitle.BackgroundTransparency = 1
+
+local ExitMsg = Instance.new("TextLabel"); ExitMsg.Parent = ExitFrame
+ExitMsg.Text = "Are you sure you want to close?"; ExitMsg.Font = Theme.FontMain; ExitMsg.TextColor3 = Theme.TextDim
+ExitMsg.Position = UDim2.new(0, 0, 0.35, 0); ExitMsg.Size = UDim2.new(1, 0, 0, 20); ExitMsg.BackgroundTransparency = 1; ExitMsg.TextSize = 12
+
+-- Tombol YES
+local YesBtn = Instance.new("TextButton"); YesBtn.Parent = ExitFrame
+YesBtn.BackgroundColor3 = Theme.Red; YesBtn.Text = "YES, CLOSE"; YesBtn.TextColor3 = Theme.Text; YesBtn.Font = Theme.FontBold
+YesBtn.Position = UDim2.new(0.1, 0, 0.65, 0); YesBtn.Size = UDim2.new(0.35, 0, 0, 30); Instance.new("UICorner", YesBtn).CornerRadius = UDim.new(0, 6)
+
+-- Tombol NO
+local NoBtn = Instance.new("TextButton"); NoBtn.Parent = ExitFrame
+NoBtn.BackgroundColor3 = Theme.ActiveTab; NoBtn.Text = "NO, RETURN"; NoBtn.TextColor3 = Theme.Text; NoBtn.Font = Theme.FontBold
+NoBtn.Position = UDim2.new(0.55, 0, 0.65, 0); NoBtn.Size = UDim2.new(0.35, 0, 0, 30); Instance.new("UICorner", NoBtn).CornerRadius = UDim.new(0, 6)
+
+-- LOGIKA POPUP
+CloseBtn.MouseButton1Click:Connect(function()
+    MainFrame.Visible = false
+    ExitFrame.Visible = true
+    -- Animasi Membesar (Pop Up)
+    TweenService:Create(ExitFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 250, 0, 140)}):Play()
+end)
+
+NoBtn.MouseButton1Click:Connect(function()
+    -- Animasi Mengecil (Hide)
+    local closeAnim = TweenService:Create(ExitFrame, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0)})
+    closeAnim:Play()
+    closeAnim.Completed:Connect(function() 
+        ExitFrame.Visible = false 
+        MainFrame.Visible = true 
+    end)
+end)
+
+YesBtn.MouseButton1Click:Connect(function()
+    -- Animasi Mengecil lalu Hancur
+    local byeAnim = TweenService:Create(ExitFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0)})
+    byeAnim:Play()
+    byeAnim.Completed:Connect(function() 
+        Session.ResetAll() 
+        ScreenGui:Destroy() 
+    end)
+end)
+
 local Container = Instance.new("Frame"); Container.Parent = MainFrame
 Container.BackgroundTransparency = 1; Container.Position = UDim2.new(0, 0, 0, 35); Container.Size = UDim2.new(1, 0, 1, -35)
 
@@ -250,8 +305,7 @@ end
 
 local function CreateCard(parent, size, layoutOrder)
 	local Card = Instance.new("Frame"); Card.Parent = parent
-	Card.BackgroundColor3 = Theme.ActiveTab; Card.BackgroundTransparency = 0.2
-	Card.Size = size; Card.LayoutOrder = layoutOrder or 0
+	Card.BackgroundColor3 = Theme.ActiveTab; Card.BackgroundTransparency = 0.2; Card.Size = size; Card.LayoutOrder = layoutOrder or 0
 	Instance.new("UICorner", Card).CornerRadius = UDim.new(0, 10)
 	local S = Instance.new("UIStroke"); S.Parent = Card; S.Color = Theme.Accent; S.Transparency = 0.8; S.Thickness = 1
 	return Card
@@ -307,14 +361,14 @@ local function CreateSwitchCard(targetParent, text, callback)
 	local toggled = false
 	local function SetState(state)
 		toggled = state
-		if toggled then 
+		if toggled then
 			TweenService:Create(K, TweenInfo.new(0.2), {Position = UDim2.new(1, -14, 0.5, -6), BackgroundColor3 = Theme.Main}):Play()
 			TweenService:Create(Sw, TweenInfo.new(0.2), {BackgroundColor3 = Theme.Accent}):Play()
-			TitleLbl.TextColor3 = Theme.Text 
-		else 
+			TitleLbl.TextColor3 = Theme.Text
+		else
 			TweenService:Create(K, TweenInfo.new(0.2), {Position = UDim2.new(0, 2, 0.5, -6), BackgroundColor3 = Theme.TextDim}):Play()
 			TweenService:Create(Sw, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(20, 25, 35)}):Play()
-			TitleLbl.TextColor3 = Theme.TextDim 
+			TitleLbl.TextColor3 = Theme.TextDim
 		end
 		if callback then callback(toggled) end
 	end
@@ -385,7 +439,7 @@ local function CreateSliderCard(targetParent, text, min, max, default, callback)
 	SliderFill.Size = UDim2.new(defaultPercent, 0, 1, 0)
 end
 
--- [FUNGSI YANG HILANG DIKEMBALIKAN] Smart Slider untuk Float (Desimal)
+-- [FUNGSI WAJIB ADA] Smart Slider untuk X-Ray (Float Support)
 local function CreateSmartSlider(targetParent, title, min, max, getStartVal, callback)
 	local Card = Instance.new("Frame"); Card.Parent = targetParent
 	Card.BackgroundColor3 = Theme.ActiveTab; Card.BackgroundTransparency = 0.5; Card.Size = UDim2.new(1, 0, 0, 45)
@@ -427,7 +481,7 @@ local function BuildInfoTab(parentFrame)
 	local Layout = Instance.new("UIListLayout"); Layout.Parent = parentFrame; Layout.SortOrder = Enum.SortOrder.LayoutOrder; Layout.Padding = UDim.new(0, 14)
 	local Padding = Instance.new("UIPadding"); Padding.Parent = parentFrame; Padding.PaddingTop = UDim.new(0, 15); Padding.PaddingLeft = UDim.new(0, 15); Padding.PaddingRight = UDim.new(0, 15)
 	
-	local PingCard = CreateCard(parentFrame, UDim2.new(1, 0, 0,60), 1) 
+	local PingCard = CreateCard(parentFrame, UDim2.new(1, 0, 0,60), 1)
 	local PingTitle = Instance.new("TextLabel"); PingTitle.Parent = PingCard; PingTitle.BackgroundTransparency = 1; PingTitle.Position = UDim2.new(0, 15, 0, 5); PingTitle.Size = UDim2.new(1, -30, 0, 20); PingTitle.Font = Theme.FontBold; PingTitle.Text = "Network Ping"; PingTitle.TextColor3 = Theme.TextDim; PingTitle.TextSize = 12; PingTitle.TextXAlignment = Enum.TextXAlignment.Left
 	local PingValue = Instance.new("TextLabel"); PingValue.Parent = PingCard; PingValue.BackgroundTransparency = 1; PingValue.Position = UDim2.new(0, 15, 0, 5); PingValue.Size = UDim2.new(1, -30, 0, 20); PingValue.Font = Theme.FontBold; PingValue.Text = "0 ms"; PingValue.TextColor3 = Theme.Accent; PingValue.TextSize = 12; PingValue.TextXAlignment = Enum.TextXAlignment.Right
 	local BarBg = Instance.new("Frame"); BarBg.Parent = PingCard; BarBg.BackgroundColor3 = Color3.fromRGB(30, 30, 40); BarBg.Position = UDim2.new(0, 15, 0, 35); BarBg.Size = UDim2.new(1, -30, 0, 10); Instance.new("UICorner", BarBg).CornerRadius = UDim.new(1, 0)
@@ -444,12 +498,12 @@ local function BuildInfoTab(parentFrame)
 	local MemTitle = Instance.new("TextLabel"); MemTitle.Parent = MemCard; MemTitle.BackgroundTransparency = 1; MemTitle.Position = UDim2.new(0, 12, 0, 35); MemTitle.Size = UDim2.new(1, -24, 0, 10); MemTitle.Font = Theme.FontMain; MemTitle.Text = "Memory RAM"; MemTitle.TextColor3 = Theme.TextDim; MemTitle.TextSize = 12; MemTitle.TextXAlignment = Enum.TextXAlignment.Left
 	local MemNum = Instance.new("TextLabel"); MemNum.Parent = MemCard; MemNum.BackgroundTransparency = 1; MemNum.Position = UDim2.new(0, 12, 0, 12); MemNum.Size = UDim2.new(1, -24, 0, 10); MemNum.Font = Theme.FontBold; MemNum.Text = "0"; MemNum.TextColor3 = Theme.Text; MemNum.TextSize = 24; MemNum.TextXAlignment = Enum.TextXAlignment.Left
 
-	local TimeCard = CreateCard(parentFrame, UDim2.new(1, 0, 0, 55), 3) 
+	local TimeCard = CreateCard(parentFrame, UDim2.new(1, 0, 0, 55), 3)
 	local TimeTitle = Instance.new("TextLabel"); TimeTitle.Parent = TimeCard; TimeTitle.BackgroundTransparency = 1; TimeTitle.Position = UDim2.new(0, 15, 0, 2); TimeTitle.Size = UDim2.new(1, -30, 0, 20); TimeTitle.Font = Theme.FontBold; TimeTitle.Text = "Time Server"; TimeTitle.TextColor3 = Theme.TextDim; TimeTitle.TextSize = 12; TimeTitle.TextXAlignment = Enum.TextXAlignment.Left
 	local ClockLabel = Instance.new("TextLabel"); ClockLabel.Parent = TimeCard; ClockLabel.BackgroundTransparency = 1; ClockLabel.Position = UDim2.new(0, 15, 0, 0); ClockLabel.Size = UDim2.new(1, -30, 0, 35); ClockLabel.Font = Theme.FontBold; ClockLabel.Text = "00:00:00"; ClockLabel.TextColor3 = Theme.Text; ClockLabel.TextSize = 34; ClockLabel.TextXAlignment = Enum.TextXAlignment.Right
 	local DateLabel = Instance.new("TextLabel"); DateLabel.Parent = TimeCard; DateLabel.BackgroundTransparency = 1; DateLabel.Position = UDim2.new(0, 15, 0, 30); DateLabel.Size = UDim2.new(1, -30, 0, 20); DateLabel.Font = Theme.FontMain; DateLabel.Text = "Monday, 1 Jan 2024"; DateLabel.TextColor3 = Theme.Accent; DateLabel.TextSize = 14; DateLabel.TextXAlignment = Enum.TextXAlignment.Right
 
-	local RejoinCard = CreateCard(parentFrame, UDim2.new(1, 0, 0, 75), 4) 
+	local RejoinCard = CreateCard(parentFrame, UDim2.new(1, 0, 0, 75), 4)
 	local RejoinTitle = Instance.new("TextLabel"); RejoinTitle.Parent = RejoinCard; RejoinTitle.BackgroundTransparency = 1; RejoinTitle.Position = UDim2.new(0, 15, 0, 8); RejoinTitle.Size = UDim2.new(1, -30, 0, 10); RejoinTitle.Font = Theme.FontBold; RejoinTitle.Text = "Session Control"; RejoinTitle.TextColor3 = Theme.TextDim; RejoinTitle.TextSize = 12; RejoinTitle.TextXAlignment = Enum.TextXAlignment.Left
 	local RjBtn = Instance.new("TextButton"); RjBtn.Parent = RejoinCard; RjBtn.BackgroundColor3 = Theme.Sidebar; RjBtn.Position = UDim2.new(0, 15, 0, 30); RjBtn.Size = UDim2.new(1, -30, 0, 35); RjBtn.Font = Theme.FontBold; RjBtn.Text = "Rejoin Server"; RjBtn.TextColor3 = Theme.Accent; RjBtn.TextSize = 14; RjBtn.AutoButtonColor = true; local RjCorner = Instance.new("UICorner"); RjCorner.CornerRadius = UDim.new(0, 8); RjCorner.Parent = RjBtn; local RjStroke = Instance.new("UIStroke"); RjStroke.Parent = RjBtn; RjStroke.Color = Theme.Accent; RjStroke.Thickness = 1; RjStroke.Transparency = 0.7; RjStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	RjBtn.MouseButton1Click:Connect(function() local TS = game:GetService("TeleportService"); local LP = game:GetService("Players").LocalPlayer; RjBtn.Text = "Rejoining..."; RjBtn.BackgroundTransparency = 0.5; TS:TeleportToPlaceInstance(game.PlaceId, game.JobId, LP) end)
@@ -462,9 +516,9 @@ local function BuildInfoTab(parentFrame)
 			if tick() - LastFPSTime >= 0.5 then local fps = math.floor(FrameCount / (tick() - LastFPSTime)); FPSNum.Text = tostring(fps); FrameCount = 0; LastFPSTime = tick() end
 		end)
 		while parentFrame.Parent do
-			local rawPing = LocalPlayer:GetNetworkPing(); local ping = math.round(rawPing * 1000) 
+			local rawPing = LocalPlayer:GetNetworkPing(); local ping = math.round(rawPing * 1000)
 			PingValue.Text = ping .. " ms"
-			local barSize = math.clamp(ping / 300, 0.05, 1) 
+			local barSize = math.clamp(ping / 300, 0.05, 1)
 			TweenService:Create(BarFill, TweenInfo.new(0.5, Enum.EasingStyle.Sine), {Size = UDim2.new(barSize, 0, 1, 0), BackgroundColor3 = ping < 100 and Theme.Green or ping < 200 and Color3.fromRGB(255, 200, 0) or Theme.Red}):Play()
 			MemNum.Text = tostring(math.floor(Stats:GetTotalMemoryUsageMb())); ClockLabel.Text = os.date("%H:%M:%S"); DateLabel.Text = os.date("%A, %d %B %Y")
 			task.wait(1)
@@ -501,7 +555,11 @@ local function BuildMovementTab(parentFrame)
 	end
 
 	--// VARIABEL FLY (OPTIMIZED)
-	local flying, flySpeed, bv, bg, flyLoop = false, 1, nil, nil, nil
+	local flying = false
+	local flySpeed = 1 -- [START AT 1x]
+	local bv = nil
+	local bg = nil
+	local flyLoop = nil
 	
 	-- Fungsi Mematikan Fly (CLEANUP TOTAL)
 	Session.StopFly = function()
@@ -520,7 +578,7 @@ local function BuildMovementTab(parentFrame)
 	local FlyCtrl = CreateControlCard("Fly Mode", 1, function(active, speed)
 		flying = active; flySpeed = speed
 		
-		if not active then 
+		if not active then
 			Session.StopFly()
 		else
 			local char = LocalPlayer.Character
@@ -614,7 +672,7 @@ local function BuildTeleportTab(parentFrame)
 	local function ShowStatus(text, color) StatusLbl.Text = text; StatusLbl.TextColor3 = color or Theme.Text; if statusTimer then task.cancel(statusTimer) end; statusTimer = task.delay(3, function() if StatusLbl then StatusLbl.Text = "" end statusTimer = nil end) end
 
 	local DropContainer = Instance.new("Frame"); DropContainer.Parent = TpCard; DropContainer.BackgroundTransparency = 1; DropContainer.Position = UDim2.new(0, 15, 0, 35); DropContainer.Size = UDim2.new(1, -30, 0, 30); DropContainer.ZIndex = 11
-	local DropBtn = Instance.new("TextButton"); DropBtn.Parent = DropContainer; DropBtn.BackgroundColor3 = Theme.Sidebar; DropBtn.Size = UDim2.new(1, -75, 1, 0); DropBtn.Font = Theme.FontMain; DropBtn.Text = "  Select Player..."; DropBtn.TextColor3 = Theme.TextDim; DropBtn.TextSize = 12; DropBtn.TextXAlignment = Enum.TextXAlignment.Left; DropBtn.AutoButtonColor = false; DropBtn.ZIndex = 11; Instance.new("UICorner", DropBtn).CornerRadius = UDim.new(0, 6); local DS = Instance.new("UIStroke"); DS.Parent = DropBtn; DS.Color = Theme.Separator; DS.Thickness = 1
+	local DropBtn = Instance.new("TextButton"); DropBtn.Parent = DropContainer; DropBtn.BackgroundColor3 = Theme.Sidebar; DropBtn.Size = UDim2.new(1, -75, 1, 0); DropBtn.Font = Theme.FontMain; DropBtn.Text = "  Select Player..."; DropBtn.TextColor3 = Theme.TextDim; DropBtn.TextSize = 12; DropBtn.TextXAlignment = Enum.TextXAlignment.Left; DropBtn.AutoButtonColor = false; DropBtn.ZIndex = 11; Instance.new("UICorner", DropBtn).CornerRadius = UDim.new(0, 6); local DS = Instance.new("UIStroke"); DS.Parent = DropBtn; DS.Color = Theme.Separator; DS.Thickness = 1
 	local RefreshBtn = Instance.new("TextButton"); RefreshBtn.Parent = DropContainer; RefreshBtn.BackgroundColor3 = Theme.Green; RefreshBtn.Position = UDim2.new(1, -70, 0, 0); RefreshBtn.Size = UDim2.new(0, 70, 1, 0); RefreshBtn.ZIndex = 11; RefreshBtn.Font = Theme.FontBold; RefreshBtn.Text = "REFRESH"; RefreshBtn.TextColor3 = Theme.Main; RefreshBtn.TextSize = 11; Instance.new("UICorner", RefreshBtn).CornerRadius = UDim.new(0, 6)
 	
 	local ListFrame = Instance.new("ScrollingFrame"); ListFrame.Parent = TpCard; ListFrame.Visible = false; ListFrame.BackgroundColor3 = Theme.Sidebar; ListFrame.BorderSizePixel = 0; ListFrame.Position = UDim2.new(0, 15, 0, 68); ListFrame.Size = UDim2.new(0.90, -65, 0, 120); ListFrame.ZIndex = 20; ListFrame.ScrollBarThickness = 2; local LS = Instance.new("UIStroke"); LS.Parent = ListFrame; LS.Color = Theme.Accent; LS.Thickness = 1; local LL = Instance.new("UIListLayout"); LL.Parent = ListFrame; LL.SortOrder = Enum.SortOrder.LayoutOrder
@@ -627,7 +685,7 @@ local function BuildTeleportTab(parentFrame)
 		for _, v in pairs(ListFrame:GetChildren()) do if v:IsA("TextButton") then v:Destroy() end end
 		for _, p in pairs(Players:GetPlayers()) do
 			if p ~= LocalPlayer then
-				local PBtn = Instance.new("TextButton"); PBtn.Parent = ListFrame; PBtn.BackgroundColor3 = Theme.Main; PBtn.Size = UDim2.new(1, 0, 0, 25); PBtn.Font = Theme.FontMain; PBtn.TextSize = 12; PBtn.TextXAlignment = Enum.TextXAlignment.Left; PBtn.AutoButtonColor = true; PBtn.ZIndex = 21; local labelText = "  " .. p.DisplayName .. " (@" .. p.Name .. ")"; PBtn.Text = labelText; PBtn.TextColor3 = Theme.TextDim
+				local PBtn = Instance.new("TextButton"); PBtn.Parent = ListFrame; PBtn.BackgroundColor3 = Theme.Main; PBtn.Size = UDim2.new(1, 0, 0, 25); PBtn.Font = Theme.FontMain; PBtn.TextSize = 12; PBtn.TextXAlignment = Enum.TextXAlignment.Left; PBtn.AutoButtonColor = true; PBtn.ZIndex = 21; local labelText = "  " .. p.DisplayName .. " (@" .. p.Name .. ")"; PBtn.Text = labelText; PBtn.TextColor3 = Theme.TextDim
 				PBtn.MouseButton1Click:Connect(function() selectedPlayer = p; DropBtn.Text = labelText; DropBtn.TextColor3 = Theme.Text; ToggleDropdown(true) end)
 			end
 		end
@@ -695,7 +753,7 @@ local function BuildVisualsTab(parentFrame)
 	local HP_Conn = {}
 	CreateSwitchCard(ESP_Container, "Health Bar", function(active) ToggleFeature(active, HP_Conn, function(char) if not char:FindFirstChild("Head") then return end; if char:FindFirstChild("NeeR_HP") then char.NeeR_HP:Destroy() end; local bb = Instance.new("BillboardGui"); bb.Name="NeeR_HP"; bb.Parent=char; bb.Adornee=char.Head; bb.Size=UDim2.new(0,40,0,4); bb.StudsOffset=Vector3.new(0,2.5,0); bb.AlwaysOnTop=true; local bg = Instance.new("Frame"); bg.Parent=bb; bg.Size=UDim2.new(1,0,1,0); bg.BackgroundColor3=Color3.new(0,0,0); bg.BorderSizePixel=0; local fill = Instance.new("Frame"); fill.Parent=bg; fill.Size=UDim2.new(1,0,1,0); fill.BackgroundColor3=Theme.Green; fill.BorderSizePixel=0; local hum = char:FindFirstChild("Humanoid"); if hum then local function Upd() local p = math.clamp(hum.Health/hum.MaxHealth, 0, 1); TweenService:Create(fill, TweenInfo.new(0.2), {Size=UDim2.new(p,0,1,0)}):Play(); fill.BackgroundColor3 = p < 0.3 and Theme.Red or Theme.Green end; Upd(); hum.HealthChanged:Connect(Upd) end end, function(char) if char:FindFirstChild("NeeR_HP") then char.NeeR_HP:Destroy() end end) end)
 
---// [VISUAL: SMART X-RAY]
+	--// [VISUAL: SMART X-RAY]
 	local XRay_Container = CreateExpandableSection(parentFrame, "Wall X-Ray (Smart)")
 	local XRay_Cache = {}
 	local XRay_Opacity = 0.5
@@ -723,7 +781,7 @@ local function BuildVisualsTab(parentFrame)
 		table.clear(XRay_Cache)
 	end
 
-	CreateSmartSlider(XRay_Container, "Opacity", 0.1, 0.9, function() return 0.5 end, function(val) 
+	CreateSmartSlider(XRay_Container, "Opacity", 0.1, 0.9, function() return 0.5 end, function(val)
 		XRay_Opacity = val
 		if XRay_Active then
 			for part, _ in pairs(XRay_Cache) do
@@ -740,7 +798,7 @@ local function BuildVisualsTab(parentFrame)
 	CreateButtonCard(XRay_Container, "Refresh", "REFRESH", function() if XRay_Active then ApplyXRay() end end)
 
 	local World_Container = CreateExpandableSection(parentFrame, "World & Lighting")
-	local fb_loop; local LightingBackup = {} 
+	local fb_loop; local LightingBackup = {}
 	CreateSwitchCard(World_Container, "Full Brightness", function(active)
 		if active then LightingBackup = { Brightness = Lighting.Brightness, ClockTime = Lighting.ClockTime, FogEnd = Lighting.FogEnd, GlobalShadows = Lighting.GlobalShadows, OutdoorAmbient = Lighting.OutdoorAmbient }; fb_loop = RunService.RenderStepped:Connect(function() Lighting.Brightness = 2; Lighting.ClockTime = 14; Lighting.FogEnd = 100000; Lighting.GlobalShadows = false; Lighting.OutdoorAmbient = Color3.fromRGB(128, 128, 128) end)
 		else if fb_loop then fb_loop:Disconnect(); fb_loop = nil end; if LightingBackup.Brightness then Lighting.Brightness = LightingBackup.Brightness; Lighting.ClockTime = LightingBackup.ClockTime; Lighting.FogEnd = LightingBackup.FogEnd; Lighting.GlobalShadows = LightingBackup.GlobalShadows; Lighting.OutdoorAmbient = LightingBackup.OutdoorAmbient end end
@@ -793,12 +851,12 @@ local function BuildSettingsTab(parentFrame)
 	local Padding = Instance.new("UIPadding"); Padding.Parent = parentFrame; Padding.PaddingTop = UDim.new(0, 15); Padding.PaddingLeft = UDim.new(0, 15); Padding.PaddingRight = UDim.new(0, 15)
 	local DPICard = CreateCard(parentFrame, UDim2.new(1, 0, 0, 85)); DPICard.ClipsDescendants = false
 	local SettingsLabel = Instance.new("TextLabel"); SettingsLabel.Parent = DPICard; SettingsLabel.BackgroundTransparency = 1; SettingsLabel.Position = UDim2.new(0, 15, 0, 10); SettingsLabel.Size = UDim2.new(1, -30, 0, 20); SettingsLabel.Font = Theme.FontBold; SettingsLabel.Text = "Interface Scale (DPI)"; SettingsLabel.TextColor3 = Theme.Text; SettingsLabel.TextSize = 14; SettingsLabel.TextXAlignment = Enum.TextXAlignment.Left
-	local DPIBtn = Instance.new("TextButton"); DPIBtn.Parent = DPICard; DPIBtn.BackgroundColor3 = Theme.Sidebar; DPIBtn.Position = UDim2.new(0, 15, 0, 35); DPIBtn.Size = UDim2.new(1, -30, 0, 35); DPIBtn.Font = Theme.FontBold; DPIBtn.Text = IsMobile and "   Size: 75% (Medium)" or "   Size: 100% (Default)"; DPIBtn.TextColor3 = Theme.TextDim; DPIBtn.TextSize = 12; DPIBtn.TextXAlignment = Enum.TextXAlignment.Left; DPIBtn.AutoButtonColor = false; Instance.new("UICorner", DPIBtn).CornerRadius = UDim.new(0, 6); local DPIB_S = Instance.new("UIStroke"); DPIB_S.Parent = DPIBtn; DPIB_S.Color = Theme.Separator; DPIB_S.Thickness = 1
+	local DPIBtn = Instance.new("TextButton"); DPIBtn.Parent = DPICard; DPIBtn.BackgroundColor3 = Theme.Sidebar; DPIBtn.Position = UDim2.new(0, 15, 0, 35); DPIBtn.Size = UDim2.new(1, -30, 0, 35); DPIBtn.Font = Theme.FontBold; DPIBtn.Text = IsMobile and "   Size: 75% (Medium)" or "   Size: 100% (Default)"; DPIBtn.TextColor3 = Theme.TextDim; DPIBtn.TextSize = 12; DPIBtn.TextXAlignment = Enum.TextXAlignment.Left; DPIBtn.AutoButtonColor = false; Instance.new("UICorner", DPIBtn).CornerRadius = UDim.new(0, 6); local DPIB_S = Instance.new("UIStroke"); DPIB_S.Parent = DPIBtn; DPIB_S.Color = Theme.Separator; DPIB_S.Thickness = 1
 	local DPIFrame = Instance.new("Frame"); DPIFrame.Parent = DPICard; DPIFrame.BackgroundColor3 = Theme.Main; DPIFrame.Position = UDim2.new(0, 15, 0, 75); DPIFrame.Size = UDim2.new(1, -30, 0, 0); DPIFrame.ClipsDescendants = true; DPIFrame.Visible = false; DPIFrame.ZIndex = 10; Instance.new("UICorner", DPIFrame).CornerRadius = UDim.new(0, 6); local DPIF_S = Instance.new("UIStroke"); DPIF_S.Parent = DPIFrame; DPIF_S.Color = Theme.Accent; DPIF_S.Transparency = 0.5; DPIF_S.Thickness = 1; local DPIList = Instance.new("UIListLayout"); DPIList.Parent = DPIFrame; DPIList.SortOrder = Enum.SortOrder.LayoutOrder
 	local dpiOpen, dpiConnection = false, nil
 	local function ToggleDPI(forceClose) if forceClose then dpiOpen = false else dpiOpen = not dpiOpen end; if dpiConnection then dpiConnection:Disconnect(); dpiConnection = nil end; if dpiOpen then DPIFrame.Visible = true; TweenService:Create(DPIFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(1, -30, 0, 105)}):Play(); dpiConnection = UserInputService.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then local mPos = Vector2.new(input.Position.X, input.Position.Y); local btnPos, btnSize = DPIBtn.AbsolutePosition, DPIBtn.AbsoluteSize; local frmPos, frmSize = DPIFrame.AbsolutePosition, DPIFrame.AbsoluteSize; if not (mPos.X >= btnPos.X and mPos.X <= btnPos.X + btnSize.X and mPos.Y >= btnPos.Y and mPos.Y <= btnPos.Y + btnSize.Y) and not (mPos.X >= frmPos.X and mPos.X <= frmPos.X + frmSize.X and mPos.Y >= frmPos.Y and mPos.Y <= frmPos.Y + frmSize.Y) then ToggleDPI(true) end end end) else TweenService:Create(DPIFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(1, -30, 0, 0)}):Play(); task.wait(0.3); if not dpiOpen then DPIFrame.Visible = false end end end
 	DPIBtn.MouseButton1Click:Connect(function() ToggleDPI() end)
-	local function AddDPIOption(txt, scaleVal) local Opt = Instance.new("TextButton"); Opt.Parent = DPIFrame; Opt.BackgroundColor3 = Theme.Main; Opt.Size = UDim2.new(1, 0, 0, 35); Opt.Font = Theme.FontMain; Opt.Text = txt; Opt.TextColor3 = Theme.TextDim; Opt.TextSize = 12; Opt.AutoButtonColor = true; Opt.MouseButton1Click:Connect(function() TweenService:Create(UIScale, TweenInfo.new(0.5, Enum.EasingStyle.Back), {Scale = scaleVal}):Play(); DPIBtn.Text = "   Size: " .. txt; ToggleDPI(true) end) end
+	local function AddDPIOption(txt, scaleVal) local Opt = Instance.new("TextButton"); Opt.Parent = DPIFrame; Opt.BackgroundColor3 = Theme.Main; Opt.Size = UDim2.new(1, 0, 0, 35); Opt.Font = Theme.FontMain; Opt.Text = txt; Opt.TextColor3 = Theme.TextDim; Opt.TextSize = 12; Opt.AutoButtonColor = true; Opt.MouseButton1Click:Connect(function() TweenService:Create(UIScale, TweenInfo.new(0.5, Enum.EasingStyle.Back), {Scale = scaleVal}):Play(); DPIBtn.Text = "   Size: " .. txt; ToggleDPI(true) end) end
 	AddDPIOption("100% (Default)", 1); AddDPIOption("75% (Medium)", 0.75); AddDPIOption("50% (Small)", 0.5)
 end
 
@@ -825,11 +883,11 @@ task.spawn(function()
 end)
 
 local function ToggleAnimation()
-	if IsOpen then 
+	if IsOpen then
 		IsOpen = false
 		TweenService:Create(MainFrame, TweenInfo.new(AnimationSpeed, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(0, 0, 0, 0), Position = ToggleBtn.Position, BackgroundTransparency = 1}):Play()
 		for _, v in pairs(MainFrame:GetChildren()) do if v:IsA("GuiObject") and v ~= MainCorner and v ~= UIScale and v ~= MainStroke then v.Visible = false end end
-	else 
+	else
 		IsOpen = true
 		for _, v in pairs(MainFrame:GetChildren()) do if v:IsA("GuiObject") then v.Visible = true end end
 		MainFrame.Position = ToggleBtn.Position
@@ -840,4 +898,3 @@ end
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed) if not gameProcessed and input.KeyCode == Enum.KeyCode.RightControl then ToggleAnimation() end end)
 MinBtn.MouseButton1Click:Connect(ToggleAnimation); ToggleBtn.MouseButton1Click:Connect(ToggleAnimation)
-CloseBtn.MouseButton1Click:Connect(function() Session.ResetAll(); ScreenGui:Destroy() end)
