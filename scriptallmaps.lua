@@ -7,6 +7,8 @@ local Stats = game:GetService("Stats")
 local Workspace = game:GetService("Workspace")
 local Lighting = game:GetService("Lighting")
 
+local LocalPlayer = Players.LocalPlayer
+
 --// [BAGIAN 1] TEMA & PENGATURAN AWAL
 local Theme = {
 	Main        = Color3.fromRGB(20, 25, 35),
@@ -19,7 +21,6 @@ local Theme = {
 	Transp      = 0.15,
 	Red         = Color3.fromRGB(255, 80, 80),
 	Green       = Color3.fromRGB(85, 255, 127),
-
 	FontMain    = Enum.Font.GothamMedium,
 	FontBold    = Enum.Font.GothamBold
 }
@@ -27,45 +28,63 @@ local Theme = {
 if CoreGui:FindFirstChild("NeeR_Unified") then CoreGui.NeeR_Unified:Destroy() end
 if CoreGui:FindFirstChild("NeeR_Loader") then CoreGui.NeeR_Loader:Destroy() end
 
---// [BAGIAN 2] LOADER SYSTEM (LOADING SCREEN)
+--// [BAGIAN 2] LOADER SYSTEM
 local Loader = {}
 function Loader.Start()
 	local LoadGui = Instance.new("ScreenGui"); LoadGui.Name = "NeeR_Loader"; LoadGui.Parent = CoreGui; LoadGui.IgnoreGuiInset = true; LoadGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-	
-	-- Blur
 	local Blur = Instance.new("BlurEffect"); Blur.Size = 0; Blur.Parent = Lighting
 	TweenService:Create(Blur, TweenInfo.new(1), {Size = 20}):Play()
 
-	-- Background
-	local MainBG = Instance.new("Frame"); MainBG.Parent = LoadGui; MainBG.BackgroundColor3 = Color3.fromRGB(15, 20, 30); MainBG.BackgroundTransparency = 1; MainBG.Size = UDim2.new(1, 0, 1, 0)
+	local MainBG = Instance.new("Frame"); MainBG.Parent = LoadGui
+	MainBG.BackgroundColor3 = Color3.fromRGB(15, 20, 30); MainBG.BackgroundTransparency = 1; MainBG.Size = UDim2.new(1, 0, 1, 0)
 	
-	-- Container
-	local Container = Instance.new("Frame"); Container.Parent = MainBG; Container.AnchorPoint = Vector2.new(0.5, 0.5); Container.Position = UDim2.new(0.5, 0, 0.55, 0); Container.Size = UDim2.new(0, 300, 0, 150); Container.BackgroundTransparency = 1
+	local Container = Instance.new("Frame"); Container.Parent = MainBG
+	Container.AnchorPoint = Vector2.new(0.5, 0.5); Container.Position = UDim2.new(0.5, 0, 0.55, 0)
+	Container.Size = UDim2.new(0, 300, 0, 150); Container.BackgroundTransparency = 1
 	
-	-- Spinner
-	local Spinner = Instance.new("Frame"); Spinner.Parent = Container; Spinner.AnchorPoint = Vector2.new(0.5, 0.5); Spinner.Position = UDim2.new(0.5, 0, 0.4, 0); Spinner.Size = UDim2.new(0, 60, 0, 60); Spinner.BackgroundTransparency = 1
-	local SpinStroke = Instance.new("UIStroke"); SpinStroke.Parent = Spinner; SpinStroke.Color = Theme.Accent; SpinStroke.Thickness = 3; SpinStroke.Transparency = 0.2
+	local Spinner = Instance.new("Frame"); Spinner.Parent = Container
+	Spinner.AnchorPoint = Vector2.new(0.5, 0.5); Spinner.Position = UDim2.new(0.5, 0, 0.4, 0)
+	Spinner.Size = UDim2.new(0, 60, 0, 60); Spinner.BackgroundTransparency = 1
+	
+	local SpinStroke = Instance.new("UIStroke"); SpinStroke.Parent = Spinner
+	SpinStroke.Color = Theme.Accent; SpinStroke.Thickness = 3; SpinStroke.Transparency = 0.2
+	
 	local SpinCorner = Instance.new("UICorner"); SpinCorner.CornerRadius = UDim.new(1, 0); SpinCorner.Parent = Spinner
-	local SpinGrad = Instance.new("UIGradient"); SpinGrad.Parent = Spinner; SpinGrad.Color = ColorSequence.new({ColorSequenceKeypoint.new(0, Theme.Accent), ColorSequenceKeypoint.new(0.5, Theme.Main), ColorSequenceKeypoint.new(1, Theme.Accent)}); SpinGrad.Rotation = 45
+	local SpinGrad = Instance.new("UIGradient"); SpinGrad.Parent = Spinner
+	SpinGrad.Color = ColorSequence.new({ColorSequenceKeypoint.new(0, Theme.Accent), ColorSequenceKeypoint.new(0.5, Theme.Main), ColorSequenceKeypoint.new(1, Theme.Accent)})
+	SpinGrad.Rotation = 45
 
-	-- Logo
-	local Logo = Instance.new("TextLabel"); Logo.Parent = Container; Logo.BackgroundTransparency = 1; Logo.Position = UDim2.new(0, 0, 0.4, -10); Logo.Size = UDim2.new(1, 0, 0, 20); Logo.Font = Enum.Font.GothamBold; Logo.Text = "NF"; Logo.TextColor3 = Theme.Text; Logo.TextSize = 18
+	local Logo = Instance.new("TextLabel"); Logo.Parent = Container
+	Logo.BackgroundTransparency = 1; Logo.Position = UDim2.new(0, 0, 0.4, -10)
+	Logo.Size = UDim2.new(1, 0, 0, 20); Logo.Font = Enum.Font.GothamBold
+	Logo.Text = "NF"; Logo.TextColor3 = Theme.Text; Logo.TextSize = 18
 	
-	-- Progress Bar
-	local BarBG = Instance.new("Frame"); BarBG.Parent = Container; BarBG.BackgroundColor3 = Color3.fromRGB(60, 70, 90); BarBG.Position = UDim2.new(0.1, 0, 0.75, 0); BarBG.Size = UDim2.new(0.8, 0, 0, 4); local BarCorner = Instance.new("UICorner"); BarCorner.CornerRadius=UDim.new(1,0); BarCorner.Parent=BarBG
-	local BarFill = Instance.new("Frame"); BarFill.Parent = BarBG; BarFill.BackgroundColor3 = Theme.Accent; BarFill.Size = UDim2.new(0, 0, 1, 0); local FillCorner = Instance.new("UICorner"); FillCorner.CornerRadius=UDim.new(1,0); FillCorner.Parent=BarFill
-	local BarGlow = Instance.new("ImageLabel"); BarGlow.Parent = BarFill; BarGlow.BackgroundTransparency = 1; BarGlow.Position = UDim2.new(1, -10, 0.5, -10); BarGlow.Size = UDim2.new(0, 20, 0, 20); BarGlow.Image = "rbxassetid://3570695787"; BarGlow.ImageColor3 = Theme.Accent; BarGlow.ImageTransparency = 0.5
+	local BarBG = Instance.new("Frame"); BarBG.Parent = Container
+	BarBG.BackgroundColor3 = Color3.fromRGB(60, 70, 90); BarBG.Position = UDim2.new(0.1, 0, 0.75, 0)
+	BarBG.Size = UDim2.new(0.8, 0, 0, 4); Instance.new("UICorner", BarBG).CornerRadius = UDim.new(1,0)
+	
+	local BarFill = Instance.new("Frame"); BarFill.Parent = BarBG
+	BarFill.BackgroundColor3 = Theme.Accent; BarFill.Size = UDim2.new(0, 0, 1, 0)
+	Instance.new("UICorner", BarFill).CornerRadius = UDim.new(1,0)
+	
+	local BarGlow = Instance.new("ImageLabel"); BarGlow.Parent = BarFill
+	BarGlow.BackgroundTransparency = 1; BarGlow.Position = UDim2.new(1, -10, 0.5, -10)
+	BarGlow.Size = UDim2.new(0, 20, 0, 20); BarGlow.Image = "rbxassetid://3570695787"
+	BarGlow.ImageColor3 = Theme.Accent; BarGlow.ImageTransparency = 0.5
 
-	-- Status Text
-	local StatusTxt = Instance.new("TextLabel"); StatusTxt.Parent = Container; StatusTxt.BackgroundTransparency = 1; StatusTxt.Position = UDim2.new(0, 0, 0.85, 0); StatusTxt.Size = UDim2.new(1, 0, 0, 15); StatusTxt.Font = Enum.Font.GothamMedium; StatusTxt.Text = "Initializing..."; StatusTxt.TextColor3 = Theme.Accent; StatusTxt.TextSize = 10; StatusTxt.TextTransparency = 0.5
+	local StatusTxt = Instance.new("TextLabel"); StatusTxt.Parent = Container
+	StatusTxt.BackgroundTransparency = 1; StatusTxt.Position = UDim2.new(0, 0, 0.85, 0)
+	StatusTxt.Size = UDim2.new(1, 0, 0, 15); StatusTxt.Font = Enum.Font.GothamMedium
+	StatusTxt.Text = "Initializing..."; StatusTxt.TextColor3 = Theme.Accent
+	StatusTxt.TextSize = 10; StatusTxt.TextTransparency = 0.5
 
-	-- Animasi Masuk
 	TweenService:Create(MainBG, TweenInfo.new(0.5), {BackgroundTransparency = 0.1}):Play()
 	TweenService:Create(Container, TweenInfo.new(0.8, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Position = UDim2.new(0.5, 0, 0.5, 0)}):Play()
 	
 	local SpinLoop = RunService.RenderStepped:Connect(function() SpinGrad.Rotation = SpinGrad.Rotation + 3 end)
 
-	Loader.Gui = LoadGui; Loader.BarFill = BarFill; Loader.StatusTxt = StatusTxt; Loader.Blur = Blur; Loader.SpinLoop = SpinLoop; Loader.MainBG = MainBG; Loader.Container = Container
+	Loader.Gui = LoadGui; Loader.BarFill = BarFill; Loader.StatusTxt = StatusTxt
+	Loader.Blur = Blur; Loader.SpinLoop = SpinLoop; Loader.MainBG = MainBG; Loader.Container = Container
 end
 
 function Loader.Update(text, percent)
@@ -77,23 +96,16 @@ end
 function Loader.Finish(onFinishCallback)
 	if not Loader.Gui then if onFinishCallback then onFinishCallback() end return end
 	Loader.Update("Welcome!", 1)
-	task.wait(0.5) -- Tahan sebentar
+	task.wait(0.5)
 	
-	-- Animasi Keluar: Mengecil & Turun (Liquid Effect)
 	local exitInfo = TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.In)
 	TweenService:Create(Loader.Container, exitInfo, {Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.6, 0)}):Play()
-	
-	-- Blur & Background hilang perlahan
 	TweenService:Create(Loader.Blur, TweenInfo.new(0.8), {Size = 0}):Play()
 	local fade = TweenService:Create(Loader.MainBG, TweenInfo.new(0.8), {BackgroundTransparency = 1})
 	fade:Play()
 	
-	-- [KUNCI] Panggil Menu Utama di detik ke-0.65 (Sebelum loader hilang total)
-	task.delay(0.65, function()
-		if onFinishCallback then onFinishCallback() end
-	end)
+	task.delay(0.65, function() if onFinishCallback then onFinishCallback() end end)
 	
-	-- Cleanup setelah semuanya selesai
 	fade.Completed:Connect(function()
 		if Loader.SpinLoop then Loader.SpinLoop:Disconnect() end
 		Loader.Blur:Destroy(); Loader.Gui:Destroy()
@@ -103,13 +115,13 @@ end
 --// [BAGIAN 3] SESSION MANAGER
 local DefaultStats = { WalkSpeed = 16, JumpPower = 50 }
 local function SaveDefaultStats()
-	local char = Players.LocalPlayer.Character
+	local char = LocalPlayer.Character
 	if char and char:FindFirstChild("Humanoid") then
 		DefaultStats.WalkSpeed = char.Humanoid.WalkSpeed
 		DefaultStats.JumpPower = char.Humanoid.JumpPower
 	end
 end
-Players.LocalPlayer.CharacterAdded:Connect(function(char) char:WaitForChild("Humanoid", 5); SaveDefaultStats() end)
+LocalPlayer.CharacterAdded:Connect(function(char) char:WaitForChild("Humanoid", 5); SaveDefaultStats() end)
 SaveDefaultStats()
 
 local Session = { StopFly = function() end, StopWalk = function() end, StopJump = function() end, StopNoclip = function() end, StopInfJump = function() end, ResetAll = function() end }
@@ -118,7 +130,7 @@ local Session = { StopFly = function() end, StopWalk = function() end, StopJump 
 local ViewportSize = workspace.CurrentCamera.ViewportSize
 local IsMobile = ViewportSize.X < 1080
 local CurrentScale = IsMobile and 0.75 or 1
-local FinalSize  = IsMobile and UDim2.new(0, 580, 0, 380) or UDim2.new(0, 580, 0, 380)
+local FinalSize  = UDim2.new(0, 580, 0, 380)
 
 local ScreenGui = Instance.new("ScreenGui"); ScreenGui.Name = "NeeR_Unified"; ScreenGui.Parent = CoreGui; ScreenGui.IgnoreGuiInset = true; ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
@@ -143,32 +155,64 @@ local function MakeDraggable(trigger, objectToMove)
 end
 
 --// [BAGIAN 5] KERANGKA UTAMA UI
-local ToggleBtn = Instance.new("ImageButton"); ToggleBtn.Name = "ToggleUI"; ToggleBtn.Parent = ScreenGui; ToggleBtn.BackgroundColor3 = Theme.Main; ToggleBtn.BackgroundTransparency = 0.2; ToggleBtn.AnchorPoint = Vector2.new(0.5, 0.5); ToggleBtn.Position = UDim2.new(0.50, 0, 0.15, 0); ToggleBtn.Size = UDim2.new(0, 40, 0, 40); ToggleBtn.Image = "rbxassetid://7733960981"; ToggleBtn.ImageColor3 = Theme.Accent; ToggleBtn.ZIndex = 100
-local ToggleCorner = Instance.new("UICorner"); ToggleCorner.CornerRadius = UDim.new(1, 0); ToggleCorner.Parent = ToggleBtn
-local ToggleStroke = Instance.new("UIStroke"); ToggleStroke.Parent = ToggleBtn; ToggleStroke.Color = Theme.Accent; ToggleStroke.Thickness = 1.5; ToggleStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+local ToggleBtn = Instance.new("ImageButton"); ToggleBtn.Name = "ToggleUI"; ToggleBtn.Parent = ScreenGui
+ToggleBtn.BackgroundColor3 = Theme.Main; ToggleBtn.BackgroundTransparency = 0.2
+ToggleBtn.AnchorPoint = Vector2.new(0.5, 0.5); ToggleBtn.Position = UDim2.new(0.50, 0, 0.15, 0)
+ToggleBtn.Size = UDim2.new(0, 40, 0, 40); ToggleBtn.Image = "rbxassetid://7733960981"
+ToggleBtn.ImageColor3 = Theme.Accent; ToggleBtn.ZIndex = 100
+Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(1, 0)
+local ToggleStroke = Instance.new("UIStroke"); ToggleStroke.Parent = ToggleBtn
+ToggleStroke.Color = Theme.Accent; ToggleStroke.Thickness = 1.5; ToggleStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 MakeDraggable(ToggleBtn, ToggleBtn)
 
-local MainFrame = Instance.new("Frame"); MainFrame.Name = "MainFrame"; MainFrame.Parent = ScreenGui; MainFrame.BackgroundColor3 = Theme.Main; MainFrame.BackgroundTransparency = Theme.Transp; MainFrame.AnchorPoint = Vector2.new(0.5, 0.5); MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0); MainFrame.Size = FinalSize; MainFrame.ClipsDescendants = true; MainFrame.Visible = false -- Hidden initially for Loader
+local MainFrame = Instance.new("Frame"); MainFrame.Name = "MainFrame"; MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Theme.Main; MainFrame.BackgroundTransparency = Theme.Transp
+MainFrame.AnchorPoint = Vector2.new(0.5, 0.5); MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+MainFrame.Size = FinalSize; MainFrame.ClipsDescendants = true; MainFrame.Visible = false
 
 local UIScale = Instance.new("UIScale"); UIScale.Parent = MainFrame; UIScale.Scale = CurrentScale
 local MainCorner = Instance.new("UICorner"); MainCorner.CornerRadius = UDim.new(0, 12); MainCorner.Parent = MainFrame
-local MainStroke = Instance.new("UIStroke"); MainStroke.Parent = MainFrame; MainStroke.Color = Theme.Accent; MainStroke.Thickness = 1; MainStroke.Transparency = 0.6
+local MainStroke = Instance.new("UIStroke"); MainStroke.Parent = MainFrame
+MainStroke.Color = Theme.Accent; MainStroke.Thickness = 1; MainStroke.Transparency = 0.6
 
 local Header = Instance.new("Frame"); Header.Parent = MainFrame; Header.Size = UDim2.new(1, 0, 0, 35); Header.BackgroundTransparency = 1
-local Title = Instance.new("TextLabel"); Title.Parent = Header; Title.Text = "NeeR Flow <font color=\"rgb(137,207,240)\">| Script</font>"; Title.RichText = true; Title.Font = Theme.FontBold; Title.TextColor3 = Theme.Text; Title.TextSize = 14; Title.Position = UDim2.new(0, 15, 0, 0); Title.Size = UDim2.new(0, 0, 1, 0); Title.TextXAlignment = Enum.TextXAlignment.Left
-local ControlFrame = Instance.new("Frame"); ControlFrame.Parent = Header; ControlFrame.BackgroundTransparency = 1; ControlFrame.Position = UDim2.new(1, -70, 0, 0); ControlFrame.Size = UDim2.new(0, 70, 1, 0)
-local MinBtn = Instance.new("TextButton"); MinBtn.Parent = ControlFrame; MinBtn.BackgroundTransparency = 1; MinBtn.Position = UDim2.new(0, 0, 0, 0); MinBtn.Size = UDim2.new(0, 35, 1, 0); MinBtn.Font = Theme.FontBold; MinBtn.Text = "—"; MinBtn.TextColor3 = Theme.Accent; MinBtn.TextSize = 14
-local CloseBtn = Instance.new("TextButton"); CloseBtn.Parent = ControlFrame; CloseBtn.BackgroundTransparency = 1; CloseBtn.Position = UDim2.new(0, 28, 0, 0); CloseBtn.Size = UDim2.new(0, 35, 1, 0); CloseBtn.Font = Theme.FontBold; CloseBtn.Text = "X"; CloseBtn.TextColor3 = Theme.Accent; CloseBtn.TextSize = 14
-local HeaderLine = Instance.new("Frame"); HeaderLine.Parent = Header; HeaderLine.BackgroundColor3 = Theme.TextDim; HeaderLine.BorderSizePixel = 0; HeaderLine.BackgroundTransparency = 0.5; HeaderLine.Position = UDim2.new(0, 0, 1, -1); HeaderLine.Size = UDim2.new(1, 0, 0, 1)
+local Title = Instance.new("TextLabel"); Title.Parent = Header
+Title.Text = "NeeR Flow <font color=\"rgb(137,207,240)\">| Script</font>"; Title.RichText = true
+Title.Font = Theme.FontBold; Title.TextColor3 = Theme.Text; Title.TextSize = 14
+Title.Position = UDim2.new(0, 15, 0, 0); Title.Size = UDim2.new(0, 0, 1, 0); Title.TextXAlignment = Enum.TextXAlignment.Left
+
+local ControlFrame = Instance.new("Frame"); ControlFrame.Parent = Header
+ControlFrame.BackgroundTransparency = 1; ControlFrame.Position = UDim2.new(1, -70, 0, 0); ControlFrame.Size = UDim2.new(0, 70, 1, 0)
+
+local MinBtn = Instance.new("TextButton"); MinBtn.Parent = ControlFrame
+MinBtn.BackgroundTransparency = 1; MinBtn.Position = UDim2.new(0, 0, 0, 0); MinBtn.Size = UDim2.new(0, 35, 1, 0)
+MinBtn.Font = Theme.FontBold; MinBtn.Text = "—"; MinBtn.TextColor3 = Theme.Accent; MinBtn.TextSize = 14
+
+local CloseBtn = Instance.new("TextButton"); CloseBtn.Parent = ControlFrame
+CloseBtn.BackgroundTransparency = 1; CloseBtn.Position = UDim2.new(0, 28, 0, 0); CloseBtn.Size = UDim2.new(0, 35, 1, 0)
+CloseBtn.Font = Theme.FontBold; CloseBtn.Text = "X"; CloseBtn.TextColor3 = Theme.Accent; CloseBtn.TextSize = 14
+
+local HeaderLine = Instance.new("Frame"); HeaderLine.Parent = Header
+HeaderLine.BackgroundColor3 = Theme.TextDim; HeaderLine.BorderSizePixel = 0
+HeaderLine.BackgroundTransparency = 0.5; HeaderLine.Position = UDim2.new(0, 0, 1, -1); HeaderLine.Size = UDim2.new(1, 0, 0, 1)
 MakeDraggable(Header, MainFrame)
 
-local Container = Instance.new("Frame"); Container.Parent = MainFrame; Container.BackgroundTransparency = 1; Container.Position = UDim2.new(0, 0, 0, 35); Container.Size = UDim2.new(1, 0, 1, -35)
+local Container = Instance.new("Frame"); Container.Parent = MainFrame
+Container.BackgroundTransparency = 1; Container.Position = UDim2.new(0, 0, 0, 35); Container.Size = UDim2.new(1, 0, 1, -35)
+
 local SidebarWidth = 130
-local Sidebar = Instance.new("ScrollingFrame"); Sidebar.Parent = Container; Sidebar.BackgroundColor3 = Theme.Sidebar; Sidebar.BackgroundTransparency = 0.5; Sidebar.BorderSizePixel = 0; Sidebar.Size = UDim2.new(0, SidebarWidth, 1, 0); Sidebar.ScrollBarThickness = 0; Sidebar.ZIndex = 2
-local SidebarStroke = Instance.new("UIStroke"); SidebarStroke.Parent = Sidebar; SidebarStroke.Color = Theme.Separator; SidebarStroke.Thickness = 1; SidebarStroke.Transparency = 0.5; SidebarStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+local Sidebar = Instance.new("ScrollingFrame"); Sidebar.Parent = Container
+Sidebar.BackgroundColor3 = Theme.Sidebar; Sidebar.BackgroundTransparency = 0.5; Sidebar.BorderSizePixel = 0
+Sidebar.Size = UDim2.new(0, SidebarWidth, 1, 0); Sidebar.ScrollBarThickness = 0; Sidebar.ZIndex = 2
+local SidebarStroke = Instance.new("UIStroke"); SidebarStroke.Parent = Sidebar
+SidebarStroke.Color = Theme.Separator; SidebarStroke.Thickness = 1; SidebarStroke.Transparency = 0.5; SidebarStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+
 local SideList = Instance.new("UIListLayout"); SideList.Parent = Sidebar; SideList.Padding = UDim.new(0, 2); SideList.SortOrder = Enum.SortOrder.LayoutOrder
 local SidePadding = Instance.new("UIPadding"); SidePadding.Parent = Sidebar; SidePadding.PaddingTop = UDim.new(0, 8); SidePadding.PaddingLeft = UDim.new(0, 5); SidePadding.PaddingRight = UDim.new(0, 5)
-local ContentArea = Instance.new("Frame"); ContentArea.Parent = Container; ContentArea.BackgroundTransparency = 1; ContentArea.Position = UDim2.new(0, SidebarWidth, 0, 0); ContentArea.Size = UDim2.new(1, -SidebarWidth, 1, 0); ContentArea.ClipsDescendants = true
+
+local ContentArea = Instance.new("Frame"); ContentArea.Parent = Container
+ContentArea.BackgroundTransparency = 1; ContentArea.Position = UDim2.new(0, SidebarWidth, 0, 0)
+ContentArea.Size = UDim2.new(1, -SidebarWidth, 1, 0); ContentArea.ClipsDescendants = true
 
 --// [BAGIAN 6] GLOBAL HELPER FUNCTIONS
 local Tabs = {}
@@ -178,44 +222,66 @@ local function SwitchTab(tabName)
 end
 
 local function CreateTabBtn(name, isActive)
-	local Btn = Instance.new("TextButton")
-	Btn.Parent = Sidebar; Btn.BackgroundColor3 = isActive and Theme.ActiveTab or Theme.Sidebar; Btn.BackgroundTransparency = isActive and 0 or 1; Btn.Size = UDim2.new(1, 0, 0, 28); Btn.AutoButtonColor = false; Btn.Font = Theme.FontMain; Btn.Text = name; Btn.TextColor3 = isActive and Theme.Accent or Theme.TextDim; Btn.TextSize = 12
-	local Corner = Instance.new("UICorner"); Corner.CornerRadius = UDim.new(0, 4); Corner.Parent = Btn
+	local Btn = Instance.new("TextButton"); Btn.Parent = Sidebar
+	Btn.BackgroundColor3 = isActive and Theme.ActiveTab or Theme.Sidebar
+	Btn.BackgroundTransparency = isActive and 0 or 1; Btn.Size = UDim2.new(1, 0, 0, 28)
+	Btn.AutoButtonColor = false; Btn.Font = Theme.FontMain
+	Btn.Text = name; Btn.TextColor3 = isActive and Theme.Accent or Theme.TextDim; Btn.TextSize = 12
+	Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 4)
 	if isActive then local s = Instance.new("UIStroke"); s.Parent = Btn; s.Color = Theme.Accent; s.Thickness = 1; s.Transparency = 0.8 end
-	local Page = Instance.new("ScrollingFrame"); Page.Name = name .. "Page"; Page.Parent = ContentArea; Page.BackgroundTransparency = 1; Page.Size = UDim2.new(1, 0, 1, 0); Page.Visible = isActive; Page.ScrollBarThickness = 2
+	
+	local Page = Instance.new("ScrollingFrame"); Page.Name = name .. "Page"; Page.Parent = ContentArea
+	Page.BackgroundTransparency = 1; Page.Size = UDim2.new(1, 0, 1, 0); Page.Visible = isActive; Page.ScrollBarThickness = 2
 	local PL = Instance.new("UIListLayout"); PL.Parent = Page; PL.Padding = UDim.new(0, 5); PL.SortOrder = Enum.SortOrder.LayoutOrder
 	local PP = Instance.new("UIPadding"); PP.Parent = Page; PP.PaddingTop = UDim.new(0, 10); PP.PaddingLeft = UDim.new(0, 10); PP.PaddingRight = UDim.new(0, 10)
 	Tabs[name] = Page
 	PL:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() Page.CanvasSize = UDim2.new(0, 0, 0, (PL.AbsoluteContentSize.Y / UIScale.Scale) + 20) end)
+	
 	Btn.MouseButton1Click:Connect(function()
-		for _, child in pairs(Sidebar:GetChildren()) do if child:IsA("TextButton") then child.BackgroundColor3 = Theme.Sidebar; child.BackgroundTransparency = 1; child.TextColor3 = Theme.TextDim; if child:FindFirstChild("UIStroke") then child.UIStroke:Destroy() end end end
-		Btn.BackgroundColor3 = Theme.ActiveTab; Btn.BackgroundTransparency = 0; Btn.TextColor3 = Theme.Accent; local s = Instance.new("UIStroke"); s.Parent = Btn; s.Color = Theme.Accent; s.Thickness = 1; s.Transparency = 0.8; SwitchTab(name)
+		for _, child in pairs(Sidebar:GetChildren()) do
+			if child:IsA("TextButton") then child.BackgroundColor3 = Theme.Sidebar; child.BackgroundTransparency = 1; child.TextColor3 = Theme.TextDim; if child:FindFirstChild("UIStroke") then child.UIStroke:Destroy() end end
+		end
+		Btn.BackgroundColor3 = Theme.ActiveTab; Btn.BackgroundTransparency = 0; Btn.TextColor3 = Theme.Accent
+		local s = Instance.new("UIStroke"); s.Parent = Btn; s.Color = Theme.Accent; s.Thickness = 1; s.Transparency = 0.8
+		SwitchTab(name)
 	end)
 	return Page
 end
 
 local function CreateCard(parent, size, layoutOrder)
-	local Card = Instance.new("Frame"); Card.Parent = parent; Card.BackgroundColor3 = Theme.ActiveTab; Card.BackgroundTransparency = 0.2; Card.Size = size; Card.LayoutOrder = layoutOrder or 0
-	local C = Instance.new("UICorner"); C.CornerRadius = UDim.new(0, 10); C.Parent = Card
+	local Card = Instance.new("Frame"); Card.Parent = parent
+	Card.BackgroundColor3 = Theme.ActiveTab; Card.BackgroundTransparency = 0.2
+	Card.Size = size; Card.LayoutOrder = layoutOrder or 0
+	Instance.new("UICorner", Card).CornerRadius = UDim.new(0, 10)
 	local S = Instance.new("UIStroke"); S.Parent = Card; S.Color = Theme.Accent; S.Transparency = 0.8; S.Thickness = 1
 	return Card
 end
 
 local function CreateExpandableSection(parent, title)
-	local SectionContainer = Instance.new("Frame"); SectionContainer.Name = "Section_" .. title; SectionContainer.Parent = parent; SectionContainer.BackgroundTransparency = 1; SectionContainer.Size = UDim2.new(1, 0, 0, 30); SectionContainer.ClipsDescendants = true
-	local HeaderBtn = Instance.new("TextButton"); HeaderBtn.Parent = SectionContainer; HeaderBtn.BackgroundColor3 = Theme.ActiveTab; HeaderBtn.Size = UDim2.new(1, 0, 0, 30); HeaderBtn.AutoButtonColor = true; HeaderBtn.Text = ""
-	local HC = Instance.new("UICorner"); HC.CornerRadius = UDim.new(0, 6); HC.Parent = HeaderBtn
+	local SectionContainer = Instance.new("Frame"); SectionContainer.Name = "Section_" .. title
+	SectionContainer.Parent = parent; SectionContainer.BackgroundTransparency = 1; SectionContainer.Size = UDim2.new(1, 0, 0, 30); SectionContainer.ClipsDescendants = true
+	local HeaderBtn = Instance.new("TextButton"); HeaderBtn.Parent = SectionContainer
+	HeaderBtn.BackgroundColor3 = Theme.ActiveTab; HeaderBtn.Size = UDim2.new(1, 0, 0, 30); HeaderBtn.AutoButtonColor = true; HeaderBtn.Text = ""
+	Instance.new("UICorner", HeaderBtn).CornerRadius = UDim.new(0, 6)
 	local HS = Instance.new("UIStroke"); HS.Parent = HeaderBtn; HS.Color = Theme.Accent; HS.Transparency = 0.6; HS.Thickness = 1
-	local TitleLbl = Instance.new("TextLabel"); TitleLbl.Parent = HeaderBtn; TitleLbl.BackgroundTransparency = 1; TitleLbl.Position = UDim2.new(0, 10, 0, 0); TitleLbl.Size = UDim2.new(1, -40, 1, 0); TitleLbl.Font = Theme.FontBold; TitleLbl.Text = title; TitleLbl.TextColor3 = Theme.Text; TitleLbl.TextSize = 13; TitleLbl.TextXAlignment = Enum.TextXAlignment.Left
-	local Arrow = Instance.new("TextLabel"); Arrow.Parent = HeaderBtn; Arrow.BackgroundTransparency = 1; Arrow.Position = UDim2.new(1, -30, 0, 0); Arrow.Size = UDim2.new(0, 30, 1, 0); Arrow.Font = Theme.FontBold; Arrow.Text = "+"; Arrow.TextColor3 = Theme.Accent; Arrow.TextSize = 18
-	local ContentFrame = Instance.new("Frame"); ContentFrame.Name = "Content"; ContentFrame.Parent = SectionContainer; ContentFrame.BackgroundColor3 = Color3.fromRGB(0,0,0); ContentFrame.BackgroundTransparency = 0.9; ContentFrame.Position = UDim2.new(0, 0, 0, 35); ContentFrame.Size = UDim2.new(1, 0, 0, 0)
-	local CC = Instance.new("UICorner"); CC.CornerRadius = UDim.new(0, 6); CC.Parent = ContentFrame
+	local TitleLbl = Instance.new("TextLabel"); TitleLbl.Parent = HeaderBtn; TitleLbl.BackgroundTransparency = 1
+	TitleLbl.Position = UDim2.new(0, 10, 0, 0); TitleLbl.Size = UDim2.new(1, -40, 1, 0)
+	TitleLbl.Font = Theme.FontBold; TitleLbl.Text = title; TitleLbl.TextColor3 = Theme.Text; TitleLbl.TextSize = 13; TitleLbl.TextXAlignment = Enum.TextXAlignment.Left
+	local Arrow = Instance.new("TextLabel"); Arrow.Parent = HeaderBtn; Arrow.BackgroundTransparency = 1
+	Arrow.Position = UDim2.new(1, -30, 0, 0); Arrow.Size = UDim2.new(0, 30, 1, 0)
+	Arrow.Font = Theme.FontBold; Arrow.Text = "+"; Arrow.TextColor3 = Theme.Accent; Arrow.TextSize = 18
+	local ContentFrame = Instance.new("Frame"); ContentFrame.Name = "Content"; ContentFrame.Parent = SectionContainer
+	ContentFrame.BackgroundColor3 = Color3.fromRGB(0,0,0); ContentFrame.BackgroundTransparency = 0.9
+	ContentFrame.Position = UDim2.new(0, 0, 0, 35); ContentFrame.Size = UDim2.new(1, 0, 0, 0)
+	Instance.new("UICorner", ContentFrame).CornerRadius = UDim.new(0, 6)
 	local CL = Instance.new("UIListLayout"); CL.Parent = ContentFrame; CL.SortOrder = Enum.SortOrder.LayoutOrder; CL.Padding = UDim.new(0, 5)
 	local CP = Instance.new("UIPadding"); CP.Parent = ContentFrame; CP.PaddingTop = UDim.new(0, 5); CP.PaddingBottom = UDim.new(0, 5); CP.PaddingLeft = UDim.new(0, 5); CP.PaddingRight = UDim.new(0, 5)
 	local isOpen = false
 	HeaderBtn.MouseButton1Click:Connect(function()
 		isOpen = not isOpen
-		if isOpen then Arrow.Text = "-"; Arrow.TextColor3 = Theme.Red; local currentScale = UIScale.Scale; local rawHeight = CL.AbsoluteContentSize.Y + 15; local scaledHeight = rawHeight / currentScale
+		if isOpen then
+			Arrow.Text = "-"; Arrow.TextColor3 = Theme.Red
+			local currentScale = UIScale.Scale; local rawHeight = CL.AbsoluteContentSize.Y + 15; local scaledHeight = rawHeight / currentScale
 			TweenService:Create(SectionContainer, TweenInfo.new(0.3, Enum.EasingStyle.Quart), {Size = UDim2.new(1, 0, 0, (35/currentScale) + scaledHeight)}):Play()
 			TweenService:Create(ContentFrame, TweenInfo.new(0.3), {Size = UDim2.new(1, 0, 0, scaledHeight)}):Play()
 		else Arrow.Text = "+"; Arrow.TextColor3 = Theme.Accent; TweenService:Create(SectionContainer, TweenInfo.new(0.3, Enum.EasingStyle.Quart), {Size = UDim2.new(1, 0, 0, 30)}):Play() end
@@ -223,14 +289,21 @@ local function CreateExpandableSection(parent, title)
 	return ContentFrame
 end
 
--- [BASE HELPER] Switch Standar
 local function CreateSwitchCard(targetParent, text, callback)
-	local Card = Instance.new("Frame"); Card.Parent = targetParent; Card.BackgroundColor3 = Theme.ActiveTab; Card.BackgroundTransparency = 0.5; Card.Size = UDim2.new(1, 0, 0, 30)
-	local C = Instance.new("UICorner"); C.CornerRadius = UDim.new(0, 6); C.Parent = Card
-	local TitleLbl = Instance.new("TextLabel"); TitleLbl.Parent = Card; TitleLbl.BackgroundTransparency = 1; TitleLbl.Position = UDim2.new(0, 10, 0, 0); TitleLbl.Size = UDim2.new(0, 150, 1, 0); TitleLbl.Font = Theme.FontMain; TitleLbl.Text = text; TitleLbl.TextColor3 = Theme.TextDim; TitleLbl.TextSize = 12; TitleLbl.TextXAlignment = Enum.TextXAlignment.Left
-	local SwitchBtn = Instance.new("TextButton"); SwitchBtn.Parent = Card; SwitchBtn.BackgroundTransparency = 1; SwitchBtn.Position = UDim2.new(1, -45, 0.5, -10); SwitchBtn.Size = UDim2.new(0, 40, 0, 20); SwitchBtn.Text = ""
-	local Sw = Instance.new("Frame"); Sw.Parent = SwitchBtn; Sw.BackgroundColor3 = Color3.fromRGB(20, 25, 35); Sw.Position = UDim2.new(0, 0, 0.5, -8); Sw.Size = UDim2.new(0, 36, 0, 16); local SC = Instance.new("UICorner"); SC.CornerRadius = UDim.new(1,0); SC.Parent = Sw
-	local K = Instance.new("Frame"); K.Parent = Sw; K.BackgroundColor3 = Theme.TextDim; K.Position = UDim2.new(0, 2, 0.5, -6); K.Size = UDim2.new(0, 12, 0, 12); local KC = Instance.new("UICorner"); KC.CornerRadius = UDim.new(1,0); KC.Parent = K
+	local Card = Instance.new("Frame"); Card.Parent = targetParent
+	Card.BackgroundColor3 = Theme.ActiveTab; Card.BackgroundTransparency = 0.5; Card.Size = UDim2.new(1, 0, 0, 30)
+	Instance.new("UICorner", Card).CornerRadius = UDim.new(0, 6)
+	local TitleLbl = Instance.new("TextLabel"); TitleLbl.Parent = Card; TitleLbl.BackgroundTransparency = 1
+	TitleLbl.Position = UDim2.new(0, 10, 0, 0); TitleLbl.Size = UDim2.new(0, 150, 1, 0)
+	TitleLbl.Font = Theme.FontMain; TitleLbl.Text = text; TitleLbl.TextColor3 = Theme.TextDim; TitleLbl.TextSize = 12; TitleLbl.TextXAlignment = Enum.TextXAlignment.Left
+	local SwitchBtn = Instance.new("TextButton"); SwitchBtn.Parent = Card; SwitchBtn.BackgroundTransparency = 1
+	SwitchBtn.Position = UDim2.new(1, -45, 0.5, -10); SwitchBtn.Size = UDim2.new(0, 40, 0, 20); SwitchBtn.Text = ""
+	local Sw = Instance.new("Frame"); Sw.Parent = SwitchBtn
+	Sw.BackgroundColor3 = Color3.fromRGB(20, 25, 35); Sw.Position = UDim2.new(0, 0, 0.5, -8); Sw.Size = UDim2.new(0, 36, 0, 16)
+	Instance.new("UICorner", Sw).CornerRadius = UDim.new(1,0)
+	local K = Instance.new("Frame"); K.Parent = Sw
+	K.BackgroundColor3 = Theme.TextDim; K.Position = UDim2.new(0, 2, 0.5, -6); K.Size = UDim2.new(0, 12, 0, 12)
+	Instance.new("UICorner", K).CornerRadius = UDim.new(1,0)
 	local toggled = false
 	local function SetState(state)
 		toggled = state
@@ -249,48 +322,107 @@ local function CreateSwitchCard(targetParent, text, callback)
 	return { SetState = SetState, Card = Card }
 end
 
--- [WRAPPER HELPER] Switch Utama (Control)
 local function CreateMainSwitch(targetParent, text, callback)
 	local Obj = CreateSwitchCard(targetParent, text, callback)
-	local Card = Obj.Card
-	Card.BackgroundTransparency = 0.2
-	local Stroke = Instance.new("UIStroke"); Stroke.Parent = Card; Stroke.Color = Theme.Accent; Stroke.Transparency = 0.8; Stroke.Thickness = 1
-	local Title = Card:FindFirstChildOfClass("TextLabel")
+	Obj.Card.BackgroundTransparency = 0.2
+	local Stroke = Instance.new("UIStroke"); Stroke.Parent = Obj.Card; Stroke.Color = Theme.Accent; Stroke.Transparency = 0.8; Stroke.Thickness = 1
+	local Title = Obj.Card:FindFirstChildOfClass("TextLabel")
 	if Title then Title.Position = UDim2.new(0, 15, 0, 0); Title.Font = Theme.FontBold; Title.TextColor3 = Theme.Text; Title.TextSize = 14 end
-	local Btn = Card:FindFirstChildOfClass("TextButton")
+	local Btn = Obj.Card:FindFirstChildOfClass("TextButton")
 	if Btn then Btn.Position = UDim2.new(1, -55, 0.5, -10) end
 	return Obj
 end
 
 local function CreateButtonCard(targetParent, text, btnText, callback)
-	local Card = Instance.new("Frame"); Card.Parent = targetParent; Card.BackgroundColor3 = Theme.ActiveTab; Card.BackgroundTransparency = 0.5; Card.Size = UDim2.new(1, 0, 0, 30)
-	local C = Instance.new("UICorner"); C.CornerRadius = UDim.new(0, 6); C.Parent = Card
-	local TitleLbl = Instance.new("TextLabel"); TitleLbl.Parent = Card; TitleLbl.BackgroundTransparency = 1; TitleLbl.Position = UDim2.new(0, 10, 0, 0); TitleLbl.Size = UDim2.new(0, 150, 1, 0); TitleLbl.Font = Theme.FontMain; TitleLbl.Text = text; TitleLbl.TextColor3 = Theme.TextDim; TitleLbl.TextSize = 12; TitleLbl.TextXAlignment = Enum.TextXAlignment.Left
-	local ActBtn = Instance.new("TextButton"); ActBtn.Parent = Card; ActBtn.BackgroundColor3 = Theme.Main; ActBtn.Position = UDim2.new(1, -75, 0.5, -10); ActBtn.Size = UDim2.new(0, 70, 0, 20); ActBtn.Font = Theme.FontBold; ActBtn.Text = btnText; ActBtn.TextColor3 = Theme.Accent; ActBtn.TextSize = 10; local AC = Instance.new("UICorner"); AC.CornerRadius = UDim.new(0, 4); AC.Parent = ActBtn; local AS = Instance.new("UIStroke"); AS.Parent = ActBtn; AS.Color = Theme.Accent; AS.Transparency = 0.5; AS.Thickness = 1; AS.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	local Card = Instance.new("Frame"); Card.Parent = targetParent
+	Card.BackgroundColor3 = Theme.ActiveTab; Card.BackgroundTransparency = 0.5; Card.Size = UDim2.new(1, 0, 0, 30)
+	Instance.new("UICorner", Card).CornerRadius = UDim.new(0, 6)
+	local TitleLbl = Instance.new("TextLabel"); TitleLbl.Parent = Card; TitleLbl.BackgroundTransparency = 1
+	TitleLbl.Position = UDim2.new(0, 10, 0, 0); TitleLbl.Size = UDim2.new(0, 150, 1, 0)
+	TitleLbl.Font = Theme.FontMain; TitleLbl.Text = text; TitleLbl.TextColor3 = Theme.TextDim; TitleLbl.TextSize = 12; TitleLbl.TextXAlignment = Enum.TextXAlignment.Left
+	local ActBtn = Instance.new("TextButton"); ActBtn.Parent = Card
+	ActBtn.BackgroundColor3 = Theme.Main; ActBtn.Position = UDim2.new(1, -75, 0.5, -10); ActBtn.Size = UDim2.new(0, 70, 0, 20)
+	ActBtn.Font = Theme.FontBold; ActBtn.Text = btnText; ActBtn.TextColor3 = Theme.Accent; ActBtn.TextSize = 10
+	Instance.new("UICorner", ActBtn).CornerRadius = UDim.new(0, 4)
+	local AS = Instance.new("UIStroke"); AS.Parent = ActBtn; AS.Color = Theme.Accent; AS.Transparency = 0.5; AS.Thickness = 1; AS.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	ActBtn.MouseButton1Click:Connect(function() ActBtn.Text = "WAIT..."; callback(); task.wait(0.5); ActBtn.Text = "DONE"; task.wait(1); ActBtn.Text = btnText end)
 	return { Card = Card }
 end
 
 local function CreateSliderCard(targetParent, text, min, max, default, callback)
-	local Card = Instance.new("Frame"); Card.Parent = targetParent; Card.BackgroundColor3 = Theme.ActiveTab; Card.BackgroundTransparency = 0.5; Card.Size = UDim2.new(1, 0, 0, 45)
-	local C = Instance.new("UICorner"); C.CornerRadius = UDim.new(0, 6); C.Parent = Card
-	local TitleLbl = Instance.new("TextLabel"); TitleLbl.Parent = Card; TitleLbl.BackgroundTransparency = 1; TitleLbl.Position = UDim2.new(0, 10, 0, 5); TitleLbl.Size = UDim2.new(1, -20, 0, 15); TitleLbl.Font = Theme.FontMain; TitleLbl.Text = text; TitleLbl.TextColor3 = Theme.TextDim; TitleLbl.TextSize = 12; TitleLbl.TextXAlignment = Enum.TextXAlignment.Left
-	local ValueLbl = Instance.new("TextLabel"); ValueLbl.Parent = Card; ValueLbl.BackgroundTransparency = 1; ValueLbl.Position = UDim2.new(0, 10, 0, 5); ValueLbl.Size = UDim2.new(1, -20, 0, 15); ValueLbl.Font = Theme.FontBold; ValueLbl.Text = tostring(default); ValueLbl.TextColor3 = Theme.Accent; ValueLbl.TextSize = 12; ValueLbl.TextXAlignment = Enum.TextXAlignment.Right
-	local SliderBG = Instance.new("TextButton"); SliderBG.Parent = Card; SliderBG.BackgroundColor3 = Color3.fromRGB(20, 25, 35); SliderBG.Position = UDim2.new(0, 10, 0, 28); SliderBG.Size = UDim2.new(1, -20, 0, 6); SliderBG.Text = ""; SliderBG.AutoButtonColor = false; local SBC = Instance.new("UICorner"); SBC.CornerRadius = UDim.new(1, 0); SBC.Parent = SliderBG
-	local SliderFill = Instance.new("Frame"); SliderFill.Parent = SliderBG; SliderFill.BackgroundColor3 = Theme.Accent; SliderFill.Size = UDim2.new(0, 0, 1, 0); SliderFill.BorderSizePixel = 0; local SFC = Instance.new("UICorner"); SFC.CornerRadius = UDim.new(1, 0); SFC.Parent = SliderFill
-	local Knob = Instance.new("Frame"); Knob.Parent = SliderFill; Knob.BackgroundColor3 = Theme.Text; Knob.Position = UDim2.new(1, -4, 0.5, -6); Knob.Size = UDim2.new(0, 12, 0, 12); local KC = Instance.new("UICorner"); KC.CornerRadius = UDim.new(1,0); KC.Parent = Knob
+	local Card = Instance.new("Frame"); Card.Parent = targetParent
+	Card.BackgroundColor3 = Theme.ActiveTab; Card.BackgroundTransparency = 0.5; Card.Size = UDim2.new(1, 0, 0, 45)
+	Instance.new("UICorner", Card).CornerRadius = UDim.new(0, 6)
+	local TitleLbl = Instance.new("TextLabel"); TitleLbl.Parent = Card; TitleLbl.BackgroundTransparency = 1
+	TitleLbl.Position = UDim2.new(0, 10, 0, 5); TitleLbl.Size = UDim2.new(1, -20, 0, 15)
+	TitleLbl.Font = Theme.FontMain; TitleLbl.Text = text; TitleLbl.TextColor3 = Theme.TextDim; TitleLbl.TextSize = 12; TitleLbl.TextXAlignment = Enum.TextXAlignment.Left
+	local ValueLbl = Instance.new("TextLabel"); ValueLbl.Parent = Card; ValueLbl.BackgroundTransparency = 1
+	ValueLbl.Position = UDim2.new(0, 10, 0, 5); ValueLbl.Size = UDim2.new(1, -20, 0, 15)
+	ValueLbl.Font = Theme.FontBold; ValueLbl.Text = tostring(default); ValueLbl.TextColor3 = Theme.Accent; ValueLbl.TextSize = 12; ValueLbl.TextXAlignment = Enum.TextXAlignment.Right
+	local SliderBG = Instance.new("TextButton"); SliderBG.Parent = Card
+	SliderBG.BackgroundColor3 = Color3.fromRGB(20, 25, 35); SliderBG.Position = UDim2.new(0, 10, 0, 28)
+	SliderBG.Size = UDim2.new(1, -20, 0, 6); SliderBG.Text = ""; SliderBG.AutoButtonColor = false
+	Instance.new("UICorner", SliderBG).CornerRadius = UDim.new(1, 0)
+	local SliderFill = Instance.new("Frame"); SliderFill.Parent = SliderBG
+	SliderFill.BackgroundColor3 = Theme.Accent; SliderFill.Size = UDim2.new(0, 0, 1, 0); SliderFill.BorderSizePixel = 0
+	Instance.new("UICorner", SliderFill).CornerRadius = UDim.new(1, 0)
+	local Knob = Instance.new("Frame"); Knob.Parent = SliderFill
+	Knob.BackgroundColor3 = Theme.Text; Knob.Position = UDim2.new(1, -4, 0.5, -6); Knob.Size = UDim2.new(0, 12, 0, 12)
+	Instance.new("UICorner", Knob).CornerRadius = UDim.new(1,0)
 	local dragging = false
 	local function Update(input)
-		local pos = UDim2.new(math.clamp((input.Position.X - SliderBG.AbsolutePosition.X) / SliderBG.AbsoluteSize.X, 0, 1), 0, 1, 0)
-		SliderFill.Size = pos; local val = math.floor(min + ((max - min) * pos.X.Scale)); ValueLbl.Text = tostring(val); if callback then callback(val) end
+		local pos = math.clamp((input.Position.X - SliderBG.AbsolutePosition.X) / SliderBG.AbsoluteSize.X, 0, 1)
+		SliderFill.Size = UDim2.new(pos, 0, 1, 0)
+		local val = math.floor(min + ((max - min) * pos))
+		if math.abs(max - min) < 50 then val = math.floor(min + ((max - min) * pos) * 10) / 10 end
+		ValueLbl.Text = tostring(val)
+		if callback then callback(val) end
 	end
 	SliderBG.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = true; Update(input) end end)
 	UserInputService.InputChanged:Connect(function(input) if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then Update(input) end end)
 	UserInputService.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = false end end)
-	local defaultPercent = (default - min) / (max - min); SliderFill.Size = UDim2.new(defaultPercent, 0, 1, 0)
+	local defaultPercent = (default - min) / (max - min)
+	SliderFill.Size = UDim2.new(defaultPercent, 0, 1, 0)
 end
 
---// [BAGIAN 7] TAB FUNCTIONS
+-- [FUNGSI YANG HILANG DIKEMBALIKAN] Smart Slider untuk Float (Desimal)
+local function CreateSmartSlider(targetParent, title, min, max, getStartVal, callback)
+	local Card = Instance.new("Frame"); Card.Parent = targetParent
+	Card.BackgroundColor3 = Theme.ActiveTab; Card.BackgroundTransparency = 0.5; Card.Size = UDim2.new(1, 0, 0, 45)
+	Instance.new("UICorner", Card).CornerRadius = UDim.new(0, 6)
+	local startVal = getStartVal() or min; local safeMin, safeMax = math.min(min, max), math.max(min, max); startVal = math.clamp(startVal, safeMin, safeMax)
+	local TitleLbl = Instance.new("TextLabel"); TitleLbl.Parent = Card; TitleLbl.BackgroundTransparency = 1
+	TitleLbl.Position = UDim2.new(0, 10, 0, 5); TitleLbl.Size = UDim2.new(1, -20, 0, 15)
+	TitleLbl.Font = Theme.FontMain; TitleLbl.Text = title; TitleLbl.TextColor3 = Theme.TextDim; TitleLbl.TextSize = 12; TitleLbl.TextXAlignment = Enum.TextXAlignment.Left
+	local ValueLbl = Instance.new("TextLabel"); ValueLbl.Parent = Card; ValueLbl.BackgroundTransparency = 1
+	ValueLbl.Position = UDim2.new(0, 10, 0, 5); ValueLbl.Size = UDim2.new(1, -20, 0, 15)
+	ValueLbl.Font = Theme.FontBold; ValueLbl.Text = string.format("%.1f", startVal); ValueLbl.TextColor3 = Theme.Accent; ValueLbl.TextSize = 12; ValueLbl.TextXAlignment = Enum.TextXAlignment.Right
+	local SliderBG = Instance.new("TextButton"); SliderBG.Parent = Card
+	SliderBG.BackgroundColor3 = Color3.fromRGB(20, 25, 35); SliderBG.Position = UDim2.new(0, 10, 0, 28)
+	SliderBG.Size = UDim2.new(1, -20, 0, 6); SliderBG.Text = ""; SliderBG.AutoButtonColor = false
+	Instance.new("UICorner", SliderBG).CornerRadius = UDim.new(1, 0)
+	local SliderFill = Instance.new("Frame"); SliderFill.Parent = SliderBG
+	SliderFill.BackgroundColor3 = Theme.Accent; SliderFill.BorderSizePixel = 0
+	Instance.new("UICorner", SliderFill).CornerRadius = UDim.new(1, 0)
+	local Knob = Instance.new("Frame"); Knob.Parent = SliderBG
+	Knob.BackgroundColor3 = Theme.Text; Knob.Size = UDim2.new(0, 12, 0, 12); Knob.AnchorPoint = Vector2.new(0.5, 0.5)
+	Instance.new("UICorner", Knob).CornerRadius = UDim.new(1, 0)
+	local defaultPercent = (startVal - min) / (max - min); local clampedPercent = math.clamp(defaultPercent, 0, 1)
+	SliderFill.Size = UDim2.new(clampedPercent, 0, 1, 0); Knob.Position = UDim2.new(clampedPercent, 0, 0.5, 0)
+	local dragging = false
+	local function Update(input)
+		local pos = math.clamp((input.Position.X - SliderBG.AbsolutePosition.X) / SliderBG.AbsoluteSize.X, 0, 1)
+		SliderFill.Size = UDim2.new(pos, 0, 1, 0); Knob.Position = UDim2.new(pos, 0, 0.5, 0)
+		local val = min + ((max - min) * pos)
+		if math.abs(max - min) > 50 then val = math.floor(val); ValueLbl.Text = tostring(val) else ValueLbl.Text = string.format("%.1f", val) end
+		if callback then callback(val) end
+	end
+	SliderBG.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = true; Update(i) end end)
+	UserInputService.InputChanged:Connect(function(i) if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then Update(i) end end)
+	UserInputService.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end end)
+end
+
+--// [BAGIAN 7] TAB BUILDERS
 local function BuildInfoTab(parentFrame)
 	local Layout = Instance.new("UIListLayout"); Layout.Parent = parentFrame; Layout.SortOrder = Enum.SortOrder.LayoutOrder; Layout.Padding = UDim.new(0, 14)
 	local Padding = Instance.new("UIPadding"); Padding.Parent = parentFrame; Padding.PaddingTop = UDim.new(0, 15); Padding.PaddingLeft = UDim.new(0, 15); Padding.PaddingRight = UDim.new(0, 15)
@@ -298,14 +430,16 @@ local function BuildInfoTab(parentFrame)
 	local PingCard = CreateCard(parentFrame, UDim2.new(1, 0, 0,60), 1) 
 	local PingTitle = Instance.new("TextLabel"); PingTitle.Parent = PingCard; PingTitle.BackgroundTransparency = 1; PingTitle.Position = UDim2.new(0, 15, 0, 5); PingTitle.Size = UDim2.new(1, -30, 0, 20); PingTitle.Font = Theme.FontBold; PingTitle.Text = "Network Ping"; PingTitle.TextColor3 = Theme.TextDim; PingTitle.TextSize = 12; PingTitle.TextXAlignment = Enum.TextXAlignment.Left
 	local PingValue = Instance.new("TextLabel"); PingValue.Parent = PingCard; PingValue.BackgroundTransparency = 1; PingValue.Position = UDim2.new(0, 15, 0, 5); PingValue.Size = UDim2.new(1, -30, 0, 20); PingValue.Font = Theme.FontBold; PingValue.Text = "0 ms"; PingValue.TextColor3 = Theme.Accent; PingValue.TextSize = 12; PingValue.TextXAlignment = Enum.TextXAlignment.Right
-	local BarBg = Instance.new("Frame"); BarBg.Parent = PingCard; BarBg.BackgroundColor3 = Color3.fromRGB(30, 30, 40); BarBg.Position = UDim2.new(0, 15, 0, 35); BarBg.Size = UDim2.new(1, -30, 0, 10); local BarBgC = Instance.new("UICorner"); BarBgC.CornerRadius = UDim.new(1, 0); BarBgC.Parent = BarBg
-	local BarFill = Instance.new("Frame"); BarFill.Parent = BarBg; BarFill.BackgroundColor3 = Theme.Accent; BarFill.Size = UDim2.new(0.5, 0, 1, 0); local BarFillC = Instance.new("UICorner"); BarFillC.CornerRadius = UDim.new(1, 0); BarFillC.Parent = BarFill
+	local BarBg = Instance.new("Frame"); BarBg.Parent = PingCard; BarBg.BackgroundColor3 = Color3.fromRGB(30, 30, 40); BarBg.Position = UDim2.new(0, 15, 0, 35); BarBg.Size = UDim2.new(1, -30, 0, 10); Instance.new("UICorner", BarBg).CornerRadius = UDim.new(1, 0)
+	local BarFill = Instance.new("Frame"); BarFill.Parent = BarBg; BarFill.BackgroundColor3 = Theme.Accent; BarFill.Size = UDim2.new(0.5, 0, 1, 0); Instance.new("UICorner", BarFill).CornerRadius = UDim.new(1, 0)
 
 	local GridContainer = Instance.new("Frame"); GridContainer.Parent = parentFrame; GridContainer.BackgroundTransparency = 1; GridContainer.Size = UDim2.new(1,1, 0, 50); GridContainer.LayoutOrder = 2
 	local GL = Instance.new("UIGridLayout"); GL.Parent = GridContainer; GL.CellPadding = UDim2.new(0, 5, 0, 0); GL.CellSize = UDim2.new(0.493, 0, 1, 0); GL.SortOrder = Enum.SortOrder.LayoutOrder; GL.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	
 	local FPSCard = CreateCard(GridContainer, UDim2.new(0,0,0,0), 1)
 	local FPSTitle = Instance.new("TextLabel"); FPSTitle.Parent = FPSCard; FPSTitle.BackgroundTransparency = 1; FPSTitle.Position = UDim2.new(0, 12, 0, 35); FPSTitle.Size = UDim2.new(1, -24, 0, 10); FPSTitle.Font = Theme.FontMain; FPSTitle.Text = "FPS Counter"; FPSTitle.TextColor3 = Theme.TextDim; FPSTitle.TextSize = 12; FPSTitle.TextXAlignment = Enum.TextXAlignment.Left
 	local FPSNum = Instance.new("TextLabel"); FPSNum.Parent = FPSCard; FPSNum.BackgroundTransparency = 1; FPSNum.Position = UDim2.new(0, 12, 0, 12); FPSNum.Size = UDim2.new(1, -24, 0, 10); FPSNum.Font = Theme.FontBold; FPSNum.Text = "60"; FPSNum.TextColor3 = Theme.Text; FPSNum.TextSize = 28; FPSNum.TextXAlignment = Enum.TextXAlignment.Left
+	
 	local MemCard = CreateCard(GridContainer, UDim2.new(0,0,0,0), 2)
 	local MemTitle = Instance.new("TextLabel"); MemTitle.Parent = MemCard; MemTitle.BackgroundTransparency = 1; MemTitle.Position = UDim2.new(0, 12, 0, 35); MemTitle.Size = UDim2.new(1, -24, 0, 10); MemTitle.Font = Theme.FontMain; MemTitle.Text = "Memory RAM"; MemTitle.TextColor3 = Theme.TextDim; MemTitle.TextSize = 12; MemTitle.TextXAlignment = Enum.TextXAlignment.Left
 	local MemNum = Instance.new("TextLabel"); MemNum.Parent = MemCard; MemNum.BackgroundTransparency = 1; MemNum.Position = UDim2.new(0, 12, 0, 12); MemNum.Size = UDim2.new(1, -24, 0, 10); MemNum.Font = Theme.FontBold; MemNum.Text = "0"; MemNum.TextColor3 = Theme.Text; MemNum.TextSize = 24; MemNum.TextXAlignment = Enum.TextXAlignment.Left
@@ -321,7 +455,6 @@ local function BuildInfoTab(parentFrame)
 	RjBtn.MouseButton1Click:Connect(function() local TS = game:GetService("TeleportService"); local LP = game:GetService("Players").LocalPlayer; RjBtn.Text = "Rejoining..."; RjBtn.BackgroundTransparency = 0.5; TS:TeleportToPlaceInstance(game.PlaceId, game.JobId, LP) end)
 
 	task.spawn(function()
-		local LocalPlayer = Players.LocalPlayer
 		local LastFPSTime = tick(); local FrameCount = 0; local FPS_Connection
 		FPS_Connection = RunService.RenderStepped:Connect(function()
 			if not parentFrame.Parent then FPS_Connection:Disconnect(); return end
@@ -347,11 +480,13 @@ local function BuildMovementTab(parentFrame)
 	local function CreateControlCard(title, defaultVal, onToggle, onValChange, onUpdate)
 		local Card = CreateCard(parentFrame, UDim2.new(1, 0, 0, 50), 0)
 		local TitleLbl = Instance.new("TextLabel"); TitleLbl.Parent = Card; TitleLbl.BackgroundTransparency = 1; TitleLbl.Position = UDim2.new(0, 15, 0, 0); TitleLbl.Size = UDim2.new(0, 70, 1, 0); TitleLbl.Font = Theme.FontBold; TitleLbl.Text = title; TitleLbl.TextColor3 = Theme.Text; TitleLbl.TextSize = 14; TitleLbl.TextXAlignment = Enum.TextXAlignment.Left
+		
 		local Controls = Instance.new("Frame"); Controls.Parent = Card; Controls.BackgroundTransparency = 1; Controls.Position = UDim2.new(1, -170, 0, 0); Controls.Size = UDim2.new(0, 160, 1, 0)
-		local MinusBtn = Instance.new("TextButton"); MinusBtn.Parent = Controls; MinusBtn.BackgroundColor3 = Theme.Sidebar; MinusBtn.Position = UDim2.new(0, 0, 0.5, -12); MinusBtn.Size = UDim2.new(0, 24, 0, 24); MinusBtn.Font = Theme.FontBold; MinusBtn.Text = "-"; MinusBtn.TextColor3 = Theme.Accent; local M_Corner = Instance.new("UICorner"); M_Corner.CornerRadius = UDim.new(0, 6); M_Corner.Parent = MinusBtn
+		local MinusBtn = Instance.new("TextButton"); MinusBtn.Parent = Controls; MinusBtn.BackgroundColor3 = Theme.Sidebar; MinusBtn.Position = UDim2.new(0, 0, 0.5, -12); MinusBtn.Size = UDim2.new(0, 24, 0, 24); MinusBtn.Font = Theme.FontBold; MinusBtn.Text = "-"; MinusBtn.TextColor3 = Theme.Accent; Instance.new("UICorner", MinusBtn).CornerRadius = UDim.new(0, 6)
 		local ValTxt = Instance.new("TextLabel"); ValTxt.Parent = Controls; ValTxt.BackgroundTransparency = 1; ValTxt.Position = UDim2.new(0, 28, 0.5, -12); ValTxt.Size = UDim2.new(0, 30, 0, 24); ValTxt.Font = Theme.FontBold; ValTxt.Text = tostring(defaultVal); ValTxt.TextColor3 = Theme.Text; ValTxt.TextSize = 14
-		local PlusBtn = Instance.new("TextButton"); PlusBtn.Parent = Controls; PlusBtn.BackgroundColor3 = Theme.Sidebar; PlusBtn.Position = UDim2.new(0, 62, 0.5, -12); PlusBtn.Size = UDim2.new(0, 24, 0, 24); PlusBtn.Font = Theme.FontBold; PlusBtn.Text = "+"; PlusBtn.TextColor3 = Theme.Accent; local P_Corner = Instance.new("UICorner"); P_Corner.CornerRadius = UDim.new(0, 6); P_Corner.Parent = PlusBtn
+		local PlusBtn = Instance.new("TextButton"); PlusBtn.Parent = Controls; PlusBtn.BackgroundColor3 = Theme.Sidebar; PlusBtn.Position = UDim2.new(0, 62, 0.5, -12); PlusBtn.Size = UDim2.new(0, 24, 0, 24); PlusBtn.Font = Theme.FontBold; PlusBtn.Text = "+"; PlusBtn.TextColor3 = Theme.Accent; Instance.new("UICorner", PlusBtn).CornerRadius = UDim.new(0, 6)
 		local Toggle = Instance.new("TextButton"); Toggle.Parent = Controls; Toggle.BackgroundColor3 = Theme.Sidebar; Toggle.Position = UDim2.new(1, -55, 0.5, -12); Toggle.Size = UDim2.new(0, 50, 0, 24); Toggle.Font = Theme.FontBold; Toggle.Text = "OFF"; Toggle.TextColor3 = Theme.TextDim; Toggle.TextSize = 11; local FT_Corner = Instance.new("UICorner"); FT_Corner.CornerRadius = UDim.new(0, 6); FT_Corner.Parent = Toggle; local FT_Stroke = Instance.new("UIStroke"); FT_Stroke.Parent = Toggle; FT_Stroke.Color = Theme.TextDim; FT_Stroke.Transparency = 0.8; FT_Stroke.Thickness = 1
+		
 		local isActive = false; local currentVal = defaultVal
 		local function UpdateValue() ValTxt.Text = tostring(currentVal); if isActive and onUpdate then onUpdate(currentVal) end end
 		MinusBtn.MouseButton1Click:Connect(function() currentVal = onValChange(currentVal, -1); UpdateValue() end)
@@ -365,55 +500,102 @@ local function BuildMovementTab(parentFrame)
 		return { SetState = SetToggleState, Reset = function() currentVal = defaultVal; ValTxt.Text = tostring(currentVal); SetToggleState(false) end }
 	end
 
+	--// VARIABEL FLY (OPTIMIZED)
 	local flying, flySpeed, bv, bg, flyLoop = false, 1, nil, nil, nil
+	
+	-- Fungsi Mematikan Fly (CLEANUP TOTAL)
+	Session.StopFly = function()
+		flying = false
+		if bv then bv:Destroy(); bv = nil end
+		if bg then bg:Destroy(); bg = nil end
+		if flyLoop then flyLoop:Disconnect(); flyLoop = nil end
+		
+		local char = LocalPlayer.Character
+		if char and char:FindFirstChild("Humanoid") then
+			char.Humanoid.PlatformStand = false
+			char.Humanoid:ChangeState(Enum.HumanoidStateType.Landed)
+		end
+	end
+
 	local FlyCtrl = CreateControlCard("Fly Mode", 1, function(active, speed)
 		flying = active; flySpeed = speed
-		if not active then Session.StopFly() else
-			local char = Players.LocalPlayer.Character; local root = char and char:FindFirstChild("HumanoidRootPart"); local hum = char and char:FindFirstChild("Humanoid"); local cam = workspace.CurrentCamera
+		
+		if not active then 
+			Session.StopFly()
+		else
+			local char = LocalPlayer.Character
+			local root = char and char:FindFirstChild("HumanoidRootPart")
+			local hum = char and char:FindFirstChild("Humanoid")
+			local cam = workspace.CurrentCamera
+			
 			if not root or not hum then return end
-			bv = Instance.new("BodyVelocity"); bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge); bv.Velocity = Vector3.new(0,0,0); bv.Parent = root
-			bg = Instance.new("BodyGyro"); bg.MaxTorque = Vector3.new(math.huge, math.huge, math.huge); bg.P = 10000; bg.D = 100; bg.CFrame = root.CFrame; bg.Parent = root
+			
+			if bv then bv:Destroy() end
+			if bg then bg:Destroy() end
+			
+			bv = Instance.new("BodyVelocity")
+			bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+			bv.Velocity = Vector3.new(0,0,0)
+			bv.Parent = root
+			
+			bg = Instance.new("BodyGyro")
+			bg.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
+			bg.P = 10000; bg.D = 100
+			bg.CFrame = root.CFrame
+			bg.Parent = root
+			
 			hum.PlatformStand = true
+			
 			flyLoop = RunService.Heartbeat:Connect(function()
 				if not flying or not char or not root.Parent then Session.StopFly() return end
-				local moveDir = hum.MoveDirection; local camCF = cam.CFrame
+				
+				local moveDir = hum.MoveDirection
+				local camCF = cam.CFrame
+				
 				if moveDir.Magnitude > 0 then
-					local relDir = camCF:VectorToObjectSpace(moveDir); local forwardVec = camCF.LookVector * -relDir.Z; local rightVec = camCF.RightVector * relDir.X; local targetVel = (forwardVec + rightVec) * (flySpeed * 50)
+					local relDir = camCF:VectorToObjectSpace(moveDir)
+					local rawDir = (camCF.LookVector * -relDir.Z) + (camCF.RightVector * relDir.X)
+					
+					-- [FIX VERTIKAL] Normalisasi agar terbang ke atas ngebut
+					if rawDir.Magnitude > 0.01 then rawDir = rawDir.Unit end
+					
+					local targetVel = rawDir * (flySpeed * 50)
 					bv.Velocity = bv.Velocity:Lerp(targetVel, 0.2)
-				else bv.Velocity = Vector3.new(0,0,0) end
+				else
+					bv.Velocity = Vector3.new(0,0,0)
+				end
 				bg.CFrame = cam.CFrame
 			end)
 		end
 	end, function(old, change) return math.max(1, old + change) end, function(newSpeed) flySpeed = newSpeed end)
-	Session.StopFly = function() flying = false; if bv then bv:Destroy() end; if bg then bg:Destroy() end; if flyLoop then flyLoop:Disconnect() end; local char = Players.LocalPlayer.Character; if char and char:FindFirstChild("Humanoid") then char.Humanoid.PlatformStand = false end end
 
 	local walkLoop; local currentWalkMultiplier = 1
 	local SpeedCtrl = CreateControlCard("Speed Walk", 1, function(active, mul)
 		if walkLoop then walkLoop:Disconnect() end; currentWalkMultiplier = mul
-		if active then walkLoop = RunService.Heartbeat:Connect(function() local char = Players.LocalPlayer.Character; if char and char:FindFirstChild("Humanoid") then local targetSpeed = DefaultStats.WalkSpeed * currentWalkMultiplier; if char.Humanoid.WalkSpeed ~= targetSpeed then char.Humanoid.WalkSpeed = targetSpeed end end end) else Session.StopWalk() end
+		if active then walkLoop = RunService.Heartbeat:Connect(function() local char = LocalPlayer.Character; if char and char:FindFirstChild("Humanoid") then local targetSpeed = DefaultStats.WalkSpeed * currentWalkMultiplier; if char.Humanoid.WalkSpeed ~= targetSpeed then char.Humanoid.WalkSpeed = targetSpeed end end end) else Session.StopWalk() end
 	end, function(old, change) return math.max(1, old + change) end, function(newMul) currentWalkMultiplier = newMul end)
-	Session.StopWalk = function() if walkLoop then walkLoop:Disconnect() end; local char = Players.LocalPlayer.Character; if char and char:FindFirstChild("Humanoid") then char.Humanoid.WalkSpeed = DefaultStats.WalkSpeed end end
+	Session.StopWalk = function() if walkLoop then walkLoop:Disconnect() end; local char = LocalPlayer.Character; if char and char:FindFirstChild("Humanoid") then char.Humanoid.WalkSpeed = DefaultStats.WalkSpeed end end
 
 	local jumpLoop; local currentJumpMultiplier = 1
 	local JumpCtrl = CreateControlCard("High Jump", 1, function(active, mul)
 		if jumpLoop then jumpLoop:Disconnect() end; currentJumpMultiplier = mul
-		if active then jumpLoop = RunService.Heartbeat:Connect(function() local char = Players.LocalPlayer.Character; if char and char:FindFirstChild("Humanoid") then local targetJump = DefaultStats.JumpPower * currentJumpMultiplier; if not char.Humanoid.UseJumpPower then char.Humanoid.UseJumpPower = true end; if char.Humanoid.JumpPower ~= targetJump then char.Humanoid.JumpPower = targetJump end end end) else Session.StopJump() end
+		if active then jumpLoop = RunService.Heartbeat:Connect(function() local char = LocalPlayer.Character; if char and char:FindFirstChild("Humanoid") then local targetJump = DefaultStats.JumpPower * currentJumpMultiplier; if not char.Humanoid.UseJumpPower then char.Humanoid.UseJumpPower = true end; if char.Humanoid.JumpPower ~= targetJump then char.Humanoid.JumpPower = targetJump end end end) else Session.StopJump() end
 	end, function(old, change) return math.max(1, old + change) end, function(newMul) currentJumpMultiplier = newMul end)
-	Session.StopJump = function() if jumpLoop then jumpLoop:Disconnect() end; local char = Players.LocalPlayer.Character; if char and char:FindFirstChild("Humanoid") then char.Humanoid.JumpPower = DefaultStats.JumpPower end end
+	Session.StopJump = function() if jumpLoop then jumpLoop:Disconnect() end; local char = LocalPlayer.Character; if char and char:FindFirstChild("Humanoid") then char.Humanoid.JumpPower = DefaultStats.JumpPower end end
 
 	local noclipLoop
 	local NoclipCtrl = CreateMainSwitch(parentFrame, "No Clip Mode", function(active)
-		if active then noclipLoop = RunService.Stepped:Connect(function() local char = Players.LocalPlayer.Character; if char then for _, part in pairs(char:GetDescendants()) do if part:IsA("BasePart") and part.CanCollide then part.CanCollide = false end end end end) else Session.StopNoclip() end
+		if active then noclipLoop = RunService.Stepped:Connect(function() local char = LocalPlayer.Character; if char then for _, part in pairs(char:GetDescendants()) do if part:IsA("BasePart") and part.CanCollide then part.CanCollide = false end end end end) else Session.StopNoclip() end
 	end)
-	Session.StopNoclip = function() if noclipLoop then noclipLoop:Disconnect() end; local char = Players.LocalPlayer.Character; local root = char and char:FindFirstChild("HumanoidRootPart"); local hum = char and char:FindFirstChild("Humanoid"); if char and root and hum then for _, part in pairs(char:GetDescendants()) do if part:IsA("BasePart") then if part.Name == "HumanoidRootPart" then part.CanCollide = true; part.Transparency = 1 else part.CanCollide = false end end end; local originalHip = hum.HipHeight; hum.HipHeight = 0; task.wait(); hum.HipHeight = originalHip; hum:ChangeState(Enum.HumanoidStateType.GettingUp) end end
+	Session.StopNoclip = function() if noclipLoop then noclipLoop:Disconnect() end; local char = LocalPlayer.Character; local root = char and char:FindFirstChild("HumanoidRootPart"); local hum = char and char:FindFirstChild("Humanoid"); if char and root and hum then for _, part in pairs(char:GetDescendants()) do if part:IsA("BasePart") then if part.Name == "HumanoidRootPart" then part.CanCollide = true; part.Transparency = 1 else part.CanCollide = false end end end; local originalHip = hum.HipHeight; hum.HipHeight = 0; task.wait(); hum.HipHeight = originalHip; hum:ChangeState(Enum.HumanoidStateType.GettingUp) end end
 
 	local InfJumpConn
 	local InfJumpCtrl = CreateMainSwitch(parentFrame, "Infinity Jump", function(active)
-		if active then InfJumpConn = UserInputService.JumpRequest:Connect(function() local char = Players.LocalPlayer.Character; if char and char:FindFirstChild("Humanoid") then char.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping) end end) else Session.StopInfJump() end
+		if active then InfJumpConn = UserInputService.JumpRequest:Connect(function() local char = LocalPlayer.Character; if char and char:FindFirstChild("Humanoid") then char.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping) end end) else Session.StopInfJump() end
 	end)
 	Session.StopInfJump = function() if InfJumpConn then InfJumpConn:Disconnect() end end
 
-	local ResetBtn = Instance.new("TextButton"); ResetBtn.Parent = parentFrame; ResetBtn.BackgroundColor3 = Theme.Red; ResetBtn.BackgroundTransparency = 0.2; ResetBtn.Size = UDim2.new(1, 0, 0, 35); ResetBtn.Font = Theme.FontBold; ResetBtn.Text = "RESET DEFAULT"; ResetBtn.TextColor3 = Theme.Text; ResetBtn.TextSize = 12; local RC = Instance.new("UICorner"); RC.CornerRadius = UDim.new(0, 8); RC.Parent = ResetBtn; local RS = Instance.new("UIStroke"); RS.Parent = ResetBtn; RS.Color = Theme.Red; RS.Thickness = 1; RS.Transparency = 0.5
+	local ResetBtn = Instance.new("TextButton"); ResetBtn.Parent = parentFrame; ResetBtn.BackgroundColor3 = Theme.Red; ResetBtn.BackgroundTransparency = 0.2; ResetBtn.Size = UDim2.new(1, 0, 0, 35); ResetBtn.Font = Theme.FontBold; ResetBtn.Text = "RESET DEFAULT"; ResetBtn.TextColor3 = Theme.Text; ResetBtn.TextSize = 12; Instance.new("UICorner", ResetBtn).CornerRadius = UDim.new(0, 8); local RS = Instance.new("UIStroke"); RS.Parent = ResetBtn; RS.Color = Theme.Red; RS.Thickness = 1; RS.Transparency = 0.5
 	Session.ResetAll = function() FlyCtrl.Reset(); SpeedCtrl.Reset(); JumpCtrl.Reset(); NoclipCtrl.SetState(false); InfJumpCtrl.SetState(false); Session.StopFly(); Session.StopWalk(); Session.StopJump(); Session.StopNoclip(); Session.StopInfJump() end
 	ResetBtn.MouseButton1Click:Connect(Session.ResetAll)
 end
@@ -424,22 +606,17 @@ local function BuildTeleportTab(parentFrame)
 	local ColorSuccess = Theme.Green; local ColorError = Theme.Red; local ColorSpectateOff = Color3.fromRGB(70, 85, 105); local ColorSpectateOn = Theme.Sidebar
 	local selectedPlayer = nil; local isDropdownOpen = false; local statusTimer = nil; local spectateLoop = nil; local clickOutsideConn = nil
 
-	-- [PERBAIKAN] Tambahkan ZIndex = 10 agar Dropdown menimpa card di bawahnya
 	local TpCard = CreateCard(parentFrame, UDim2.new(1, 0, 0, 110))
-	TpCard.ClipsDescendants = false
-	TpCard.LayoutOrder = 1
-	TpCard.ZIndex = 10 -- << INI KUNCINYA (Agar list tidak tertutup Teleport Tap)
+	TpCard.ClipsDescendants = false; TpCard.LayoutOrder = 1; TpCard.ZIndex = 10 -- [FIX] ZIndex Dropdown
 
 	local Title = Instance.new("TextLabel"); Title.Parent = TpCard; Title.BackgroundTransparency = 1; Title.Position = UDim2.new(0, 15, 0, 10); Title.Size = UDim2.new(1, -30, 0, 15); Title.Font = Theme.FontBold; Title.Text = "Player Teleport & Spectate"; Title.TextColor3 = Theme.Text; Title.TextSize = 14; Title.TextXAlignment = Enum.TextXAlignment.Left
 	local StatusLbl = Instance.new("TextLabel"); StatusLbl.Parent = TpCard; StatusLbl.BackgroundTransparency = 1; StatusLbl.Position = UDim2.new(0, 15, 0, 68); StatusLbl.Size = UDim2.new(1, -180, 0, 15); StatusLbl.Font = Theme.FontMain; StatusLbl.Text = ""; StatusLbl.TextColor3 = ColorError; StatusLbl.TextSize = 11; StatusLbl.TextXAlignment = Enum.TextXAlignment.Left
 	local function ShowStatus(text, color) StatusLbl.Text = text; StatusLbl.TextColor3 = color or Theme.Text; if statusTimer then task.cancel(statusTimer) end; statusTimer = task.delay(3, function() if StatusLbl then StatusLbl.Text = "" end statusTimer = nil end) end
 
-	local DropContainer = Instance.new("Frame"); DropContainer.Parent = TpCard; DropContainer.BackgroundTransparency = 1; DropContainer.Position = UDim2.new(0, 15, 0, 35); DropContainer.Size = UDim2.new(1, -30, 0, 30); DropContainer.ZIndex = 11 -- ZIndex lebih tinggi dari Card
+	local DropContainer = Instance.new("Frame"); DropContainer.Parent = TpCard; DropContainer.BackgroundTransparency = 1; DropContainer.Position = UDim2.new(0, 15, 0, 35); DropContainer.Size = UDim2.new(1, -30, 0, 30); DropContainer.ZIndex = 11
+	local DropBtn = Instance.new("TextButton"); DropBtn.Parent = DropContainer; DropBtn.BackgroundColor3 = Theme.Sidebar; DropBtn.Size = UDim2.new(1, -75, 1, 0); DropBtn.Font = Theme.FontMain; DropBtn.Text = "  Select Player..."; DropBtn.TextColor3 = Theme.TextDim; DropBtn.TextSize = 12; DropBtn.TextXAlignment = Enum.TextXAlignment.Left; DropBtn.AutoButtonColor = false; DropBtn.ZIndex = 11; Instance.new("UICorner", DropBtn).CornerRadius = UDim.new(0, 6); local DS = Instance.new("UIStroke"); DS.Parent = DropBtn; DS.Color = Theme.Separator; DS.Thickness = 1
+	local RefreshBtn = Instance.new("TextButton"); RefreshBtn.Parent = DropContainer; RefreshBtn.BackgroundColor3 = Theme.Green; RefreshBtn.Position = UDim2.new(1, -70, 0, 0); RefreshBtn.Size = UDim2.new(0, 70, 1, 0); RefreshBtn.ZIndex = 11; RefreshBtn.Font = Theme.FontBold; RefreshBtn.Text = "REFRESH"; RefreshBtn.TextColor3 = Theme.Main; RefreshBtn.TextSize = 11; Instance.new("UICorner", RefreshBtn).CornerRadius = UDim.new(0, 6)
 	
-	local DropBtn = Instance.new("TextButton"); DropBtn.Parent = DropContainer; DropBtn.BackgroundColor3 = Theme.Sidebar; DropBtn.Size = UDim2.new(1, -75, 1, 0); DropBtn.Font = Theme.FontMain; DropBtn.Text = "  Select Player..."; DropBtn.TextColor3 = Theme.TextDim; DropBtn.TextSize = 12; DropBtn.TextXAlignment = Enum.TextXAlignment.Left; DropBtn.AutoButtonColor = false; DropBtn.ZIndex = 11; local DC = Instance.new("UICorner"); DC.CornerRadius = UDim.new(0, 6); DC.Parent = DropBtn; local DS = Instance.new("UIStroke"); DS.Parent = DropBtn; DS.Color = Theme.Separator; DS.Thickness = 1
-	local RefreshBtn = Instance.new("TextButton"); RefreshBtn.Parent = DropContainer; RefreshBtn.BackgroundColor3 = Theme.Green; RefreshBtn.Position = UDim2.new(1, -70, 0, 0); RefreshBtn.Size = UDim2.new(0, 70, 1, 0); RefreshBtn.ZIndex = 11; RefreshBtn.Font = Theme.FontBold; RefreshBtn.Text = "REFRESH"; RefreshBtn.TextColor3 = Theme.Main; RefreshBtn.TextSize = 11; local RC = Instance.new("UICorner"); RC.CornerRadius = UDim.new(0, 6); RC.Parent = RefreshBtn
-	
-	-- List Frame ZIndex harus sangat tinggi
 	local ListFrame = Instance.new("ScrollingFrame"); ListFrame.Parent = TpCard; ListFrame.Visible = false; ListFrame.BackgroundColor3 = Theme.Sidebar; ListFrame.BorderSizePixel = 0; ListFrame.Position = UDim2.new(0, 15, 0, 68); ListFrame.Size = UDim2.new(0.90, -65, 0, 120); ListFrame.ZIndex = 20; ListFrame.ScrollBarThickness = 2; local LS = Instance.new("UIStroke"); LS.Parent = ListFrame; LS.Color = Theme.Accent; LS.Thickness = 1; local LL = Instance.new("UIListLayout"); LL.Parent = ListFrame; LL.SortOrder = Enum.SortOrder.LayoutOrder
 
 	local function ToggleDropdown(forceClose)
@@ -449,7 +626,7 @@ local function BuildTeleportTab(parentFrame)
 	local function RefreshList()
 		for _, v in pairs(ListFrame:GetChildren()) do if v:IsA("TextButton") then v:Destroy() end end
 		for _, p in pairs(Players:GetPlayers()) do
-			if p ~= Players.LocalPlayer then
+			if p ~= LocalPlayer then
 				local PBtn = Instance.new("TextButton"); PBtn.Parent = ListFrame; PBtn.BackgroundColor3 = Theme.Main; PBtn.Size = UDim2.new(1, 0, 0, 25); PBtn.Font = Theme.FontMain; PBtn.TextSize = 12; PBtn.TextXAlignment = Enum.TextXAlignment.Left; PBtn.AutoButtonColor = true; PBtn.ZIndex = 21; local labelText = "  " .. p.DisplayName .. " (@" .. p.Name .. ")"; PBtn.Text = labelText; PBtn.TextColor3 = Theme.TextDim
 				PBtn.MouseButton1Click:Connect(function() selectedPlayer = p; DropBtn.Text = labelText; DropBtn.TextColor3 = Theme.Text; ToggleDropdown(true) end)
 			end
@@ -463,7 +640,7 @@ local function BuildTeleportTab(parentFrame)
 	local TeleportBtn = Instance.new("TextButton"); TeleportBtn.Parent = ActionContainer; TeleportBtn.BackgroundColor3 = Theme.Accent; TeleportBtn.Position = UDim2.new(1, -80, 0, 0); TeleportBtn.Size = UDim2.new(0, 80, 1, 0); TeleportBtn.Font = Theme.FontBold; TeleportBtn.Text = "TELEPORT"; TeleportBtn.TextColor3 = Theme.Main; TeleportBtn.TextSize = 10; TeleportBtn.ZIndex = 2; local TC = Instance.new("UICorner"); TC.CornerRadius = UDim.new(0, 6); TC.Parent = TeleportBtn
 
 	local function StopSpectate()
-		if spectateLoop then spectateLoop:Disconnect(); spectateLoop = nil end; if Players.LocalPlayer.Character and Players.LocalPlayer.Character:FindFirstChild("Humanoid") then workspace.CurrentCamera.CameraSubject = Players.LocalPlayer.Character.Humanoid end
+		if spectateLoop then spectateLoop:Disconnect(); spectateLoop = nil end; if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then workspace.CurrentCamera.CameraSubject = LocalPlayer.Character.Humanoid end
 		SpectateBtn.BackgroundColor3 = ColorSpectateOff; SpectateBtn.TextColor3 = Theme.Text; SpectateBtn.Text = "SPECTATE"; SS.Color = Theme.Accent; SS.Transparency = 0.8
 	end
 	SpectateBtn.MouseButton1Click:Connect(function()
@@ -479,7 +656,7 @@ local function BuildTeleportTab(parentFrame)
 	TeleportBtn.MouseButton1Click:Connect(function()
 		if not selectedPlayer then ShowStatus("Select a player!", ColorError); return end
 		local target = Players:FindFirstChild(selectedPlayer.Name); if not target then ShowStatus("Player Left.", ColorError); return end
-		local tChar = target.Character; local lChar = Players.LocalPlayer.Character
+		local tChar = target.Character; local lChar = LocalPlayer.Character
 		if tChar and tChar:FindFirstChild("HumanoidRootPart") and lChar and lChar:FindFirstChild("HumanoidRootPart") then lChar.HumanoidRootPart.CFrame = tChar.HumanoidRootPart.CFrame * CFrame.new(0, 0, 3); ShowStatus("Teleported!", ColorSuccess) else ShowStatus("Target/Local Unreachable", ColorError) end
 	end)
 
@@ -489,21 +666,13 @@ local function BuildTeleportTab(parentFrame)
 			tapConnection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
 				if gameProcessed then return end
 				if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-					local mouse = Players.LocalPlayer:GetMouse(); local targetPos = mouse.Hit; local char = Players.LocalPlayer.Character
+					local mouse = LocalPlayer:GetMouse(); local targetPos = mouse.Hit; local char = LocalPlayer.Character
 					if char and char:FindFirstChild("HumanoidRootPart") and targetPos then char.HumanoidRootPart.CFrame = CFrame.new(targetPos.X, targetPos.Y + 3, targetPos.Z) end
 				end
 			end)
 		else if tapConnection then tapConnection:Disconnect(); tapConnection = nil end end
 	end)
-	
-	-- Pastikan LayoutOrder Card kedua aman
-	if TapSwitch.Card then 
-		TapSwitch.Card.LayoutOrder = 2
-		TapSwitch.Card.ZIndex = 1 -- ZIndex rendah agar di bawah TpCard
-		local titleLbl = TapSwitch.Card:FindFirstChildOfClass("TextLabel"); 
-		if titleLbl then titleLbl.Font = Theme.FontBold; titleLbl.TextColor3 = Theme.Accent end 
-	end
-	
+	if TapSwitch.Card then TapSwitch.Card.LayoutOrder = 2; TapSwitch.Card.ZIndex = 1 end
 	RefreshList()
 end
 
@@ -513,30 +682,11 @@ local function BuildVisualsTab(parentFrame)
 
 	local function ToggleFeature(isActive, storageTable, onAdd, onRemove)
 		if isActive then
-			local function SetupPlayer(player) if player == Players.LocalPlayer then return end; if player.Character then onAdd(player.Character, player) end; local conn = player.CharacterAdded:Connect(function(char) char:WaitForChild("HumanoidRootPart", 5); onAdd(char, player) end); table.insert(storageTable, conn) end
+			local function SetupPlayer(player) if player == LocalPlayer then return end; if player.Character then onAdd(player.Character, player) end; local conn = player.CharacterAdded:Connect(function(char) char:WaitForChild("HumanoidRootPart", 5); onAdd(char, player) end); table.insert(storageTable, conn) end
 			for _, p in pairs(Players:GetPlayers()) do SetupPlayer(p) end; local pAdded = Players.PlayerAdded:Connect(SetupPlayer); table.insert(storageTable, pAdded)
 		else for _, conn in pairs(storageTable) do conn:Disconnect() end; table.clear(storageTable); for _, p in pairs(Players:GetPlayers()) do if p.Character then onRemove(p.Character) end end end
 	end
 	
-	local function CreateSmartSlider(parent, title, min, max, getStartVal, callback)
-		local Card = Instance.new("Frame"); Card.Parent = parent; Card.BackgroundColor3 = Theme.ActiveTab; Card.BackgroundTransparency = 0.5; Card.Size = UDim2.new(1, 0, 0, 45); local C = Instance.new("UICorner"); C.CornerRadius = UDim.new(0, 6); C.Parent = Card
-		local startVal = getStartVal() or min; local safeMin, safeMax = math.min(min, max), math.max(min, max); startVal = math.clamp(startVal, safeMin, safeMax)
-		local TitleLbl = Instance.new("TextLabel"); TitleLbl.Parent = Card; TitleLbl.BackgroundTransparency = 1; TitleLbl.Position = UDim2.new(0, 10, 0, 5); TitleLbl.Size = UDim2.new(1, -20, 0, 15); TitleLbl.Font = Theme.FontMain; TitleLbl.Text = title; TitleLbl.TextColor3 = Theme.TextDim; TitleLbl.TextSize = 12; TitleLbl.TextXAlignment = Enum.TextXAlignment.Left
-		local ValueLbl = Instance.new("TextLabel"); ValueLbl.Parent = Card; ValueLbl.BackgroundTransparency = 1; ValueLbl.Position = UDim2.new(0, 10, 0, 5); ValueLbl.Size = UDim2.new(1, -20, 0, 15); ValueLbl.Font = Theme.FontBold; ValueLbl.Text = string.format("%.1f", startVal); ValueLbl.TextColor3 = Theme.Accent; ValueLbl.TextSize = 12; ValueLbl.TextXAlignment = Enum.TextXAlignment.Right
-		local SliderBG = Instance.new("TextButton"); SliderBG.Parent = Card; SliderBG.BackgroundColor3 = Color3.fromRGB(20, 25, 35); SliderBG.Position = UDim2.new(0, 10, 0, 28); SliderBG.Size = UDim2.new(1, -20, 0, 6); SliderBG.Text = ""; SliderBG.AutoButtonColor = false; local SBC = Instance.new("UICorner"); SBC.CornerRadius = UDim.new(1, 0); SBC.Parent = SliderBG
-		local SliderFill = Instance.new("Frame"); SliderFill.Parent = SliderBG; SliderFill.BackgroundColor3 = Theme.Accent; SliderFill.BorderSizePixel = 0; local SFC = Instance.new("UICorner"); SFC.CornerRadius = UDim.new(1, 0); SFC.Parent = SliderFill
-		local Knob = Instance.new("Frame"); Knob.Parent = SliderBG; Knob.BackgroundColor3 = Theme.Text; Knob.Size = UDim2.new(0, 12, 0, 12); Knob.AnchorPoint = Vector2.new(0.5, 0.5); local KC = Instance.new("UICorner"); KC.CornerRadius = UDim.new(1, 0); KC.Parent = Knob
-		local defaultPercent = (startVal - min) / (max - min); local clampedPercent = math.clamp(defaultPercent, 0, 1); SliderFill.Size = UDim2.new(clampedPercent, 0, 1, 0); Knob.Position = UDim2.new(clampedPercent, 0, 0.5, 0)
-		local dragging = false
-		local function Update(input)
-			local pos = math.clamp((input.Position.X - SliderBG.AbsolutePosition.X) / SliderBG.AbsoluteSize.X, 0, 1); SliderFill.Size = UDim2.new(pos, 0, 1, 0); Knob.Position = UDim2.new(pos, 0, 0.5, 0)
-			local val = min + ((max - min) * pos); if math.abs(max - min) > 50 then val = math.floor(val); ValueLbl.Text = tostring(val) else ValueLbl.Text = string.format("%.1f", val) end; if callback then callback(val) end
-		end
-		SliderBG.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = true; Update(i) end end)
-		UserInputService.InputChanged:Connect(function(i) if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then Update(i) end end)
-		UserInputService.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end end)
-	end
-
 	local ESP_Container = CreateExpandableSection(parentFrame, "ESP Features")
 	local HL_Conn = {}
 	CreateSwitchCard(ESP_Container, "ESP Player (Highlight)", function(active) ToggleFeature(active, HL_Conn, function(char) if char:FindFirstChild("NeeR_Highlight") then char.NeeR_Highlight:Destroy() end; local hl = Instance.new("Highlight"); hl.Name="NeeR_Highlight"; hl.Parent=char; hl.Adornee=char; hl.FillColor=Theme.Red; hl.FillTransparency=0.5; hl.OutlineColor=Color3.new(1,1,1); hl.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop end, function(char) if char:FindFirstChild("NeeR_Highlight") then char.NeeR_Highlight:Destroy() end end) end)
@@ -544,6 +694,50 @@ local function BuildVisualsTab(parentFrame)
 	CreateSwitchCard(ESP_Container, "Player Names", function(active) ToggleFeature(active, Name_Conn, function(char, plr) if not char:FindFirstChild("Head") then return end; if char:FindFirstChild("NeeR_Name") then char.NeeR_Name:Destroy() end; local bb = Instance.new("BillboardGui"); bb.Name="NeeR_Name"; bb.Parent=char; bb.Adornee=char.Head; bb.Size=UDim2.new(0,100,0,20); bb.StudsOffset=Vector3.new(0,3.5,0); bb.AlwaysOnTop=true; local tx = Instance.new("TextLabel"); tx.Parent=bb; tx.Size=UDim2.new(1,0,1,0); tx.BackgroundTransparency=1; tx.Text=plr.DisplayName; tx.TextColor3=Color3.new(1,1,1); tx.Font=Theme.FontBold; tx.TextSize=12; tx.TextStrokeTransparency=0 end, function(char) if char:FindFirstChild("NeeR_Name") then char.NeeR_Name:Destroy() end end) end)
 	local HP_Conn = {}
 	CreateSwitchCard(ESP_Container, "Health Bar", function(active) ToggleFeature(active, HP_Conn, function(char) if not char:FindFirstChild("Head") then return end; if char:FindFirstChild("NeeR_HP") then char.NeeR_HP:Destroy() end; local bb = Instance.new("BillboardGui"); bb.Name="NeeR_HP"; bb.Parent=char; bb.Adornee=char.Head; bb.Size=UDim2.new(0,40,0,4); bb.StudsOffset=Vector3.new(0,2.5,0); bb.AlwaysOnTop=true; local bg = Instance.new("Frame"); bg.Parent=bb; bg.Size=UDim2.new(1,0,1,0); bg.BackgroundColor3=Color3.new(0,0,0); bg.BorderSizePixel=0; local fill = Instance.new("Frame"); fill.Parent=bg; fill.Size=UDim2.new(1,0,1,0); fill.BackgroundColor3=Theme.Green; fill.BorderSizePixel=0; local hum = char:FindFirstChild("Humanoid"); if hum then local function Upd() local p = math.clamp(hum.Health/hum.MaxHealth, 0, 1); TweenService:Create(fill, TweenInfo.new(0.2), {Size=UDim2.new(p,0,1,0)}):Play(); fill.BackgroundColor3 = p < 0.3 and Theme.Red or Theme.Green end; Upd(); hum.HealthChanged:Connect(Upd) end end, function(char) if char:FindFirstChild("NeeR_HP") then char.NeeR_HP:Destroy() end end) end)
+
+--// [VISUAL: SMART X-RAY]
+	local XRay_Container = CreateExpandableSection(parentFrame, "Wall X-Ray (Smart)")
+	local XRay_Cache = {}
+	local XRay_Opacity = 0.5
+	local XRay_Active = false
+
+	local function ApplyXRay()
+		if not XRay_Active then return end
+		for _, v in pairs(workspace:GetDescendants()) do
+			if v:IsA("BasePart") and not v:IsA("Terrain") then
+				local isCharacter = v.Parent:FindFirstChild("Humanoid") or v.Parent.Parent:FindFirstChild("Humanoid")
+				local isHidden = v.Transparency > 0.9
+				
+				if not isCharacter and not isHidden then
+					if not XRay_Cache[v] then XRay_Cache[v] = v.Transparency end
+					v.Transparency = XRay_Opacity
+				end
+			end
+		end
+	end
+
+	local function RemoveXRay()
+		for part, oldTransparency in pairs(XRay_Cache) do
+			if part and part.Parent then part.Transparency = oldTransparency end
+		end
+		table.clear(XRay_Cache)
+	end
+
+	CreateSmartSlider(XRay_Container, "Opacity", 0.1, 0.9, function() return 0.5 end, function(val) 
+		XRay_Opacity = val
+		if XRay_Active then
+			for part, _ in pairs(XRay_Cache) do
+				if part and part.Parent then part.Transparency = XRay_Opacity end
+			end
+		end
+	end)
+
+	CreateSwitchCard(XRay_Container, "Enable X-Ray", function(active)
+		XRay_Active = active
+		if active then ApplyXRay() else RemoveXRay() end
+	end)
+	
+	CreateButtonCard(XRay_Container, "Refresh", "REFRESH", function() if XRay_Active then ApplyXRay() end end)
 
 	local World_Container = CreateExpandableSection(parentFrame, "World & Lighting")
 	local fb_loop; local LightingBackup = {} 
@@ -559,19 +753,19 @@ local function BuildVisualsTab(parentFrame)
 		local Card = CreateCard(parent, UDim2.new(1, 0, 0, 120)); local startY = 15
 		local SL_Label = Instance.new("TextLabel"); SL_Label.Parent = Card; SL_Label.BackgroundTransparency=1; SL_Label.Position=UDim2.new(0,15,0,startY); SL_Label.Size=UDim2.new(0,100,0,20); SL_Label.Font=Theme.FontMain; SL_Label.Text="Force Shift Lock"; SL_Label.TextColor3=Theme.TextDim; SL_Label.TextSize=12; SL_Label.TextXAlignment=Enum.TextXAlignment.Left
 		local SL_Btn = Instance.new("TextButton"); SL_Btn.Parent = Card; SL_Btn.BackgroundTransparency=1; SL_Btn.Position=UDim2.new(1,-60,0,startY); SL_Btn.Size=UDim2.new(0,45,0,20); SL_Btn.Text=""
-		local SL_Sw = Instance.new("Frame"); SL_Sw.Parent=SL_Btn; SL_Sw.BackgroundColor3=Color3.fromRGB(20,25,35); SL_Sw.Position=UDim2.new(0,0,0.5,-8); SL_Sw.Size=UDim2.new(0,36,0,16); local SLC=Instance.new("UICorner"); SLC.CornerRadius=UDim.new(1,0); SLC.Parent=SL_Sw
-		local SL_K = Instance.new("Frame"); SL_K.Parent=SL_Sw; SL_K.BackgroundColor3=Theme.TextDim; SL_K.Position=UDim2.new(0,2,0.5,-6); SL_K.Size=UDim2.new(0,12,0,12); local SLKC=Instance.new("UICorner"); SLKC.CornerRadius=UDim.new(1,0); SLKC.Parent=SL_K
+		local SL_Sw = Instance.new("Frame"); SL_Sw.Parent=SL_Btn; SL_Sw.BackgroundColor3=Color3.fromRGB(20,25,35); SL_Sw.Position=UDim2.new(0,0,0.5,-8); SL_Sw.Size=UDim2.new(0,36,0,16); Instance.new("UICorner", SL_Sw).CornerRadius=UDim.new(1,0)
+		local SL_K = Instance.new("Frame"); SL_K.Parent=SL_Sw; SL_K.BackgroundColor3=Theme.TextDim; SL_K.Position=UDim2.new(0,2,0.5,-6); SL_K.Size=UDim2.new(0,12,0,12); Instance.new("UICorner", SL_K).CornerRadius=UDim.new(1,0)
 		local sl_conn, sl_active = nil, false
 		SL_Btn.MouseButton1Click:Connect(function()
 			sl_active = not sl_active
-			if sl_active then TweenService:Create(SL_K, TweenInfo.new(0.2), {Position=UDim2.new(1,-14,0.5,-6), BackgroundColor3=Theme.Main}):Play(); TweenService:Create(SL_Sw, TweenInfo.new(0.2), {BackgroundColor3=Theme.Accent}):Play(); SL_Label.TextColor3 = Theme.Text; sl_conn = RunService.RenderStepped:Connect(function() UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter; local char = Players.LocalPlayer.Character; if char and char:FindFirstChild("HumanoidRootPart") then local root = char.HumanoidRootPart; local camCF = workspace.CurrentCamera.CFrame; root.CFrame = CFrame.new(root.Position, root.Position + Vector3.new(camCF.LookVector.X, 0, camCF.LookVector.Z)) end end)
+			if sl_active then TweenService:Create(SL_K, TweenInfo.new(0.2), {Position=UDim2.new(1,-14,0.5,-6), BackgroundColor3=Theme.Main}):Play(); TweenService:Create(SL_Sw, TweenInfo.new(0.2), {BackgroundColor3=Theme.Accent}):Play(); SL_Label.TextColor3 = Theme.Text; sl_conn = RunService.RenderStepped:Connect(function() UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter; local char = LocalPlayer.Character; if char and char:FindFirstChild("HumanoidRootPart") then local root = char.HumanoidRootPart; local camCF = workspace.CurrentCamera.CFrame; root.CFrame = CFrame.new(root.Position, root.Position + Vector3.new(camCF.LookVector.X, 0, camCF.LookVector.Z)) end end)
 			else TweenService:Create(SL_K, TweenInfo.new(0.2), {Position=UDim2.new(0,2,0.5,-6), BackgroundColor3=Theme.TextDim}):Play(); TweenService:Create(SL_Sw, TweenInfo.new(0.2), {BackgroundColor3=Color3.fromRGB(20,25,35)}):Play(); SL_Label.TextColor3 = Theme.TextDim; if sl_conn then sl_conn:Disconnect() end; UserInputService.MouseBehavior = Enum.MouseBehavior.Default end
 		end)
 		local camOffX, camOffY = 0, 0
-		local function UpdateOffset() local c = Players.LocalPlayer.Character; if c and c:FindFirstChild("Humanoid") then c.Humanoid.CameraOffset = Vector3.new(camOffX, camOffY, 0) end end
-		Players.LocalPlayer.CharacterAdded:Connect(function() task.wait(1); UpdateOffset() end)
+		local function UpdateOffset() local c = LocalPlayer.Character; if c and c:FindFirstChild("Humanoid") then c.Humanoid.CameraOffset = Vector3.new(camOffX, camOffY, 0) end end
+		LocalPlayer.CharacterAdded:Connect(function() task.wait(1); UpdateOffset() end)
 		local function AddKnobSlider(yPos, text, min, max, callback)
-			local Lbl = Instance.new("TextLabel"); Lbl.Parent=Card; Lbl.BackgroundTransparency=1; Lbl.Position=UDim2.new(0,15,0,yPos); Lbl.Size=UDim2.new(0,100,0,15); Lbl.Font=Theme.FontMain; Lbl.Text=text; Lbl.TextColor3=Theme.TextDim; Lbl.TextSize=11; Lbl.TextXAlignment=Enum.TextXAlignment.Left; local Val = Instance.new("TextLabel"); Val.Parent=Card; Val.BackgroundTransparency=1; Val.Position=UDim2.new(1,-45,0,yPos); Val.Size=UDim2.new(0,30,0,15); Val.Font=Theme.FontBold; Val.Text="0"; Val.TextColor3=Theme.Accent; Val.TextSize=11; Val.TextXAlignment=Enum.TextXAlignment.Right; local SBG = Instance.new("TextButton"); SBG.Parent=Card; SBG.BackgroundColor3=Color3.fromRGB(20,25,35); SBG.Position=UDim2.new(0,15,0,yPos+18); SBG.Size=UDim2.new(1,-30,0,4); SBG.Text=""; SBG.AutoButtonColor=false; local SBC=Instance.new("UICorner"); SBC.CornerRadius=UDim.new(1,0); SBC.Parent=SBG; local SF = Instance.new("Frame"); SF.Parent=SBG; SF.BackgroundColor3=Theme.Accent; SF.Size=UDim2.new(0.5,0,1,0); SF.BorderSizePixel=0; local SFC=Instance.new("UICorner"); SFC.CornerRadius=UDim.new(1,0); SFC.Parent=SF; local Knob = Instance.new("Frame"); Knob.Parent=SBG; Knob.BackgroundColor3=Theme.Text; Knob.Size=UDim2.new(0,12,0,12); Knob.AnchorPoint=Vector2.new(0.5, 0.5); Knob.Position=UDim2.new(0.5, 0, 0.5, 0); local KC=Instance.new("UICorner"); KC.CornerRadius=UDim.new(1,0); KC.Parent=Knob
+			local Lbl = Instance.new("TextLabel"); Lbl.Parent=Card; Lbl.BackgroundTransparency=1; Lbl.Position=UDim2.new(0,15,0,yPos); Lbl.Size=UDim2.new(0,100,0,15); Lbl.Font=Theme.FontMain; Lbl.Text=text; Lbl.TextColor3=Theme.TextDim; Lbl.TextSize=11; Lbl.TextXAlignment=Enum.TextXAlignment.Left; local Val = Instance.new("TextLabel"); Val.Parent=Card; Val.BackgroundTransparency=1; Val.Position=UDim2.new(1,-45,0,yPos); Val.Size=UDim2.new(0,30,0,15); Val.Font=Theme.FontBold; Val.Text="0"; Val.TextColor3=Theme.Accent; Val.TextSize=11; Val.TextXAlignment=Enum.TextXAlignment.Right; local SBG = Instance.new("TextButton"); SBG.Parent=Card; SBG.BackgroundColor3=Color3.fromRGB(20,25,35); SBG.Position=UDim2.new(0,15,0,yPos+18); SBG.Size=UDim2.new(1,-30,0,4); SBG.Text=""; SBG.AutoButtonColor=false; Instance.new("UICorner", SBG).CornerRadius=UDim.new(1,0); local SF = Instance.new("Frame"); SF.Parent=SBG; SF.BackgroundColor3=Theme.Accent; SF.Size=UDim2.new(0.5,0,1,0); SF.BorderSizePixel=0; Instance.new("UICorner", SF).CornerRadius=UDim.new(1,0); local Knob = Instance.new("Frame"); Knob.Parent=SBG; Knob.BackgroundColor3=Theme.Text; Knob.Size=UDim2.new(0,12,0,12); Knob.AnchorPoint=Vector2.new(0.5, 0.5); Knob.Position=UDim2.new(0.5, 0, 0.5, 0); Instance.new("UICorner", Knob).CornerRadius=UDim.new(1,0)
 			local dragging = false
 			local function Upd(input) local pos = math.clamp((input.Position.X - SBG.AbsolutePosition.X)/SBG.AbsoluteSize.X, 0, 1); SF.Size = UDim2.new(pos,0,1,0); Knob.Position = UDim2.new(pos, 0, 0.5, 0); local value = math.floor((min + ((max-min)*pos)) * 10) / 10; Val.Text = tostring(value); callback(value) end
 			SBG.InputBegan:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then dragging=true; Upd(i) end end)
@@ -585,8 +779,8 @@ local function BuildVisualsTab(parentFrame)
 
 	local Cam_Container = CreateExpandableSection(parentFrame, "Camera Options")
 	CreateSliderCard(Cam_Container, "Field of View (FOV)", 70, 120, 70, function(val) workspace.CurrentCamera.FieldOfView = val end)
-	CreateSwitchCard(Cam_Container, "Unlock Max Zoom", function(active) Players.LocalPlayer.CameraMaxZoomDistance = active and 100000 or 128 end)
-	CreateSwitchCard(Cam_Container, "Camera Noclip", function(active) Players.LocalPlayer.DevCameraOcclusionMode = active and Enum.DevCameraOcclusionMode.Invisicam or Enum.DevCameraOcclusionMode.Zoom end)
+	CreateSwitchCard(Cam_Container, "Unlock Max Zoom", function(active) LocalPlayer.CameraMaxZoomDistance = active and 100000 or 128 end)
+	CreateSwitchCard(Cam_Container, "Camera Noclip", function(active) LocalPlayer.DevCameraOcclusionMode = active and Enum.DevCameraOcclusionMode.Invisicam or Enum.DevCameraOcclusionMode.Zoom end)
 
 	local FPS_Container = CreateExpandableSection(parentFrame, "Performance / FPS")
 	CreateSwitchCard(FPS_Container, "Remove Shadows & Effects", function(active) Lighting.GlobalShadows = not active; for _,v in pairs(Lighting:GetChildren()) do if v:IsA("PostEffect") then v.Enabled = not active end end end)
@@ -599,8 +793,8 @@ local function BuildSettingsTab(parentFrame)
 	local Padding = Instance.new("UIPadding"); Padding.Parent = parentFrame; Padding.PaddingTop = UDim.new(0, 15); Padding.PaddingLeft = UDim.new(0, 15); Padding.PaddingRight = UDim.new(0, 15)
 	local DPICard = CreateCard(parentFrame, UDim2.new(1, 0, 0, 85)); DPICard.ClipsDescendants = false
 	local SettingsLabel = Instance.new("TextLabel"); SettingsLabel.Parent = DPICard; SettingsLabel.BackgroundTransparency = 1; SettingsLabel.Position = UDim2.new(0, 15, 0, 10); SettingsLabel.Size = UDim2.new(1, -30, 0, 20); SettingsLabel.Font = Theme.FontBold; SettingsLabel.Text = "Interface Scale (DPI)"; SettingsLabel.TextColor3 = Theme.Text; SettingsLabel.TextSize = 14; SettingsLabel.TextXAlignment = Enum.TextXAlignment.Left
-	local DPIBtn = Instance.new("TextButton"); DPIBtn.Parent = DPICard; DPIBtn.BackgroundColor3 = Theme.Sidebar; DPIBtn.Position = UDim2.new(0, 15, 0, 35); DPIBtn.Size = UDim2.new(1, -30, 0, 35); DPIBtn.Font = Theme.FontBold; DPIBtn.Text = IsMobile and "   Size: 75% (Medium)" or "   Size: 100% (Default)"; DPIBtn.TextColor3 = Theme.TextDim; DPIBtn.TextSize = 12; DPIBtn.TextXAlignment = Enum.TextXAlignment.Left; DPIBtn.AutoButtonColor = false; local DPIB_C = Instance.new("UICorner"); DPIB_C.CornerRadius = UDim.new(0, 6); DPIB_C.Parent = DPIBtn; local DPIB_S = Instance.new("UIStroke"); DPIB_S.Parent = DPIBtn; DPIB_S.Color = Theme.Separator; DPIB_S.Thickness = 1
-	local DPIFrame = Instance.new("Frame"); DPIFrame.Parent = DPICard; DPIFrame.BackgroundColor3 = Theme.Main; DPIFrame.Position = UDim2.new(0, 15, 0, 75); DPIFrame.Size = UDim2.new(1, -30, 0, 0); DPIFrame.ClipsDescendants = true; DPIFrame.Visible = false; DPIFrame.ZIndex = 10; local DPIF_C = Instance.new("UICorner"); DPIF_C.CornerRadius = UDim.new(0, 6); DPIF_C.Parent = DPIFrame; local DPIF_S = Instance.new("UIStroke"); DPIF_S.Parent = DPIFrame; DPIF_S.Color = Theme.Accent; DPIF_S.Transparency = 0.5; DPIF_S.Thickness = 1; local DPIList = Instance.new("UIListLayout"); DPIList.Parent = DPIFrame; DPIList.SortOrder = Enum.SortOrder.LayoutOrder
+	local DPIBtn = Instance.new("TextButton"); DPIBtn.Parent = DPICard; DPIBtn.BackgroundColor3 = Theme.Sidebar; DPIBtn.Position = UDim2.new(0, 15, 0, 35); DPIBtn.Size = UDim2.new(1, -30, 0, 35); DPIBtn.Font = Theme.FontBold; DPIBtn.Text = IsMobile and "   Size: 75% (Medium)" or "   Size: 100% (Default)"; DPIBtn.TextColor3 = Theme.TextDim; DPIBtn.TextSize = 12; DPIBtn.TextXAlignment = Enum.TextXAlignment.Left; DPIBtn.AutoButtonColor = false; Instance.new("UICorner", DPIBtn).CornerRadius = UDim.new(0, 6); local DPIB_S = Instance.new("UIStroke"); DPIB_S.Parent = DPIBtn; DPIB_S.Color = Theme.Separator; DPIB_S.Thickness = 1
+	local DPIFrame = Instance.new("Frame"); DPIFrame.Parent = DPICard; DPIFrame.BackgroundColor3 = Theme.Main; DPIFrame.Position = UDim2.new(0, 15, 0, 75); DPIFrame.Size = UDim2.new(1, -30, 0, 0); DPIFrame.ClipsDescendants = true; DPIFrame.Visible = false; DPIFrame.ZIndex = 10; Instance.new("UICorner", DPIFrame).CornerRadius = UDim.new(0, 6); local DPIF_S = Instance.new("UIStroke"); DPIF_S.Parent = DPIFrame; DPIF_S.Color = Theme.Accent; DPIF_S.Transparency = 0.5; DPIF_S.Thickness = 1; local DPIList = Instance.new("UIListLayout"); DPIList.Parent = DPIFrame; DPIList.SortOrder = Enum.SortOrder.LayoutOrder
 	local dpiOpen, dpiConnection = false, nil
 	local function ToggleDPI(forceClose) if forceClose then dpiOpen = false else dpiOpen = not dpiOpen end; if dpiConnection then dpiConnection:Disconnect(); dpiConnection = nil end; if dpiOpen then DPIFrame.Visible = true; TweenService:Create(DPIFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(1, -30, 0, 105)}):Play(); dpiConnection = UserInputService.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then local mPos = Vector2.new(input.Position.X, input.Position.Y); local btnPos, btnSize = DPIBtn.AbsolutePosition, DPIBtn.AbsoluteSize; local frmPos, frmSize = DPIFrame.AbsolutePosition, DPIFrame.AbsoluteSize; if not (mPos.X >= btnPos.X and mPos.X <= btnPos.X + btnSize.X and mPos.Y >= btnPos.Y and mPos.Y <= btnPos.Y + btnSize.Y) and not (mPos.X >= frmPos.X and mPos.X <= frmPos.X + frmSize.X and mPos.Y >= frmPos.Y and mPos.Y <= frmPos.Y + frmSize.Y) then ToggleDPI(true) end end end) else TweenService:Create(DPIFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(1, -30, 0, 0)}):Play(); task.wait(0.3); if not dpiOpen then DPIFrame.Visible = false end end end
 	DPIBtn.MouseButton1Click:Connect(function() ToggleDPI() end)
@@ -612,9 +806,7 @@ end
 Loader.Start()
 
 task.spawn(function()
-	-- Timing Loading (Slow & Satisfying)
 	Loader.Update("Initializing Modules...", 0.1); task.wait(1)
-	
 	Loader.Update("Loading Informations...", 0.3); local TabInfo = CreateTabBtn("Informations", true); BuildInfoTab(TabInfo); task.wait(0.5)
 	Loader.Update("Loading Movement...", 0.5); local TabMovement = CreateTabBtn("Movement", false); BuildMovementTab(TabMovement); task.wait(0.5)
 	Loader.Update("Loading Teleports...", 0.6); local TabTeleports = CreateTabBtn("Teleports", false); BuildTeleportTab(TabTeleports); task.wait(0.5)
@@ -622,11 +814,9 @@ task.spawn(function()
 	Loader.Update("Loading Settings...", 0.9); local TabSettings = CreateTabBtn("Settings", false); BuildSettingsTab(TabSettings); task.wait(0.5)
 	
 	Loader.Finish(function()
-		-- Animasi Masuk Main UI (Disinkronkan)
+		-- Animasi Masuk Main UI (Slow & Elegant)
 		MainFrame.Visible = true
 		MainFrame.Size = UDim2.new(0, 0, 0, 0)
-		
-		-- Menggunakan durasi 0.8s + Elastic agar menu "mekar" dengan elegan
 		TweenService:Create(MainFrame, TweenInfo.new(0.8, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
 			Size = FinalSize,
 			Position = UDim2.new(0.5, 0, 0.5, 0)
@@ -635,8 +825,17 @@ task.spawn(function()
 end)
 
 local function ToggleAnimation()
-	if IsOpen then IsOpen = false; TweenService:Create(MainFrame, TweenInfo.new(AnimationSpeed, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(0, 0, 0, 0), Position = ToggleBtn.Position, BackgroundTransparency = 1}):Play(); for _, v in pairs(MainFrame:GetChildren()) do if v:IsA("GuiObject") and v ~= MainCorner and v ~= UIScale and v ~= MainStroke then v.Visible = false end end
-	else IsOpen = true; for _, v in pairs(MainFrame:GetChildren()) do if v:IsA("GuiObject") then v.Visible = true end end; MainFrame.Position = ToggleBtn.Position; MainFrame.Size = UDim2.new(0, 0, 0, 0); TweenService:Create(MainFrame, TweenInfo.new(AnimationSpeed, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = FinalSize, Position = UDim2.new(0.5, 0, 0.5, 0), BackgroundTransparency = Theme.Transp}):Play() end
+	if IsOpen then 
+		IsOpen = false
+		TweenService:Create(MainFrame, TweenInfo.new(AnimationSpeed, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(0, 0, 0, 0), Position = ToggleBtn.Position, BackgroundTransparency = 1}):Play()
+		for _, v in pairs(MainFrame:GetChildren()) do if v:IsA("GuiObject") and v ~= MainCorner and v ~= UIScale and v ~= MainStroke then v.Visible = false end end
+	else 
+		IsOpen = true
+		for _, v in pairs(MainFrame:GetChildren()) do if v:IsA("GuiObject") then v.Visible = true end end
+		MainFrame.Position = ToggleBtn.Position
+		MainFrame.Size = UDim2.new(0, 0, 0, 0)
+		TweenService:Create(MainFrame, TweenInfo.new(AnimationSpeed, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = FinalSize, Position = UDim2.new(0.5, 0, 0.5, 0), BackgroundTransparency = Theme.Transp}):Play()
+	end
 end
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed) if not gameProcessed and input.KeyCode == Enum.KeyCode.RightControl then ToggleAnimation() end end)
