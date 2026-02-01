@@ -226,30 +226,30 @@ NoBtn.Position = UDim2.new(0.55, 0, 0.65, 0); NoBtn.Size = UDim2.new(0.35, 0, 0,
 
 -- LOGIKA POPUP
 CloseBtn.MouseButton1Click:Connect(function()
-    MainFrame.Visible = false
-    ExitFrame.Visible = true
-    -- Animasi Membesar (Pop Up)
-    TweenService:Create(ExitFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 250, 0, 140)}):Play()
+	MainFrame.Visible = false
+	ExitFrame.Visible = true
+	-- Animasi Membesar (Pop Up)
+	TweenService:Create(ExitFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 250, 0, 140)}):Play()
 end)
 
 NoBtn.MouseButton1Click:Connect(function()
-    -- Animasi Mengecil (Hide)
-    local closeAnim = TweenService:Create(ExitFrame, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0)})
-    closeAnim:Play()
-    closeAnim.Completed:Connect(function() 
-        ExitFrame.Visible = false 
-        MainFrame.Visible = true 
-    end)
+	-- Animasi Mengecil (Hide)
+	local closeAnim = TweenService:Create(ExitFrame, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0)})
+	closeAnim:Play()
+	closeAnim.Completed:Connect(function() 
+		ExitFrame.Visible = false 
+		MainFrame.Visible = true 
+	end)
 end)
 
 YesBtn.MouseButton1Click:Connect(function()
-    -- Animasi Mengecil lalu Hancur
-    local byeAnim = TweenService:Create(ExitFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0)})
-    byeAnim:Play()
-    byeAnim.Completed:Connect(function() 
-        Session.ResetAll() 
-        ScreenGui:Destroy() 
-    end)
+	-- Animasi Mengecil lalu Hancur
+	local byeAnim = TweenService:Create(ExitFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0)})
+	byeAnim:Play()
+	byeAnim.Completed:Connect(function() 
+		Session.ResetAll() 
+		ScreenGui:Destroy() 
+	end)
 end)
 
 local Container = Instance.new("Frame"); Container.Parent = MainFrame
@@ -664,12 +664,12 @@ local function BuildTeleportTab(parentFrame)
 	
 	local ColorSuccess = Theme.Green; local ColorError = Theme.Red
 	
-	local selectedPlayer = nil; local isDropdownOpen = false; local statusTimer = nil; 
+	-- [WARNA DIUBAH] Menjadi Sangat Gelap (Hampir Hitam)
+	-- Ini memberikan kontras maksimal agar teks terlihat menyala saat aktif
+	local ColorPressed = Color3.fromRGB(10, 10, 12) 
 	
-	-- Variabel Koneksi
-	local spectateLoop = nil
-	local followLoop = nil 
-	local clickOutsideConn = nil
+	local selectedPlayer = nil; local isDropdownOpen = false; local statusTimer = nil; 
+	local spectateLoop = nil; local followLoop = nil; local clickOutsideConn = nil
 
 	-- Card Size
 	local TpCard = CreateCard(parentFrame, UDim2.new(1, 0, 0, 165))
@@ -707,35 +707,57 @@ local function BuildTeleportTab(parentFrame)
 	-- [BUTTON CONTAINER]
 	local BtnContainer = Instance.new("Frame"); BtnContainer.Parent = TpCard; BtnContainer.BackgroundTransparency = 1; BtnContainer.Position = UDim2.new(0, 15, 0, 75); BtnContainer.Size = UDim2.new(1, -30, 0, 60)
 	
-	-- Helper Button Style (Semua tombol menggunakan Theme.Sidebar sebagai default)
+	-- Helper Button Style
 	local function CreateStyledButton(name, pos, size)
 		local Btn = Instance.new("TextButton"); Btn.Parent = BtnContainer
-		Btn.BackgroundColor3 = Theme.Sidebar -- WARNA STANDAR (SERAGAM)
+		Btn.BackgroundColor3 = Theme.Sidebar
 		Btn.Position = pos; Btn.Size = size
-		Btn.Font = Theme.FontBold; Btn.Text = name; Btn.TextColor3 = Theme.TextDim -- TEKS STANDAR
+		Btn.Font = Theme.FontBold; Btn.Text = name; Btn.TextColor3 = Theme.TextDim
 		Btn.TextSize = 10
 		Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 6)
-		local S = Instance.new("UIStroke"); S.Parent = Btn; S.Color = Theme.Separator; S.Thickness = 1 -- GARIS STANDAR
+		
+		local S = Instance.new("UIStroke"); S.Parent = Btn; 
+		S.Color = Theme.Separator; S.Thickness = 1; S.Transparency = 0.8
+		S.ApplyStrokeMode = Enum.ApplyStrokeMode.Border 
 		return Btn, S
 	end
 
-	-- Row 1: Spectate & Teleport
+	-- Fungsi Mengubah Style Tombol (DARK ACTIVE MODE)
+	local function SetButtonStyle(Btn, Stroke, IsActive, ActiveText, DefaultText)
+		if IsActive then
+			-- MODE AKTIF: Hitam Gelap + Teks Terang + Border Halus
+			Btn.BackgroundColor3 = ColorPressed -- (10, 10, 12)
+			Btn.TextColor3 = Theme.Accent
+			Btn.Text = ActiveText or DefaultText
+			
+			Stroke.Color = Theme.Accent
+			Stroke.Transparency = 0.6 -- Tetap 0.6 agar border tidak terlalu kasar
+			Stroke.Thickness = 1
+		else
+			-- MODE MATI
+			Btn.BackgroundColor3 = Theme.Sidebar
+			Btn.TextColor3 = Theme.TextDim
+			Btn.Text = DefaultText
+			
+			Stroke.Color = Theme.Separator
+			Stroke.Transparency = 0.8
+			Stroke.Thickness = 1
+		end
+	end
+
+	-- Membuat Tombol
 	local SpectateBtn, SS = CreateStyledButton("SPECTATE", UDim2.new(0, 0, 0, 0), UDim2.new(0.48, 0, 0, 28))
 	local TeleportBtn, TS = CreateStyledButton("TELEPORT", UDim2.new(0.52, 0, 0, 0), UDim2.new(0.48, 0, 0, 28))
-	
-	-- Row 2: ULTIMATE FOLLOW (Full Width)
 	local FollowBtn, FS = CreateStyledButton("SMART FOLLOW (WALK)", UDim2.new(0, 0, 0, 35), UDim2.new(1, 0, 0, 28))
 
 	-- === LOGIC: CLEANUP HELPER ===
 	local function StopAllModes()
-		-- Matikan Spectate & Kembalikan Desain Tombol
 		if spectateLoop then spectateLoop:Disconnect(); spectateLoop = nil end
 		if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then workspace.CurrentCamera.CameraSubject = LocalPlayer.Character.Humanoid end
-		SpectateBtn.BackgroundColor3 = Theme.Sidebar; SpectateBtn.TextColor3 = Theme.TextDim; SpectateBtn.Text = "SPECTATE"; SS.Color = Theme.Separator
+		SetButtonStyle(SpectateBtn, SS, false, nil, "SPECTATE") 
 		
-		-- Matikan Follow & Kembalikan Desain Tombol
 		if followLoop then followLoop:Disconnect(); followLoop = nil end
-		FollowBtn.BackgroundColor3 = Theme.Sidebar; FollowBtn.TextColor3 = Theme.TextDim; FollowBtn.Text = "SMART FOLLOW (WALK)"; FS.Color = Theme.Separator
+		SetButtonStyle(FollowBtn, FS, false, nil, "SMART FOLLOW (WALK)") 
 		local char = LocalPlayer.Character
 		if char and char:FindFirstChild("Humanoid") and char:FindFirstChild("HumanoidRootPart") then 
 			char.Humanoid:MoveTo(char.HumanoidRootPart.Position)
@@ -749,25 +771,23 @@ local function BuildTeleportTab(parentFrame)
 			if not selectedPlayer then ShowStatus("Select Player First!", ColorError); return end
 			local target = Players:FindFirstChild(selectedPlayer.Name)
 			if target then
-				-- Tampilan Aktif: Warna Utama + Teks Aksen + Garis Aksen
-				SpectateBtn.BackgroundColor3 = Theme.Main; SpectateBtn.TextColor3 = Theme.Accent; SpectateBtn.Text = "STOP VIEW"; SS.Color = Theme.Accent
+				SetButtonStyle(SpectateBtn, SS, true, "STOP VIEW", "SPECTATE") 
 				ShowStatus("Spectating...", ColorSuccess)
 				spectateLoop = RunService.RenderStepped:Connect(function() if not target or not target.Parent then StopAllModes(); ShowStatus("Target Left", ColorError); return end; if target.Character and target.Character:FindFirstChild("Humanoid") then workspace.CurrentCamera.CameraSubject = target.Character.Humanoid end end)
 			else ShowStatus("Player Unavailable", ColorError) end
 		end
 	end)
 
-	-- LOGIKA TELEPORT (Instant)
+	-- LOGIKA TELEPORT
 	TeleportBtn.MouseButton1Click:Connect(function()
 		if not selectedPlayer then ShowStatus("Select a player!", ColorError); return end
 		local target = Players:FindFirstChild(selectedPlayer.Name); if not target then ShowStatus("Player Left.", ColorError); return end
 		local tChar = target.Character; local lChar = LocalPlayer.Character
 		
-		-- Visual Feedback (Flash)
-		TeleportBtn.BackgroundColor3 = Theme.Accent; TeleportBtn.TextColor3 = Theme.Main; TS.Color = Theme.Accent
-		task.delay(0.15, function() 
-			-- Kembali ke Standar
-			TeleportBtn.BackgroundColor3 = Theme.Sidebar; TeleportBtn.TextColor3 = Theme.TextDim; TS.Color = Theme.Separator 
+		-- Efek Tekan Sesaat
+		SetButtonStyle(TeleportBtn, TS, true, "TELEPORTED!", "TELEPORT")
+		task.delay(0.3, function() 
+			SetButtonStyle(TeleportBtn, TS, false, nil, "TELEPORT") 
 		end)
 
 		if tChar and tChar:FindFirstChild("HumanoidRootPart") and lChar and lChar:FindFirstChild("HumanoidRootPart") then 
@@ -782,8 +802,7 @@ local function BuildTeleportTab(parentFrame)
 			StopAllModes()
 			if not selectedPlayer then ShowStatus("Select Player First!", ColorError); return end
 			
-			-- Tampilan Aktif
-			FollowBtn.BackgroundColor3 = Theme.Main; FollowBtn.TextColor3 = Theme.Accent; FollowBtn.Text = "STOP FOLLOWING"; FS.Color = Theme.Accent
+			SetButtonStyle(FollowBtn, FS, true, "STOP FOLLOWING", "SMART FOLLOW (WALK)")
 			ShowStatus("Following Target...", ColorSuccess)
 			
 			followLoop = RunService.Heartbeat:Connect(function(deltaTime)
@@ -800,17 +819,14 @@ local function BuildTeleportTab(parentFrame)
 				
 				local dist = (myRoot.Position - targetRoot.Position).Magnitude
 				
-				-- Catch-up
 				if dist > 150 then
 					myRoot.CFrame = targetRoot.CFrame * CFrame.new(0, 2, 3)
 					return 
 				end
 
-				-- Walk & Jump Logic
 				if dist > 6 then 
 					local predictedPos = targetRoot.Position + (targetRoot.AssemblyLinearVelocity * 0.1)
 					hum:MoveTo(predictedPos)
-					
 					if (targetRoot.Position.Y > myRoot.Position.Y + 3) and dist < 15 then hum.Jump = true end
 					if tHum and tHum.Jump then hum.Jump = true end
 				else
