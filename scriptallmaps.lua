@@ -9,7 +9,7 @@ local Lighting = game:GetService("Lighting")
 
 local LocalPlayer = Players.LocalPlayer
 
---// [BAGIAN 1] TEMA & PENGATURAN AWAL
+--// [1] TEMA & PENGATURAN
 local Theme = {
 	Main = Color3.fromRGB(20, 25, 35),
 	Sidebar = Color3.fromRGB(22, 26, 38),
@@ -21,6 +21,7 @@ local Theme = {
 	Transp = 0.15,
 	Red = Color3.fromRGB(255, 80, 80),
 	Green = Color3.fromRGB(85, 255, 127),
+	Pressed = Color3.fromRGB(10, 10, 12), -- Dark Neon Effect
 	FontMain = Enum.Font.GothamMedium,
 	FontBold = Enum.Font.GothamBold
 }
@@ -28,10 +29,10 @@ local Theme = {
 if CoreGui:FindFirstChild("NeeR_Unified") then CoreGui.NeeR_Unified:Destroy() end
 if CoreGui:FindFirstChild("NeeR_Loader") then CoreGui.NeeR_Loader:Destroy() end
 
---// [BAGIAN 2] LOADER SYSTEM
+--// [2] LOADER SYSTEM
 local Loader = {}
 function Loader.Start()
-	local LoadGui = Instance.new("ScreenGui"); LoadGui.Name = "NeeR_Loader"; LoadGui.Parent = CoreGui; LoadGui.IgnoreGuiInset = true; LoadGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	local LoadGui = Instance.new("ScreenGui"); LoadGui.Name = "NeeR_Loader"; LoadGui.Parent = CoreGui; LoadGui.IgnoreGuiInset = true
 	local Blur = Instance.new("BlurEffect"); Blur.Size = 0; Blur.Parent = Lighting
 	TweenService:Create(Blur, TweenInfo.new(1), {Size = 20}):Play()
 
@@ -48,8 +49,8 @@ function Loader.Start()
 	
 	local SpinStroke = Instance.new("UIStroke"); SpinStroke.Parent = Spinner
 	SpinStroke.Color = Theme.Accent; SpinStroke.Thickness = 3; SpinStroke.Transparency = 0.2
+	Instance.new("UICorner", Spinner).CornerRadius = UDim.new(1, 0)
 	
-	local SpinCorner = Instance.new("UICorner"); SpinCorner.CornerRadius = UDim.new(1, 0); SpinCorner.Parent = Spinner
 	local SpinGrad = Instance.new("UIGradient"); SpinGrad.Parent = Spinner
 	SpinGrad.Color = ColorSequence.new({ColorSequenceKeypoint.new(0, Theme.Accent), ColorSequenceKeypoint.new(0.5, Theme.Main), ColorSequenceKeypoint.new(1, Theme.Accent)})
 	SpinGrad.Rotation = 45
@@ -67,11 +68,6 @@ function Loader.Start()
 	BarFill.BackgroundColor3 = Theme.Accent; BarFill.Size = UDim2.new(0, 0, 1, 0)
 	Instance.new("UICorner", BarFill).CornerRadius = UDim.new(1,0)
 	
-	local BarGlow = Instance.new("ImageLabel"); BarGlow.Parent = BarFill
-	BarGlow.BackgroundTransparency = 1; BarGlow.Position = UDim2.new(1, -10, 0.5, -10)
-	BarGlow.Size = UDim2.new(0, 20, 0, 20); BarGlow.Image = "rbxassetid://3570695787"
-	BarGlow.ImageColor3 = Theme.Accent; BarGlow.ImageTransparency = 0.5
-
 	local StatusTxt = Instance.new("TextLabel"); StatusTxt.Parent = Container
 	StatusTxt.BackgroundTransparency = 1; StatusTxt.Position = UDim2.new(0, 0, 0.85, 0)
 	StatusTxt.Size = UDim2.new(1, 0, 0, 15); StatusTxt.Font = Enum.Font.GothamMedium
@@ -112,7 +108,7 @@ function Loader.Finish(onFinishCallback)
 	end)
 end
 
---// [BAGIAN 3] SESSION MANAGER
+--// [3] SESSION MANAGER
 local DefaultStats = { WalkSpeed = 16, JumpPower = 50 }
 local function SaveDefaultStats()
 	local char = LocalPlayer.Character
@@ -126,7 +122,7 @@ SaveDefaultStats()
 
 local Session = { StopFly = function() end, StopWalk = function() end, StopJump = function() end, StopNoclip = function() end, StopInfJump = function() end, ResetAll = function() end }
 
---// [BAGIAN 4] LOGIKA RESPONSIF & SETUP GUI
+--// [4] GUI SETUP
 local ViewportSize = workspace.CurrentCamera.ViewportSize
 local IsMobile = ViewportSize.X < 1080
 local CurrentScale = IsMobile and 0.75 or 1
@@ -154,7 +150,7 @@ local function MakeDraggable(trigger, objectToMove)
 	end)
 end
 
---// [BAGIAN 5] KERANGKA UTAMA UI
+-- MAIN FRAME
 local ToggleBtn = Instance.new("ImageButton"); ToggleBtn.Name = "ToggleUI"; ToggleBtn.Parent = ScreenGui
 ToggleBtn.BackgroundColor3 = Theme.Main; ToggleBtn.BackgroundTransparency = 0.2
 ToggleBtn.AnchorPoint = Vector2.new(0.5, 0.5); ToggleBtn.Position = UDim2.new(0.50, 0, 0.15, 0)
@@ -197,61 +193,6 @@ HeaderLine.BackgroundColor3 = Theme.TextDim; HeaderLine.BorderSizePixel = 0
 HeaderLine.BackgroundTransparency = 0.5; HeaderLine.Position = UDim2.new(0, 0, 1, -1); HeaderLine.Size = UDim2.new(1, 0, 0, 1)
 MakeDraggable(Header, MainFrame)
 
---// [BAGIAN] EXIT CONFIRMATION POPUP SYSTEM
-local ExitFrame = Instance.new("Frame"); ExitFrame.Name = "ExitFrame"; ExitFrame.Parent = ScreenGui
-ExitFrame.BackgroundColor3 = Theme.Main; ExitFrame.BackgroundTransparency = 0.1
-ExitFrame.Size = UDim2.new(0, 0, 0, 0); ExitFrame.Position = UDim2.new(0.5, 0, 0.5, 0) -- Mulai dari kecil
-ExitFrame.AnchorPoint = Vector2.new(0.5, 0.5); ExitFrame.Visible = false
-ExitFrame.ClipsDescendants = true
-Instance.new("UICorner", ExitFrame).CornerRadius = UDim.new(0, 10)
-local ES = Instance.new("UIStroke"); ES.Parent = ExitFrame; ES.Color = Theme.Red; ES.Thickness = 1
-
-local ExitTitle = Instance.new("TextLabel"); ExitTitle.Parent = ExitFrame
-ExitTitle.Text = "EXIT SCRIPT?"; ExitTitle.Font = Theme.FontBold; ExitTitle.TextColor3 = Theme.Red
-ExitTitle.Position = UDim2.new(0, 0, 0.15, 0); ExitTitle.Size = UDim2.new(1, 0, 0, 20); ExitTitle.BackgroundTransparency = 1
-
-local ExitMsg = Instance.new("TextLabel"); ExitMsg.Parent = ExitFrame
-ExitMsg.Text = "Are you sure you want to close?"; ExitMsg.Font = Theme.FontMain; ExitMsg.TextColor3 = Theme.TextDim
-ExitMsg.Position = UDim2.new(0, 0, 0.35, 0); ExitMsg.Size = UDim2.new(1, 0, 0, 20); ExitMsg.BackgroundTransparency = 1; ExitMsg.TextSize = 12
-
--- Tombol YES
-local YesBtn = Instance.new("TextButton"); YesBtn.Parent = ExitFrame
-YesBtn.BackgroundColor3 = Theme.Red; YesBtn.Text = "YES, CLOSE"; YesBtn.TextColor3 = Theme.Text; YesBtn.Font = Theme.FontBold
-YesBtn.Position = UDim2.new(0.1, 0, 0.65, 0); YesBtn.Size = UDim2.new(0.35, 0, 0, 30); Instance.new("UICorner", YesBtn).CornerRadius = UDim.new(0, 6)
-
--- Tombol NO
-local NoBtn = Instance.new("TextButton"); NoBtn.Parent = ExitFrame
-NoBtn.BackgroundColor3 = Theme.ActiveTab; NoBtn.Text = "NO, RETURN"; NoBtn.TextColor3 = Theme.Text; NoBtn.Font = Theme.FontBold
-NoBtn.Position = UDim2.new(0.55, 0, 0.65, 0); NoBtn.Size = UDim2.new(0.35, 0, 0, 30); Instance.new("UICorner", NoBtn).CornerRadius = UDim.new(0, 6)
-
--- LOGIKA POPUP
-CloseBtn.MouseButton1Click:Connect(function()
-	MainFrame.Visible = false
-	ExitFrame.Visible = true
-	-- Animasi Membesar (Pop Up)
-	TweenService:Create(ExitFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 250, 0, 140)}):Play()
-end)
-
-NoBtn.MouseButton1Click:Connect(function()
-	-- Animasi Mengecil (Hide)
-	local closeAnim = TweenService:Create(ExitFrame, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0)})
-	closeAnim:Play()
-	closeAnim.Completed:Connect(function() 
-		ExitFrame.Visible = false 
-		MainFrame.Visible = true 
-	end)
-end)
-
-YesBtn.MouseButton1Click:Connect(function()
-	-- Animasi Mengecil lalu Hancur
-	local byeAnim = TweenService:Create(ExitFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0)})
-	byeAnim:Play()
-	byeAnim.Completed:Connect(function() 
-		Session.ResetAll() 
-		ScreenGui:Destroy() 
-	end)
-end)
-
 local Container = Instance.new("Frame"); Container.Parent = MainFrame
 Container.BackgroundTransparency = 1; Container.Position = UDim2.new(0, 0, 0, 35); Container.Size = UDim2.new(1, 0, 1, -35)
 
@@ -269,7 +210,22 @@ local ContentArea = Instance.new("Frame"); ContentArea.Parent = Container
 ContentArea.BackgroundTransparency = 1; ContentArea.Position = UDim2.new(0, SidebarWidth, 0, 0)
 ContentArea.Size = UDim2.new(1, -SidebarWidth, 1, 0); ContentArea.ClipsDescendants = true
 
---// [BAGIAN 6] GLOBAL HELPER FUNCTIONS
+-- [POPUP EXIT]
+local ExitFrame = Instance.new("Frame"); ExitFrame.Name = "ExitFrame"; ExitFrame.Parent = ScreenGui
+ExitFrame.BackgroundColor3 = Theme.Main; ExitFrame.BackgroundTransparency = 0.1
+ExitFrame.Size = UDim2.new(0, 0, 0, 0); ExitFrame.Position = UDim2.new(0.5, 0, 0.5, 0); ExitFrame.AnchorPoint = Vector2.new(0.5, 0.5); ExitFrame.Visible = false; ExitFrame.ClipsDescendants = true
+Instance.new("UICorner", ExitFrame).CornerRadius = UDim.new(0, 10)
+local ES = Instance.new("UIStroke"); ES.Parent = ExitFrame; ES.Color = Theme.Red; ES.Thickness = 1
+local ExitTitle = Instance.new("TextLabel"); ExitTitle.Parent = ExitFrame; ExitTitle.Text = "EXIT SCRIPT?"; ExitTitle.Font = Theme.FontBold; ExitTitle.TextColor3 = Theme.Red; ExitTitle.Position = UDim2.new(0, 0, 0.15, 0); ExitTitle.Size = UDim2.new(1, 0, 0, 20); ExitTitle.BackgroundTransparency = 1
+local ExitMsg = Instance.new("TextLabel"); ExitMsg.Parent = ExitFrame; ExitMsg.Text = "Are you sure you want to close?"; ExitMsg.Font = Theme.FontMain; ExitMsg.TextColor3 = Theme.TextDim; ExitMsg.Position = UDim2.new(0, 0, 0.35, 0); ExitMsg.Size = UDim2.new(1, 0, 0, 20); ExitMsg.BackgroundTransparency = 1; ExitMsg.TextSize = 12
+local YesBtn = Instance.new("TextButton"); YesBtn.Parent = ExitFrame; YesBtn.BackgroundColor3 = Theme.Red; YesBtn.Text = "YES, CLOSE"; YesBtn.TextColor3 = Theme.Text; YesBtn.Font = Theme.FontBold; YesBtn.Position = UDim2.new(0.1, 0, 0.65, 0); YesBtn.Size = UDim2.new(0.35, 0, 0, 30); Instance.new("UICorner", YesBtn).CornerRadius = UDim.new(0, 6)
+local NoBtn = Instance.new("TextButton"); NoBtn.Parent = ExitFrame; NoBtn.BackgroundColor3 = Theme.ActiveTab; NoBtn.Text = "NO, RETURN"; NoBtn.TextColor3 = Theme.Text; NoBtn.Font = Theme.FontBold; NoBtn.Position = UDim2.new(0.55, 0, 0.65, 0); NoBtn.Size = UDim2.new(0.35, 0, 0, 30); Instance.new("UICorner", NoBtn).CornerRadius = UDim.new(0, 6)
+
+CloseBtn.MouseButton1Click:Connect(function() MainFrame.Visible = false; ExitFrame.Visible = true; TweenService:Create(ExitFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 250, 0, 140)}):Play() end)
+NoBtn.MouseButton1Click:Connect(function() local c = TweenService:Create(ExitFrame, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0)}); c:Play(); c.Completed:Connect(function() ExitFrame.Visible = false; MainFrame.Visible = true end) end)
+YesBtn.MouseButton1Click:Connect(function() local b = TweenService:Create(ExitFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0)}); b:Play(); b.Completed:Connect(function() Session.ResetAll(); ScreenGui:Destroy() end) end)
+
+--// [5] UI HELPERS
 local Tabs = {}
 local function SwitchTab(tabName)
 	for _, page in pairs(ContentArea:GetChildren()) do if page:IsA("ScrollingFrame") then page.Visible = false end end
@@ -278,10 +234,8 @@ end
 
 local function CreateTabBtn(name, isActive)
 	local Btn = Instance.new("TextButton"); Btn.Parent = Sidebar
-	Btn.BackgroundColor3 = isActive and Theme.ActiveTab or Theme.Sidebar
-	Btn.BackgroundTransparency = isActive and 0 or 1; Btn.Size = UDim2.new(1, 0, 0, 28)
-	Btn.AutoButtonColor = false; Btn.Font = Theme.FontMain
-	Btn.Text = name; Btn.TextColor3 = isActive and Theme.Accent or Theme.TextDim; Btn.TextSize = 12
+	Btn.BackgroundColor3 = isActive and Theme.ActiveTab or Theme.Sidebar; Btn.BackgroundTransparency = isActive and 0 or 1; Btn.Size = UDim2.new(1, 0, 0, 28)
+	Btn.AutoButtonColor = false; Btn.Font = Theme.FontMain; Btn.Text = name; Btn.TextColor3 = isActive and Theme.Accent or Theme.TextDim; Btn.TextSize = 12
 	Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 4)
 	if isActive then local s = Instance.new("UIStroke"); s.Parent = Btn; s.Color = Theme.Accent; s.Thickness = 1; s.Transparency = 0.8 end
 	
@@ -293,9 +247,7 @@ local function CreateTabBtn(name, isActive)
 	PL:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() Page.CanvasSize = UDim2.new(0, 0, 0, (PL.AbsoluteContentSize.Y / UIScale.Scale) + 20) end)
 	
 	Btn.MouseButton1Click:Connect(function()
-		for _, child in pairs(Sidebar:GetChildren()) do
-			if child:IsA("TextButton") then child.BackgroundColor3 = Theme.Sidebar; child.BackgroundTransparency = 1; child.TextColor3 = Theme.TextDim; if child:FindFirstChild("UIStroke") then child.UIStroke:Destroy() end end
-		end
+		for _, child in pairs(Sidebar:GetChildren()) do if child:IsA("TextButton") then child.BackgroundColor3 = Theme.Sidebar; child.BackgroundTransparency = 1; child.TextColor3 = Theme.TextDim; if child:FindFirstChild("UIStroke") then child.UIStroke:Destroy() end end end
 		Btn.BackgroundColor3 = Theme.ActiveTab; Btn.BackgroundTransparency = 0; Btn.TextColor3 = Theme.Accent
 		local s = Instance.new("UIStroke"); s.Parent = Btn; s.Color = Theme.Accent; s.Thickness = 1; s.Transparency = 0.8
 		SwitchTab(name)
@@ -312,64 +264,34 @@ local function CreateCard(parent, size, layoutOrder)
 end
 
 local function CreateExpandableSection(parent, title)
-	local SectionContainer = Instance.new("Frame"); SectionContainer.Name = "Section_" .. title
-	SectionContainer.Parent = parent; SectionContainer.BackgroundTransparency = 1; SectionContainer.Size = UDim2.new(1, 0, 0, 30); SectionContainer.ClipsDescendants = true
-	local HeaderBtn = Instance.new("TextButton"); HeaderBtn.Parent = SectionContainer
-	HeaderBtn.BackgroundColor3 = Theme.ActiveTab; HeaderBtn.Size = UDim2.new(1, 0, 0, 30); HeaderBtn.AutoButtonColor = true; HeaderBtn.Text = ""
-	Instance.new("UICorner", HeaderBtn).CornerRadius = UDim.new(0, 6)
+	local SectionContainer = Instance.new("Frame"); SectionContainer.Parent = parent; SectionContainer.BackgroundTransparency = 1; SectionContainer.Size = UDim2.new(1, 0, 0, 30); SectionContainer.ClipsDescendants = true
+	local HeaderBtn = Instance.new("TextButton"); HeaderBtn.Parent = SectionContainer; HeaderBtn.BackgroundColor3 = Theme.ActiveTab; HeaderBtn.Size = UDim2.new(1, 0, 0, 30); HeaderBtn.AutoButtonColor = true; HeaderBtn.Text = ""; Instance.new("UICorner", HeaderBtn).CornerRadius = UDim.new(0, 6)
 	local HS = Instance.new("UIStroke"); HS.Parent = HeaderBtn; HS.Color = Theme.Accent; HS.Transparency = 0.6; HS.Thickness = 1
-	local TitleLbl = Instance.new("TextLabel"); TitleLbl.Parent = HeaderBtn; TitleLbl.BackgroundTransparency = 1
-	TitleLbl.Position = UDim2.new(0, 10, 0, 0); TitleLbl.Size = UDim2.new(1, -40, 1, 0)
-	TitleLbl.Font = Theme.FontBold; TitleLbl.Text = title; TitleLbl.TextColor3 = Theme.Text; TitleLbl.TextSize = 13; TitleLbl.TextXAlignment = Enum.TextXAlignment.Left
-	local Arrow = Instance.new("TextLabel"); Arrow.Parent = HeaderBtn; Arrow.BackgroundTransparency = 1
-	Arrow.Position = UDim2.new(1, -30, 0, 0); Arrow.Size = UDim2.new(0, 30, 1, 0)
-	Arrow.Font = Theme.FontBold; Arrow.Text = "+"; Arrow.TextColor3 = Theme.Accent; Arrow.TextSize = 18
-	local ContentFrame = Instance.new("Frame"); ContentFrame.Name = "Content"; ContentFrame.Parent = SectionContainer
-	ContentFrame.BackgroundColor3 = Color3.fromRGB(0,0,0); ContentFrame.BackgroundTransparency = 0.9
-	ContentFrame.Position = UDim2.new(0, 0, 0, 35); ContentFrame.Size = UDim2.new(1, 0, 0, 0)
-	Instance.new("UICorner", ContentFrame).CornerRadius = UDim.new(0, 6)
+	local TitleLbl = Instance.new("TextLabel"); TitleLbl.Parent = HeaderBtn; TitleLbl.BackgroundTransparency = 1; TitleLbl.Position = UDim2.new(0, 10, 0, 0); TitleLbl.Size = UDim2.new(1, -40, 1, 0); TitleLbl.Font = Theme.FontBold; TitleLbl.Text = title; TitleLbl.TextColor3 = Theme.Text; TitleLbl.TextSize = 13; TitleLbl.TextXAlignment = Enum.TextXAlignment.Left
+	local Arrow = Instance.new("TextLabel"); Arrow.Parent = HeaderBtn; Arrow.BackgroundTransparency = 1; Arrow.Position = UDim2.new(1, -30, 0, 0); Arrow.Size = UDim2.new(0, 30, 1, 0); Arrow.Font = Theme.FontBold; Arrow.Text = "+"; Arrow.TextColor3 = Theme.Accent; Arrow.TextSize = 18
+	local ContentFrame = Instance.new("Frame"); ContentFrame.Parent = SectionContainer; ContentFrame.BackgroundColor3 = Color3.fromRGB(0,0,0); ContentFrame.BackgroundTransparency = 0.9; ContentFrame.Position = UDim2.new(0, 0, 0, 35); ContentFrame.Size = UDim2.new(1, 0, 0, 0); Instance.new("UICorner", ContentFrame).CornerRadius = UDim.new(0, 6)
 	local CL = Instance.new("UIListLayout"); CL.Parent = ContentFrame; CL.SortOrder = Enum.SortOrder.LayoutOrder; CL.Padding = UDim.new(0, 5)
 	local CP = Instance.new("UIPadding"); CP.Parent = ContentFrame; CP.PaddingTop = UDim.new(0, 5); CP.PaddingBottom = UDim.new(0, 5); CP.PaddingLeft = UDim.new(0, 5); CP.PaddingRight = UDim.new(0, 5)
 	local isOpen = false
 	HeaderBtn.MouseButton1Click:Connect(function()
 		isOpen = not isOpen
-		if isOpen then
-			Arrow.Text = "-"; Arrow.TextColor3 = Theme.Red
-			local currentScale = UIScale.Scale; local rawHeight = CL.AbsoluteContentSize.Y + 15; local scaledHeight = rawHeight / currentScale
-			TweenService:Create(SectionContainer, TweenInfo.new(0.3, Enum.EasingStyle.Quart), {Size = UDim2.new(1, 0, 0, (35/currentScale) + scaledHeight)}):Play()
-			TweenService:Create(ContentFrame, TweenInfo.new(0.3), {Size = UDim2.new(1, 0, 0, scaledHeight)}):Play()
+		if isOpen then Arrow.Text = "-"; Arrow.TextColor3 = Theme.Red; local currentScale = UIScale.Scale; local rawHeight = CL.AbsoluteContentSize.Y + 15; local scaledHeight = rawHeight / currentScale; TweenService:Create(SectionContainer, TweenInfo.new(0.3, Enum.EasingStyle.Quart), {Size = UDim2.new(1, 0, 0, (35/currentScale) + scaledHeight)}):Play(); TweenService:Create(ContentFrame, TweenInfo.new(0.3), {Size = UDim2.new(1, 0, 0, scaledHeight)}):Play()
 		else Arrow.Text = "+"; Arrow.TextColor3 = Theme.Accent; TweenService:Create(SectionContainer, TweenInfo.new(0.3, Enum.EasingStyle.Quart), {Size = UDim2.new(1, 0, 0, 30)}):Play() end
 	end)
 	return ContentFrame
 end
 
 local function CreateSwitchCard(targetParent, text, callback)
-	local Card = Instance.new("Frame"); Card.Parent = targetParent
-	Card.BackgroundColor3 = Theme.ActiveTab; Card.BackgroundTransparency = 0.5; Card.Size = UDim2.new(1, 0, 0, 30)
-	Instance.new("UICorner", Card).CornerRadius = UDim.new(0, 6)
-	local TitleLbl = Instance.new("TextLabel"); TitleLbl.Parent = Card; TitleLbl.BackgroundTransparency = 1
-	TitleLbl.Position = UDim2.new(0, 10, 0, 0); TitleLbl.Size = UDim2.new(0, 150, 1, 0)
-	TitleLbl.Font = Theme.FontMain; TitleLbl.Text = text; TitleLbl.TextColor3 = Theme.TextDim; TitleLbl.TextSize = 12; TitleLbl.TextXAlignment = Enum.TextXAlignment.Left
-	local SwitchBtn = Instance.new("TextButton"); SwitchBtn.Parent = Card; SwitchBtn.BackgroundTransparency = 1
-	SwitchBtn.Position = UDim2.new(1, -45, 0.5, -10); SwitchBtn.Size = UDim2.new(0, 40, 0, 20); SwitchBtn.Text = ""
-	local Sw = Instance.new("Frame"); Sw.Parent = SwitchBtn
-	Sw.BackgroundColor3 = Color3.fromRGB(20, 25, 35); Sw.Position = UDim2.new(0, 0, 0.5, -8); Sw.Size = UDim2.new(0, 36, 0, 16)
-	Instance.new("UICorner", Sw).CornerRadius = UDim.new(1,0)
-	local K = Instance.new("Frame"); K.Parent = Sw
-	K.BackgroundColor3 = Theme.TextDim; K.Position = UDim2.new(0, 2, 0.5, -6); K.Size = UDim2.new(0, 12, 0, 12)
-	Instance.new("UICorner", K).CornerRadius = UDim.new(1,0)
+	local Card = Instance.new("Frame"); Card.Parent = targetParent; Card.BackgroundColor3 = Theme.ActiveTab; Card.BackgroundTransparency = 0.5; Card.Size = UDim2.new(1, 0, 0, 30); Instance.new("UICorner", Card).CornerRadius = UDim.new(0, 6)
+	local TitleLbl = Instance.new("TextLabel"); TitleLbl.Parent = Card; TitleLbl.BackgroundTransparency = 1; TitleLbl.Position = UDim2.new(0, 10, 0, 0); TitleLbl.Size = UDim2.new(0, 150, 1, 0); TitleLbl.Font = Theme.FontMain; TitleLbl.Text = text; TitleLbl.TextColor3 = Theme.TextDim; TitleLbl.TextSize = 12; TitleLbl.TextXAlignment = Enum.TextXAlignment.Left
+	local SwitchBtn = Instance.new("TextButton"); SwitchBtn.Parent = Card; SwitchBtn.BackgroundTransparency = 1; SwitchBtn.Position = UDim2.new(1, -45, 0.5, -10); SwitchBtn.Size = UDim2.new(0, 40, 0, 20); SwitchBtn.Text = ""
+	local Sw = Instance.new("Frame"); Sw.Parent = SwitchBtn; Sw.BackgroundColor3 = Color3.fromRGB(20, 25, 35); Sw.Position = UDim2.new(0, 0, 0.5, -8); Sw.Size = UDim2.new(0, 36, 0, 16); Instance.new("UICorner", Sw).CornerRadius = UDim.new(1,0)
+	local K = Instance.new("Frame"); K.Parent = Sw; K.BackgroundColor3 = Theme.TextDim; K.Position = UDim2.new(0, 2, 0.5, -6); K.Size = UDim2.new(0, 12, 0, 12); Instance.new("UICorner", K).CornerRadius = UDim.new(1,0)
 	local toggled = false
 	local function SetState(state)
 		toggled = state
-		if toggled then
-			TweenService:Create(K, TweenInfo.new(0.2), {Position = UDim2.new(1, -14, 0.5, -6), BackgroundColor3 = Theme.Main}):Play()
-			TweenService:Create(Sw, TweenInfo.new(0.2), {BackgroundColor3 = Theme.Accent}):Play()
-			TitleLbl.TextColor3 = Theme.Text
-		else
-			TweenService:Create(K, TweenInfo.new(0.2), {Position = UDim2.new(0, 2, 0.5, -6), BackgroundColor3 = Theme.TextDim}):Play()
-			TweenService:Create(Sw, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(20, 25, 35)}):Play()
-			TitleLbl.TextColor3 = Theme.TextDim
-		end
+		if toggled then TweenService:Create(K, TweenInfo.new(0.2), {Position = UDim2.new(1, -14, 0.5, -6), BackgroundColor3 = Theme.Main}):Play(); TweenService:Create(Sw, TweenInfo.new(0.2), {BackgroundColor3 = Theme.Accent}):Play(); TitleLbl.TextColor3 = Theme.Text
+		else TweenService:Create(K, TweenInfo.new(0.2), {Position = UDim2.new(0, 2, 0.5, -6), BackgroundColor3 = Theme.TextDim}):Play(); TweenService:Create(Sw, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(20, 25, 35)}):Play(); TitleLbl.TextColor3 = Theme.TextDim end
 		if callback then callback(toggled) end
 	end
 	SwitchBtn.MouseButton1Click:Connect(function() SetState(not toggled) end)
@@ -380,93 +302,32 @@ local function CreateMainSwitch(targetParent, text, callback)
 	local Obj = CreateSwitchCard(targetParent, text, callback)
 	Obj.Card.BackgroundTransparency = 0.2
 	local Stroke = Instance.new("UIStroke"); Stroke.Parent = Obj.Card; Stroke.Color = Theme.Accent; Stroke.Transparency = 0.8; Stroke.Thickness = 1
-	local Title = Obj.Card:FindFirstChildOfClass("TextLabel")
-	if Title then Title.Position = UDim2.new(0, 15, 0, 0); Title.Font = Theme.FontBold; Title.TextColor3 = Theme.Text; Title.TextSize = 14 end
-	local Btn = Obj.Card:FindFirstChildOfClass("TextButton")
-	if Btn then Btn.Position = UDim2.new(1, -55, 0.5, -10) end
+	local Title = Obj.Card:FindFirstChildOfClass("TextLabel"); if Title then Title.Position = UDim2.new(0, 15, 0, 0); Title.Font = Theme.FontBold; Title.TextColor3 = Theme.Text; Title.TextSize = 14 end
+	local Btn = Obj.Card:FindFirstChildOfClass("TextButton"); if Btn then Btn.Position = UDim2.new(1, -55, 0.5, -10) end
 	return Obj
 end
 
 local function CreateButtonCard(targetParent, text, btnText, callback)
-	local Card = Instance.new("Frame"); Card.Parent = targetParent
-	Card.BackgroundColor3 = Theme.ActiveTab; Card.BackgroundTransparency = 0.5; Card.Size = UDim2.new(1, 0, 0, 30)
-	Instance.new("UICorner", Card).CornerRadius = UDim.new(0, 6)
-	local TitleLbl = Instance.new("TextLabel"); TitleLbl.Parent = Card; TitleLbl.BackgroundTransparency = 1
-	TitleLbl.Position = UDim2.new(0, 10, 0, 0); TitleLbl.Size = UDim2.new(0, 150, 1, 0)
-	TitleLbl.Font = Theme.FontMain; TitleLbl.Text = text; TitleLbl.TextColor3 = Theme.TextDim; TitleLbl.TextSize = 12; TitleLbl.TextXAlignment = Enum.TextXAlignment.Left
-	local ActBtn = Instance.new("TextButton"); ActBtn.Parent = Card
-	ActBtn.BackgroundColor3 = Theme.Main; ActBtn.Position = UDim2.new(1, -75, 0.5, -10); ActBtn.Size = UDim2.new(0, 70, 0, 20)
-	ActBtn.Font = Theme.FontBold; ActBtn.Text = btnText; ActBtn.TextColor3 = Theme.Accent; ActBtn.TextSize = 10
-	Instance.new("UICorner", ActBtn).CornerRadius = UDim.new(0, 4)
-	local AS = Instance.new("UIStroke"); AS.Parent = ActBtn; AS.Color = Theme.Accent; AS.Transparency = 0.5; AS.Thickness = 1; AS.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	local Card = Instance.new("Frame"); Card.Parent = targetParent; Card.BackgroundColor3 = Theme.ActiveTab; Card.BackgroundTransparency = 0.5; Card.Size = UDim2.new(1, 0, 0, 30); Instance.new("UICorner", Card).CornerRadius = UDim.new(0, 6)
+	local TitleLbl = Instance.new("TextLabel"); TitleLbl.Parent = Card; TitleLbl.BackgroundTransparency = 1; TitleLbl.Position = UDim2.new(0, 10, 0, 0); TitleLbl.Size = UDim2.new(0, 150, 1, 0); TitleLbl.Font = Theme.FontMain; TitleLbl.Text = text; TitleLbl.TextColor3 = Theme.TextDim; TitleLbl.TextSize = 12; TitleLbl.TextXAlignment = Enum.TextXAlignment.Left
+	local ActBtn = Instance.new("TextButton"); ActBtn.Parent = Card; ActBtn.BackgroundColor3 = Theme.Main; ActBtn.Position = UDim2.new(1, -75, 0.5, -10); ActBtn.Size = UDim2.new(0, 70, 0, 20); ActBtn.Font = Theme.FontBold; ActBtn.Text = btnText; ActBtn.TextColor3 = Theme.Accent; ActBtn.TextSize = 10; Instance.new("UICorner", ActBtn).CornerRadius = UDim.new(0, 4); local AS = Instance.new("UIStroke"); AS.Parent = ActBtn; AS.Color = Theme.Accent; AS.Transparency = 0.5; AS.Thickness = 1; AS.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	ActBtn.MouseButton1Click:Connect(function() ActBtn.Text = "WAIT..."; callback(); task.wait(0.5); ActBtn.Text = "DONE"; task.wait(1); ActBtn.Text = btnText end)
 	return { Card = Card }
 end
 
-local function CreateSliderCard(targetParent, text, min, max, default, callback)
-	local Card = Instance.new("Frame"); Card.Parent = targetParent
-	Card.BackgroundColor3 = Theme.ActiveTab; Card.BackgroundTransparency = 0.5; Card.Size = UDim2.new(1, 0, 0, 45)
-	Instance.new("UICorner", Card).CornerRadius = UDim.new(0, 6)
-	local TitleLbl = Instance.new("TextLabel"); TitleLbl.Parent = Card; TitleLbl.BackgroundTransparency = 1
-	TitleLbl.Position = UDim2.new(0, 10, 0, 5); TitleLbl.Size = UDim2.new(1, -20, 0, 15)
-	TitleLbl.Font = Theme.FontMain; TitleLbl.Text = text; TitleLbl.TextColor3 = Theme.TextDim; TitleLbl.TextSize = 12; TitleLbl.TextXAlignment = Enum.TextXAlignment.Left
-	local ValueLbl = Instance.new("TextLabel"); ValueLbl.Parent = Card; ValueLbl.BackgroundTransparency = 1
-	ValueLbl.Position = UDim2.new(0, 10, 0, 5); ValueLbl.Size = UDim2.new(1, -20, 0, 15)
-	ValueLbl.Font = Theme.FontBold; ValueLbl.Text = tostring(default); ValueLbl.TextColor3 = Theme.Accent; ValueLbl.TextSize = 12; ValueLbl.TextXAlignment = Enum.TextXAlignment.Right
-	local SliderBG = Instance.new("TextButton"); SliderBG.Parent = Card
-	SliderBG.BackgroundColor3 = Color3.fromRGB(20, 25, 35); SliderBG.Position = UDim2.new(0, 10, 0, 28)
-	SliderBG.Size = UDim2.new(1, -20, 0, 6); SliderBG.Text = ""; SliderBG.AutoButtonColor = false
-	Instance.new("UICorner", SliderBG).CornerRadius = UDim.new(1, 0)
-	local SliderFill = Instance.new("Frame"); SliderFill.Parent = SliderBG
-	SliderFill.BackgroundColor3 = Theme.Accent; SliderFill.Size = UDim2.new(0, 0, 1, 0); SliderFill.BorderSizePixel = 0
-	Instance.new("UICorner", SliderFill).CornerRadius = UDim.new(1, 0)
-	local Knob = Instance.new("Frame"); Knob.Parent = SliderFill
-	Knob.BackgroundColor3 = Theme.Text; Knob.Position = UDim2.new(1, -4, 0.5, -6); Knob.Size = UDim2.new(0, 12, 0, 12)
-	Instance.new("UICorner", Knob).CornerRadius = UDim.new(1,0)
-	local dragging = false
-	local function Update(input)
-		local pos = math.clamp((input.Position.X - SliderBG.AbsolutePosition.X) / SliderBG.AbsoluteSize.X, 0, 1)
-		SliderFill.Size = UDim2.new(pos, 0, 1, 0)
-		local val = math.floor(min + ((max - min) * pos))
-		if math.abs(max - min) < 50 then val = math.floor(min + ((max - min) * pos) * 10) / 10 end
-		ValueLbl.Text = tostring(val)
-		if callback then callback(val) end
-	end
-	SliderBG.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = true; Update(input) end end)
-	UserInputService.InputChanged:Connect(function(input) if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then Update(input) end end)
-	UserInputService.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = false end end)
-	local defaultPercent = (default - min) / (max - min)
-	SliderFill.Size = UDim2.new(defaultPercent, 0, 1, 0)
-end
-
--- [FUNGSI WAJIB ADA] Smart Slider untuk X-Ray (Float Support)
 local function CreateSmartSlider(targetParent, title, min, max, getStartVal, callback)
-	local Card = Instance.new("Frame"); Card.Parent = targetParent
-	Card.BackgroundColor3 = Theme.ActiveTab; Card.BackgroundTransparency = 0.5; Card.Size = UDim2.new(1, 0, 0, 45)
-	Instance.new("UICorner", Card).CornerRadius = UDim.new(0, 6)
+	local Card = Instance.new("Frame"); Card.Parent = targetParent; Card.BackgroundColor3 = Theme.ActiveTab; Card.BackgroundTransparency = 0.5; Card.Size = UDim2.new(1, 0, 0, 45); Instance.new("UICorner", Card).CornerRadius = UDim.new(0, 6)
 	local startVal = getStartVal() or min; local safeMin, safeMax = math.min(min, max), math.max(min, max); startVal = math.clamp(startVal, safeMin, safeMax)
-	local TitleLbl = Instance.new("TextLabel"); TitleLbl.Parent = Card; TitleLbl.BackgroundTransparency = 1
-	TitleLbl.Position = UDim2.new(0, 10, 0, 5); TitleLbl.Size = UDim2.new(1, -20, 0, 15)
-	TitleLbl.Font = Theme.FontMain; TitleLbl.Text = title; TitleLbl.TextColor3 = Theme.TextDim; TitleLbl.TextSize = 12; TitleLbl.TextXAlignment = Enum.TextXAlignment.Left
-	local ValueLbl = Instance.new("TextLabel"); ValueLbl.Parent = Card; ValueLbl.BackgroundTransparency = 1
-	ValueLbl.Position = UDim2.new(0, 10, 0, 5); ValueLbl.Size = UDim2.new(1, -20, 0, 15)
-	ValueLbl.Font = Theme.FontBold; ValueLbl.Text = string.format("%.1f", startVal); ValueLbl.TextColor3 = Theme.Accent; ValueLbl.TextSize = 12; ValueLbl.TextXAlignment = Enum.TextXAlignment.Right
-	local SliderBG = Instance.new("TextButton"); SliderBG.Parent = Card
-	SliderBG.BackgroundColor3 = Color3.fromRGB(20, 25, 35); SliderBG.Position = UDim2.new(0, 10, 0, 28)
-	SliderBG.Size = UDim2.new(1, -20, 0, 6); SliderBG.Text = ""; SliderBG.AutoButtonColor = false
-	Instance.new("UICorner", SliderBG).CornerRadius = UDim.new(1, 0)
-	local SliderFill = Instance.new("Frame"); SliderFill.Parent = SliderBG
-	SliderFill.BackgroundColor3 = Theme.Accent; SliderFill.BorderSizePixel = 0
-	Instance.new("UICorner", SliderFill).CornerRadius = UDim.new(1, 0)
-	local Knob = Instance.new("Frame"); Knob.Parent = SliderBG
-	Knob.BackgroundColor3 = Theme.Text; Knob.Size = UDim2.new(0, 12, 0, 12); Knob.AnchorPoint = Vector2.new(0.5, 0.5)
-	Instance.new("UICorner", Knob).CornerRadius = UDim.new(1, 0)
+	local TitleLbl = Instance.new("TextLabel"); TitleLbl.Parent = Card; TitleLbl.BackgroundTransparency = 1; TitleLbl.Position = UDim2.new(0, 10, 0, 5); TitleLbl.Size = UDim2.new(1, -20, 0, 15); TitleLbl.Font = Theme.FontMain; TitleLbl.Text = title; TitleLbl.TextColor3 = Theme.TextDim; TitleLbl.TextSize = 12; TitleLbl.TextXAlignment = Enum.TextXAlignment.Left
+	local ValueLbl = Instance.new("TextLabel"); ValueLbl.Parent = Card; ValueLbl.BackgroundTransparency = 1; ValueLbl.Position = UDim2.new(0, 10, 0, 5); ValueLbl.Size = UDim2.new(1, -20, 0, 15); ValueLbl.Font = Theme.FontBold; ValueLbl.Text = string.format("%.1f", startVal); ValueLbl.TextColor3 = Theme.Accent; ValueLbl.TextSize = 12; ValueLbl.TextXAlignment = Enum.TextXAlignment.Right
+	local SliderBG = Instance.new("TextButton"); SliderBG.Parent = Card; SliderBG.BackgroundColor3 = Color3.fromRGB(20, 25, 35); SliderBG.Position = UDim2.new(0, 10, 0, 28); SliderBG.Size = UDim2.new(1, -20, 0, 6); SliderBG.Text = ""; SliderBG.AutoButtonColor = false; Instance.new("UICorner", SliderBG).CornerRadius = UDim.new(1, 0)
+	local SliderFill = Instance.new("Frame"); SliderFill.Parent = SliderBG; SliderFill.BackgroundColor3 = Theme.Accent; SliderFill.BorderSizePixel = 0; Instance.new("UICorner", SliderFill).CornerRadius = UDim.new(1, 0)
+	local Knob = Instance.new("Frame"); Knob.Parent = SliderBG; Knob.BackgroundColor3 = Theme.Text; Knob.Size = UDim2.new(0, 12, 0, 12); Knob.AnchorPoint = Vector2.new(0.5, 0.5); Instance.new("UICorner", Knob).CornerRadius = UDim.new(1, 0)
 	local defaultPercent = (startVal - min) / (max - min); local clampedPercent = math.clamp(defaultPercent, 0, 1)
 	SliderFill.Size = UDim2.new(clampedPercent, 0, 1, 0); Knob.Position = UDim2.new(clampedPercent, 0, 0.5, 0)
 	local dragging = false
 	local function Update(input)
-		local pos = math.clamp((input.Position.X - SliderBG.AbsolutePosition.X) / SliderBG.AbsoluteSize.X, 0, 1)
-		SliderFill.Size = UDim2.new(pos, 0, 1, 0); Knob.Position = UDim2.new(pos, 0, 0.5, 0)
+		local pos = math.clamp((input.Position.X - SliderBG.AbsolutePosition.X) / SliderBG.AbsoluteSize.X, 0, 1); SliderFill.Size = UDim2.new(pos, 0, 1, 0); Knob.Position = UDim2.new(pos, 0, 0.5, 0)
 		local val = min + ((max - min) * pos)
 		if math.abs(max - min) > 50 then val = math.floor(val); ValueLbl.Text = tostring(val) else ValueLbl.Text = string.format("%.1f", val) end
 		if callback then callback(val) end
@@ -476,17 +337,21 @@ local function CreateSmartSlider(targetParent, title, min, max, getStartVal, cal
 	UserInputService.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end end)
 end
 
---// [BAGIAN 7] TAB BUILDERS
+local function CreateSliderCard(targetParent, text, min, max, default, callback) CreateSmartSlider(targetParent, text, min, max, function() return default end, callback) end
+
+--// [6] TABS & FEATURES
 local function BuildInfoTab(parentFrame)
 	local Layout = Instance.new("UIListLayout"); Layout.Parent = parentFrame; Layout.SortOrder = Enum.SortOrder.LayoutOrder; Layout.Padding = UDim.new(0, 14)
 	local Padding = Instance.new("UIPadding"); Padding.Parent = parentFrame; Padding.PaddingTop = UDim.new(0, 15); Padding.PaddingLeft = UDim.new(0, 15); Padding.PaddingRight = UDim.new(0, 15)
 	
+	-- [PING CARD]
 	local PingCard = CreateCard(parentFrame, UDim2.new(1, 0, 0,60), 1)
 	local PingTitle = Instance.new("TextLabel"); PingTitle.Parent = PingCard; PingTitle.BackgroundTransparency = 1; PingTitle.Position = UDim2.new(0, 15, 0, 5); PingTitle.Size = UDim2.new(1, -30, 0, 20); PingTitle.Font = Theme.FontBold; PingTitle.Text = "Network Ping"; PingTitle.TextColor3 = Theme.TextDim; PingTitle.TextSize = 12; PingTitle.TextXAlignment = Enum.TextXAlignment.Left
 	local PingValue = Instance.new("TextLabel"); PingValue.Parent = PingCard; PingValue.BackgroundTransparency = 1; PingValue.Position = UDim2.new(0, 15, 0, 5); PingValue.Size = UDim2.new(1, -30, 0, 20); PingValue.Font = Theme.FontBold; PingValue.Text = "0 ms"; PingValue.TextColor3 = Theme.Accent; PingValue.TextSize = 12; PingValue.TextXAlignment = Enum.TextXAlignment.Right
 	local BarBg = Instance.new("Frame"); BarBg.Parent = PingCard; BarBg.BackgroundColor3 = Color3.fromRGB(30, 30, 40); BarBg.Position = UDim2.new(0, 15, 0, 35); BarBg.Size = UDim2.new(1, -30, 0, 10); Instance.new("UICorner", BarBg).CornerRadius = UDim.new(1, 0)
 	local BarFill = Instance.new("Frame"); BarFill.Parent = BarBg; BarFill.BackgroundColor3 = Theme.Accent; BarFill.Size = UDim2.new(0.5, 0, 1, 0); Instance.new("UICorner", BarFill).CornerRadius = UDim.new(1, 0)
 
+	-- [GRID: FPS & MEMORY]
 	local GridContainer = Instance.new("Frame"); GridContainer.Parent = parentFrame; GridContainer.BackgroundTransparency = 1; GridContainer.Size = UDim2.new(1,1, 0, 50); GridContainer.LayoutOrder = 2
 	local GL = Instance.new("UIGridLayout"); GL.Parent = GridContainer; GL.CellPadding = UDim2.new(0, 5, 0, 0); GL.CellSize = UDim2.new(0.493, 0, 1, 0); GL.SortOrder = Enum.SortOrder.LayoutOrder; GL.HorizontalAlignment = Enum.HorizontalAlignment.Center
 	
@@ -498,16 +363,68 @@ local function BuildInfoTab(parentFrame)
 	local MemTitle = Instance.new("TextLabel"); MemTitle.Parent = MemCard; MemTitle.BackgroundTransparency = 1; MemTitle.Position = UDim2.new(0, 12, 0, 35); MemTitle.Size = UDim2.new(1, -24, 0, 10); MemTitle.Font = Theme.FontMain; MemTitle.Text = "Memory RAM"; MemTitle.TextColor3 = Theme.TextDim; MemTitle.TextSize = 12; MemTitle.TextXAlignment = Enum.TextXAlignment.Left
 	local MemNum = Instance.new("TextLabel"); MemNum.Parent = MemCard; MemNum.BackgroundTransparency = 1; MemNum.Position = UDim2.new(0, 12, 0, 12); MemNum.Size = UDim2.new(1, -24, 0, 10); MemNum.Font = Theme.FontBold; MemNum.Text = "0"; MemNum.TextColor3 = Theme.Text; MemNum.TextSize = 24; MemNum.TextXAlignment = Enum.TextXAlignment.Left
 
+	-- [TIME CARD]
 	local TimeCard = CreateCard(parentFrame, UDim2.new(1, 0, 0, 55), 3)
 	local TimeTitle = Instance.new("TextLabel"); TimeTitle.Parent = TimeCard; TimeTitle.BackgroundTransparency = 1; TimeTitle.Position = UDim2.new(0, 15, 0, 2); TimeTitle.Size = UDim2.new(1, -30, 0, 20); TimeTitle.Font = Theme.FontBold; TimeTitle.Text = "Time Server"; TimeTitle.TextColor3 = Theme.TextDim; TimeTitle.TextSize = 12; TimeTitle.TextXAlignment = Enum.TextXAlignment.Left
 	local ClockLabel = Instance.new("TextLabel"); ClockLabel.Parent = TimeCard; ClockLabel.BackgroundTransparency = 1; ClockLabel.Position = UDim2.new(0, 15, 0, 0); ClockLabel.Size = UDim2.new(1, -30, 0, 35); ClockLabel.Font = Theme.FontBold; ClockLabel.Text = "00:00:00"; ClockLabel.TextColor3 = Theme.Text; ClockLabel.TextSize = 34; ClockLabel.TextXAlignment = Enum.TextXAlignment.Right
 	local DateLabel = Instance.new("TextLabel"); DateLabel.Parent = TimeCard; DateLabel.BackgroundTransparency = 1; DateLabel.Position = UDim2.new(0, 15, 0, 30); DateLabel.Size = UDim2.new(1, -30, 0, 20); DateLabel.Font = Theme.FontMain; DateLabel.Text = "Monday, 1 Jan 2024"; DateLabel.TextColor3 = Theme.Accent; DateLabel.TextSize = 14; DateLabel.TextXAlignment = Enum.TextXAlignment.Right
 
-	local RejoinCard = CreateCard(parentFrame, UDim2.new(1, 0, 0, 75), 4)
-	local RejoinTitle = Instance.new("TextLabel"); RejoinTitle.Parent = RejoinCard; RejoinTitle.BackgroundTransparency = 1; RejoinTitle.Position = UDim2.new(0, 15, 0, 8); RejoinTitle.Size = UDim2.new(1, -30, 0, 10); RejoinTitle.Font = Theme.FontBold; RejoinTitle.Text = "Session Control"; RejoinTitle.TextColor3 = Theme.TextDim; RejoinTitle.TextSize = 12; RejoinTitle.TextXAlignment = Enum.TextXAlignment.Left
-	local RjBtn = Instance.new("TextButton"); RjBtn.Parent = RejoinCard; RjBtn.BackgroundColor3 = Theme.Sidebar; RjBtn.Position = UDim2.new(0, 15, 0, 30); RjBtn.Size = UDim2.new(1, -30, 0, 35); RjBtn.Font = Theme.FontBold; RjBtn.Text = "Rejoin Server"; RjBtn.TextColor3 = Theme.Accent; RjBtn.TextSize = 14; RjBtn.AutoButtonColor = true; local RjCorner = Instance.new("UICorner"); RjCorner.CornerRadius = UDim.new(0, 8); RjCorner.Parent = RjBtn; local RjStroke = Instance.new("UIStroke"); RjStroke.Parent = RjBtn; RjStroke.Color = Theme.Accent; RjStroke.Thickness = 1; RjStroke.Transparency = 0.7; RjStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-	RjBtn.MouseButton1Click:Connect(function() local TS = game:GetService("TeleportService"); local LP = game:GetService("Players").LocalPlayer; RjBtn.Text = "Rejoining..."; RjBtn.BackgroundTransparency = 0.5; TS:TeleportToPlaceInstance(game.PlaceId, game.JobId, LP) end)
+	-- [SESSION CARD: REJOIN & SERVER HOP]
+	local SessionCard = CreateCard(parentFrame, UDim2.new(1, 0, 0, 115), 4)
+	local SessionTitle = Instance.new("TextLabel"); SessionTitle.Parent = SessionCard; SessionTitle.BackgroundTransparency = 1; SessionTitle.Position = UDim2.new(0, 15, 0, 8); SessionTitle.Size = UDim2.new(1, -30, 0, 10); SessionTitle.Font = Theme.FontBold; SessionTitle.Text = "Session Manager"; SessionTitle.TextColor3 = Theme.TextDim; SessionTitle.TextSize = 12; SessionTitle.TextXAlignment = Enum.TextXAlignment.Left
+	
+	-- Helper Button Style (Update: Passing 'Btn' ke callback)
+	local function CreateSessionBtn(text, color, pos, callback)
+		local Btn = Instance.new("TextButton"); Btn.Parent = SessionCard
+		Btn.BackgroundColor3 = Theme.Sidebar
+		Btn.Position = pos; Btn.Size = UDim2.new(1, -30, 0, 30)
+		Btn.Font = Theme.FontBold; Btn.Text = text; Btn.TextColor3 = color; Btn.TextSize = 11
+		Btn.AutoButtonColor = true
+		Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 6)
+		local S = Instance.new("UIStroke"); S.Parent = Btn; S.Color = color; S.Thickness = 1; S.Transparency = 0.7; S.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		
+		-- Saat diklik, panggil callback dengan membawa objek Btn agar teksnya bisa diubah
+		Btn.MouseButton1Click:Connect(function()
+			callback(Btn)
+		end)
+	end
 
+	-- 1. REJOIN (Accent Blue) - Dengan Efek Teks
+	CreateSessionBtn("REJOIN SERVER", Theme.Accent, UDim2.new(0, 15, 0, 30), function(btn)
+		btn.Text = "REJOINING..." -- Ubah teks
+		btn.AutoButtonColor = false -- Matikan efek klik agar terlihat statis
+		
+		local TS = game:GetService("TeleportService"); local LP = game:GetService("Players").LocalPlayer
+		TS:TeleportToPlaceInstance(game.PlaceId, game.JobId, LP) 
+	end)
+
+	-- 2. SERVER HOP LOW (Green) - Dengan Efek Teks
+	CreateSessionBtn("SERVER HOP (LOW/SEPI)", Theme.Green, UDim2.new(0, 15, 0, 70), function(btn)
+		btn.Text = "SEARCHING LOW SERVER..." -- Ubah teks
+		btn.AutoButtonColor = false
+		
+		local Http = game:GetService("HttpService"); local TS = game:GetService("TeleportService")
+		-- sortOrder=Asc (Urutkan dari terkecil / sepi)
+		local Servers = Http:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/"..game.PlaceId.."/servers/Public?sortOrder=Asc&limit=100"))
+		
+		local found = false
+		for _, s in pairs(Servers.data) do
+			if s.playing < s.maxPlayers and s.id ~= game.JobId then
+				TS:TeleportToPlaceInstance(game.PlaceId, s.id, LocalPlayer)
+				found = true
+				break
+			end
+		end
+		
+		if not found then
+			btn.Text = "NO SERVERS FOUND"
+			task.wait(1)
+			btn.Text = "SERVER HOP (LOW/SEPI)"
+			btn.AutoButtonColor = true
+		end
+	end)
+
+	-- LOOP INFO (Optimized Memory)
 	task.spawn(function()
 		local LastFPSTime = tick(); local FrameCount = 0; local FPS_Connection
 		FPS_Connection = RunService.RenderStepped:Connect(function()
@@ -515,12 +432,23 @@ local function BuildInfoTab(parentFrame)
 			FrameCount = FrameCount + 1
 			if tick() - LastFPSTime >= 0.5 then local fps = math.floor(FrameCount / (tick() - LastFPSTime)); FPSNum.Text = tostring(fps); FrameCount = 0; LastFPSTime = tick() end
 		end)
+		
+		local PingTween = TweenInfo.new(0.5, Enum.EasingStyle.Sine)
+		
 		while parentFrame.Parent do
 			local rawPing = LocalPlayer:GetNetworkPing(); local ping = math.round(rawPing * 1000)
 			PingValue.Text = ping .. " ms"
 			local barSize = math.clamp(ping / 300, 0.05, 1)
-			TweenService:Create(BarFill, TweenInfo.new(0.5, Enum.EasingStyle.Sine), {Size = UDim2.new(barSize, 0, 1, 0), BackgroundColor3 = ping < 100 and Theme.Green or ping < 200 and Color3.fromRGB(255, 200, 0) or Theme.Red}):Play()
-			MemNum.Text = tostring(math.floor(Stats:GetTotalMemoryUsageMb())); ClockLabel.Text = os.date("%H:%M:%S"); DateLabel.Text = os.date("%A, %d %B %Y")
+			
+			TweenService:Create(BarFill, PingTween, {
+				Size = UDim2.new(barSize, 0, 1, 0), 
+				BackgroundColor3 = ping < 100 and Theme.Green or ping < 200 and Color3.fromRGB(255, 200, 0) or Theme.Red
+			}):Play()
+			
+			MemNum.Text = tostring(math.floor(Stats:GetTotalMemoryUsageMb()))
+			ClockLabel.Text = os.date("%H:%M:%S")
+			DateLabel.Text = os.date("%A, %d %B %Y")
+			
 			task.wait(1)
 		end
 		if FPS_Connection then FPS_Connection:Disconnect() end
@@ -554,14 +482,13 @@ local function BuildMovementTab(parentFrame)
 		return { SetState = SetToggleState, Reset = function() currentVal = defaultVal; ValTxt.Text = tostring(currentVal); SetToggleState(false) end }
 	end
 
-	--// VARIABEL FLY (OPTIMIZED)
+	--// VARIABEL FLY
 	local flying = false
-	local flySpeed = 1 -- [START AT 1x]
+	local flySpeed = 1
 	local bv = nil
 	local bg = nil
 	local flyLoop = nil
 	
-	-- Fungsi Mematikan Fly (CLEANUP TOTAL)
 	Session.StopFly = function()
 		flying = false
 		if bv then bv:Destroy(); bv = nil end
@@ -577,51 +504,29 @@ local function BuildMovementTab(parentFrame)
 
 	local FlyCtrl = CreateControlCard("Fly Mode", 1, function(active, speed)
 		flying = active; flySpeed = speed
-		
 		if not active then
 			Session.StopFly()
 		else
+			-- [SAFETY] Matikan mode lain sebelum Fly
+			Session.StopWalk(); Session.StopJump()
 			local char = LocalPlayer.Character
 			local root = char and char:FindFirstChild("HumanoidRootPart")
 			local hum = char and char:FindFirstChild("Humanoid")
 			local cam = workspace.CurrentCamera
-			
 			if not root or not hum then return end
-			
-			if bv then bv:Destroy() end
-			if bg then bg:Destroy() end
-			
-			bv = Instance.new("BodyVelocity")
-			bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-			bv.Velocity = Vector3.new(0,0,0)
-			bv.Parent = root
-			
-			bg = Instance.new("BodyGyro")
-			bg.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
-			bg.P = 10000; bg.D = 100
-			bg.CFrame = root.CFrame
-			bg.Parent = root
-			
+			if bv then bv:Destroy() end; if bg then bg:Destroy() end
+			bv = Instance.new("BodyVelocity"); bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge); bv.Velocity = Vector3.new(0,0,0); bv.Parent = root
+			bg = Instance.new("BodyGyro"); bg.MaxTorque = Vector3.new(math.huge, math.huge, math.huge); bg.P = 10000; bg.D = 100; bg.CFrame = root.CFrame; bg.Parent = root
 			hum.PlatformStand = true
-			
 			flyLoop = RunService.Heartbeat:Connect(function()
 				if not flying or not char or not root.Parent then Session.StopFly() return end
-				
-				local moveDir = hum.MoveDirection
-				local camCF = cam.CFrame
-				
+				local moveDir = hum.MoveDirection; local camCF = cam.CFrame
 				if moveDir.Magnitude > 0 then
 					local relDir = camCF:VectorToObjectSpace(moveDir)
 					local rawDir = (camCF.LookVector * -relDir.Z) + (camCF.RightVector * relDir.X)
-					
-					-- [FIX VERTIKAL] Normalisasi agar terbang ke atas ngebut
 					if rawDir.Magnitude > 0.01 then rawDir = rawDir.Unit end
-					
-					local targetVel = rawDir * (flySpeed * 50)
-					bv.Velocity = bv.Velocity:Lerp(targetVel, 0.2)
-				else
-					bv.Velocity = Vector3.new(0,0,0)
-				end
+					bv.Velocity = bv.Velocity:Lerp(rawDir * (flySpeed * 50), 0.2)
+				else bv.Velocity = Vector3.new(0,0,0) end
 				bg.CFrame = cam.CFrame
 			end)
 		end
@@ -630,14 +535,20 @@ local function BuildMovementTab(parentFrame)
 	local walkLoop; local currentWalkMultiplier = 1
 	local SpeedCtrl = CreateControlCard("Speed Walk", 1, function(active, mul)
 		if walkLoop then walkLoop:Disconnect() end; currentWalkMultiplier = mul
-		if active then walkLoop = RunService.Heartbeat:Connect(function() local char = LocalPlayer.Character; if char and char:FindFirstChild("Humanoid") then local targetSpeed = DefaultStats.WalkSpeed * currentWalkMultiplier; if char.Humanoid.WalkSpeed ~= targetSpeed then char.Humanoid.WalkSpeed = targetSpeed end end end) else Session.StopWalk() end
+		if active then
+			Session.StopFly() -- [SAFETY]
+			walkLoop = RunService.Heartbeat:Connect(function() local char = LocalPlayer.Character; if char and char:FindFirstChild("Humanoid") then local targetSpeed = DefaultStats.WalkSpeed * currentWalkMultiplier; if char.Humanoid.WalkSpeed ~= targetSpeed then char.Humanoid.WalkSpeed = targetSpeed end end end) 
+		else Session.StopWalk() end
 	end, function(old, change) return math.max(1, old + change) end, function(newMul) currentWalkMultiplier = newMul end)
 	Session.StopWalk = function() if walkLoop then walkLoop:Disconnect() end; local char = LocalPlayer.Character; if char and char:FindFirstChild("Humanoid") then char.Humanoid.WalkSpeed = DefaultStats.WalkSpeed end end
 
 	local jumpLoop; local currentJumpMultiplier = 1
 	local JumpCtrl = CreateControlCard("High Jump", 1, function(active, mul)
 		if jumpLoop then jumpLoop:Disconnect() end; currentJumpMultiplier = mul
-		if active then jumpLoop = RunService.Heartbeat:Connect(function() local char = LocalPlayer.Character; if char and char:FindFirstChild("Humanoid") then local targetJump = DefaultStats.JumpPower * currentJumpMultiplier; if not char.Humanoid.UseJumpPower then char.Humanoid.UseJumpPower = true end; if char.Humanoid.JumpPower ~= targetJump then char.Humanoid.JumpPower = targetJump end end end) else Session.StopJump() end
+		if active then 
+			Session.StopFly() -- [SAFETY]
+			jumpLoop = RunService.Heartbeat:Connect(function() local char = LocalPlayer.Character; if char and char:FindFirstChild("Humanoid") then local targetJump = DefaultStats.JumpPower * currentJumpMultiplier; if not char.Humanoid.UseJumpPower then char.Humanoid.UseJumpPower = true end; if char.Humanoid.JumpPower ~= targetJump then char.Humanoid.JumpPower = targetJump end end end) 
+		else Session.StopJump() end
 	end, function(old, change) return math.max(1, old + change) end, function(newMul) currentJumpMultiplier = newMul end)
 	Session.StopJump = function() if jumpLoop then jumpLoop:Disconnect() end; local char = LocalPlayer.Character; if char and char:FindFirstChild("Humanoid") then char.Humanoid.JumpPower = DefaultStats.JumpPower end end
 
@@ -663,33 +574,31 @@ local function BuildTeleportTab(parentFrame)
 	local Padding = Instance.new("UIPadding"); Padding.Parent = parentFrame; Padding.PaddingTop = UDim.new(0, 15); Padding.PaddingLeft = UDim.new(0, 15); Padding.PaddingRight = UDim.new(0, 15)
 	
 	local ColorSuccess = Theme.Green; local ColorError = Theme.Red
-	
-	-- [WARNA DIUBAH] Menjadi Sangat Gelap (Hampir Hitam)
-	-- Ini memberikan kontras maksimal agar teks terlihat menyala saat aktif
-	local ColorPressed = Color3.fromRGB(10, 10, 12) 
+	local ColorPressed = Theme.Pressed -- Mengambil dari Tema (Dark Neon)
 	
 	local selectedPlayer = nil; local isDropdownOpen = false; local statusTimer = nil; 
-	local spectateLoop = nil; local followLoop = nil; local clickOutsideConn = nil
+	local ActiveConnections = {} -- [JANITOR SYSTEM]
+	
+	local function ClearConnections()
+		for _, conn in pairs(ActiveConnections) do if conn then conn:Disconnect() end end
+		table.clear(ActiveConnections)
+	end
 
-	-- Card Size
 	local TpCard = CreateCard(parentFrame, UDim2.new(1, 0, 0, 165))
 	TpCard.ClipsDescendants = false; TpCard.LayoutOrder = 1; TpCard.ZIndex = 10 
 
 	local Title = Instance.new("TextLabel"); Title.Parent = TpCard; Title.BackgroundTransparency = 1; Title.Position = UDim2.new(0, 15, 0, 10); Title.Size = UDim2.new(1, -30, 0, 15); Title.Font = Theme.FontBold; Title.Text = "Player Teleport & Follow"; Title.TextColor3 = Theme.Text; Title.TextSize = 14; Title.TextXAlignment = Enum.TextXAlignment.Left
-	
 	local StatusLbl = Instance.new("TextLabel"); StatusLbl.Parent = TpCard; StatusLbl.BackgroundTransparency = 1; StatusLbl.Position = UDim2.new(0, 15, 1, -22); StatusLbl.Size = UDim2.new(1, -30, 0, 15); StatusLbl.Font = Theme.FontMain; StatusLbl.Text = ""; StatusLbl.TextColor3 = ColorError; StatusLbl.TextSize = 11; StatusLbl.TextXAlignment = Enum.TextXAlignment.Center
 	local function ShowStatus(text, color) StatusLbl.Text = text; StatusLbl.TextColor3 = color or Theme.Text; if statusTimer then task.cancel(statusTimer) end; statusTimer = task.delay(3, function() if StatusLbl then StatusLbl.Text = "" end statusTimer = nil end) end
 
-	-- [DROPDOWN PLAYER]
 	local DropContainer = Instance.new("Frame"); DropContainer.Parent = TpCard; DropContainer.BackgroundTransparency = 1; DropContainer.Position = UDim2.new(0, 15, 0, 35); DropContainer.Size = UDim2.new(1, -30, 0, 30); DropContainer.ZIndex = 20
 	local DropBtn = Instance.new("TextButton"); DropBtn.Parent = DropContainer; DropBtn.BackgroundColor3 = Theme.Sidebar; DropBtn.Size = UDim2.new(1, -75, 1, 0); DropBtn.Font = Theme.FontMain; DropBtn.Text = "  Select Player..."; DropBtn.TextColor3 = Theme.TextDim; DropBtn.TextSize = 12; DropBtn.TextXAlignment = Enum.TextXAlignment.Left; DropBtn.AutoButtonColor = false; DropBtn.ZIndex = 20; Instance.new("UICorner", DropBtn).CornerRadius = UDim.new(0, 6); local DS = Instance.new("UIStroke"); DS.Parent = DropBtn; DS.Color = Theme.Separator; DS.Thickness = 1
 	local RefreshBtn = Instance.new("TextButton"); RefreshBtn.Parent = DropContainer; RefreshBtn.BackgroundColor3 = Theme.Green; RefreshBtn.Position = UDim2.new(1, -70, 0, 0); RefreshBtn.Size = UDim2.new(0, 70, 1, 0); RefreshBtn.ZIndex = 20; RefreshBtn.Font = Theme.FontBold; RefreshBtn.Text = "REFRESH"; RefreshBtn.TextColor3 = Theme.Main; RefreshBtn.TextSize = 11; Instance.new("UICorner", RefreshBtn).CornerRadius = UDim.new(0, 6)
-	
 	local ListFrame = Instance.new("ScrollingFrame"); ListFrame.Parent = TpCard; ListFrame.Visible = false; ListFrame.BackgroundColor3 = Theme.Sidebar; ListFrame.BorderSizePixel = 0; ListFrame.Position = UDim2.new(0, 15, 0, 68); ListFrame.Size = UDim2.new(0.90, -65, 0, 120); ListFrame.ZIndex = 30; ListFrame.ScrollBarThickness = 2; local LS = Instance.new("UIStroke"); LS.Parent = ListFrame; LS.Color = Theme.Accent; LS.Thickness = 1; local LL = Instance.new("UIListLayout"); LL.Parent = ListFrame; LL.SortOrder = Enum.SortOrder.LayoutOrder
 
 	local function ToggleDropdown(forceClose)
-		if forceClose then isDropdownOpen = false else isDropdownOpen = not isDropdownOpen end; ListFrame.Visible = isDropdownOpen; if clickOutsideConn then clickOutsideConn:Disconnect(); clickOutsideConn = nil end
-		if isDropdownOpen then clickOutsideConn = UserInputService.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then local mPos = Vector2.new(input.Position.X, input.Position.Y); local function isInRect(obj) local pos, size = obj.AbsolutePosition, obj.AbsoluteSize; return mPos.X >= pos.X and mPos.X <= pos.X + size.X and mPos.Y >= pos.Y and mPos.Y <= pos.Y + size.Y end; if not isInRect(ListFrame) and not isInRect(DropBtn) then ToggleDropdown(true) end end end) end
+		if forceClose then isDropdownOpen = false else isDropdownOpen = not isDropdownOpen end; ListFrame.Visible = isDropdownOpen; if ActiveConnections["Dropdown"] then ActiveConnections["Dropdown"]:Disconnect() end
+		if isDropdownOpen then ActiveConnections["Dropdown"] = UserInputService.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then local mPos = Vector2.new(input.Position.X, input.Position.Y); local function isInRect(obj) local pos, size = obj.AbsolutePosition, obj.AbsoluteSize; return mPos.X >= pos.X and mPos.X <= pos.X + size.X and mPos.Y >= pos.Y and mPos.Y <= pos.Y + size.Y end; if not isInRect(ListFrame) and not isInRect(DropBtn) then ToggleDropdown(true) end end end) end
 	end
 	
 	local function RefreshList()
@@ -704,153 +613,94 @@ local function BuildTeleportTab(parentFrame)
 	end
 	DropBtn.MouseButton1Click:Connect(function() ToggleDropdown() end); RefreshBtn.MouseButton1Click:Connect(function() RefreshList(); ShowStatus("List Refreshed!", ColorSuccess) end)
 
-	-- [BUTTON CONTAINER]
 	local BtnContainer = Instance.new("Frame"); BtnContainer.Parent = TpCard; BtnContainer.BackgroundTransparency = 1; BtnContainer.Position = UDim2.new(0, 15, 0, 75); BtnContainer.Size = UDim2.new(1, -30, 0, 60)
 	
-	-- Helper Button Style
 	local function CreateStyledButton(name, pos, size)
 		local Btn = Instance.new("TextButton"); Btn.Parent = BtnContainer
-		Btn.BackgroundColor3 = Theme.Sidebar
-		Btn.Position = pos; Btn.Size = size
-		Btn.Font = Theme.FontBold; Btn.Text = name; Btn.TextColor3 = Theme.TextDim
-		Btn.TextSize = 10
+		Btn.BackgroundColor3 = Theme.Sidebar; Btn.Position = pos; Btn.Size = size
+		Btn.Font = Theme.FontBold; Btn.Text = name; Btn.TextColor3 = Theme.TextDim; Btn.TextSize = 10
 		Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 6)
-		
-		local S = Instance.new("UIStroke"); S.Parent = Btn; 
-		S.Color = Theme.Separator; S.Thickness = 1; S.Transparency = 0.8
-		S.ApplyStrokeMode = Enum.ApplyStrokeMode.Border 
+		local S = Instance.new("UIStroke"); S.Parent = Btn; S.Color = Theme.Separator; S.Thickness = 1; S.Transparency = 0.8; S.ApplyStrokeMode = Enum.ApplyStrokeMode.Border 
 		return Btn, S
 	end
 
-	-- Fungsi Mengubah Style Tombol (DARK ACTIVE MODE)
 	local function SetButtonStyle(Btn, Stroke, IsActive, ActiveText, DefaultText)
 		if IsActive then
-			-- MODE AKTIF: Hitam Gelap + Teks Terang + Border Halus
-			Btn.BackgroundColor3 = ColorPressed -- (10, 10, 12)
-			Btn.TextColor3 = Theme.Accent
-			Btn.Text = ActiveText or DefaultText
-			
-			Stroke.Color = Theme.Accent
-			Stroke.Transparency = 0.6 -- Tetap 0.6 agar border tidak terlalu kasar
-			Stroke.Thickness = 1
+			Btn.BackgroundColor3 = ColorPressed; Btn.TextColor3 = Theme.Accent; Btn.Text = ActiveText or DefaultText; Stroke.Color = Theme.Accent; Stroke.Transparency = 0.6; Stroke.Thickness = 1
 		else
-			-- MODE MATI
-			Btn.BackgroundColor3 = Theme.Sidebar
-			Btn.TextColor3 = Theme.TextDim
-			Btn.Text = DefaultText
-			
-			Stroke.Color = Theme.Separator
-			Stroke.Transparency = 0.8
-			Stroke.Thickness = 1
+			Btn.BackgroundColor3 = Theme.Sidebar; Btn.TextColor3 = Theme.TextDim; Btn.Text = DefaultText; Stroke.Color = Theme.Separator; Stroke.Transparency = 0.8; Stroke.Thickness = 1
 		end
 	end
 
-	-- Membuat Tombol
 	local SpectateBtn, SS = CreateStyledButton("SPECTATE", UDim2.new(0, 0, 0, 0), UDim2.new(0.48, 0, 0, 28))
 	local TeleportBtn, TS = CreateStyledButton("TELEPORT", UDim2.new(0.52, 0, 0, 0), UDim2.new(0.48, 0, 0, 28))
 	local FollowBtn, FS = CreateStyledButton("SMART FOLLOW (WALK)", UDim2.new(0, 0, 0, 35), UDim2.new(1, 0, 0, 28))
 
-	-- === LOGIC: CLEANUP HELPER ===
 	local function StopAllModes()
-		if spectateLoop then spectateLoop:Disconnect(); spectateLoop = nil end
+		ClearConnections()
 		if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then workspace.CurrentCamera.CameraSubject = LocalPlayer.Character.Humanoid end
 		SetButtonStyle(SpectateBtn, SS, false, nil, "SPECTATE") 
-		
-		if followLoop then followLoop:Disconnect(); followLoop = nil end
 		SetButtonStyle(FollowBtn, FS, false, nil, "SMART FOLLOW (WALK)") 
 		local char = LocalPlayer.Character
-		if char and char:FindFirstChild("Humanoid") and char:FindFirstChild("HumanoidRootPart") then 
-			char.Humanoid:MoveTo(char.HumanoidRootPart.Position)
-		end
+		if char and char:FindFirstChild("Humanoid") and char:FindFirstChild("HumanoidRootPart") then char.Humanoid:MoveTo(char.HumanoidRootPart.Position) end
 	end
 
-	-- LOGIKA SPECTATE
 	SpectateBtn.MouseButton1Click:Connect(function()
-		if spectateLoop then StopAllModes() else
+		if ActiveConnections["Spectate"] then StopAllModes() else
 			StopAllModes() 
 			if not selectedPlayer then ShowStatus("Select Player First!", ColorError); return end
 			local target = Players:FindFirstChild(selectedPlayer.Name)
 			if target then
 				SetButtonStyle(SpectateBtn, SS, true, "STOP VIEW", "SPECTATE") 
 				ShowStatus("Spectating...", ColorSuccess)
-				spectateLoop = RunService.RenderStepped:Connect(function() if not target or not target.Parent then StopAllModes(); ShowStatus("Target Left", ColorError); return end; if target.Character and target.Character:FindFirstChild("Humanoid") then workspace.CurrentCamera.CameraSubject = target.Character.Humanoid end end)
+				ActiveConnections["Spectate"] = RunService.RenderStepped:Connect(function() 
+					if not target or not target.Parent then StopAllModes(); ShowStatus("Target Left", ColorError); return end
+					if target.Character and target.Character:FindFirstChild("Humanoid") then workspace.CurrentCamera.CameraSubject = target.Character.Humanoid end 
+				end)
 			else ShowStatus("Player Unavailable", ColorError) end
 		end
 	end)
 
-	-- LOGIKA TELEPORT
 	TeleportBtn.MouseButton1Click:Connect(function()
 		if not selectedPlayer then ShowStatus("Select a player!", ColorError); return end
 		local target = Players:FindFirstChild(selectedPlayer.Name); if not target then ShowStatus("Player Left.", ColorError); return end
 		local tChar = target.Character; local lChar = LocalPlayer.Character
-		
-		-- Efek Tekan Sesaat
 		SetButtonStyle(TeleportBtn, TS, true, "TELEPORTED!", "TELEPORT")
-		task.delay(0.3, function() 
-			SetButtonStyle(TeleportBtn, TS, false, nil, "TELEPORT") 
-		end)
-
+		task.delay(0.3, function() SetButtonStyle(TeleportBtn, TS, false, nil, "TELEPORT") end)
 		if tChar and tChar:FindFirstChild("HumanoidRootPart") and lChar and lChar:FindFirstChild("HumanoidRootPart") then 
 			lChar.HumanoidRootPart.CFrame = tChar.HumanoidRootPart.CFrame * CFrame.new(0, 0, 3)
 			ShowStatus("Teleported!", ColorSuccess) 
 		else ShowStatus("Target Unreachable", ColorError) end
 	end)
 
-	-- LOGIKA ULTIMATE FOLLOW
 	FollowBtn.MouseButton1Click:Connect(function()
-		if followLoop then StopAllModes() else
+		if ActiveConnections["Follow"] then StopAllModes() else
 			StopAllModes()
 			if not selectedPlayer then ShowStatus("Select Player First!", ColorError); return end
-			
 			SetButtonStyle(FollowBtn, FS, true, "STOP FOLLOWING", "SMART FOLLOW (WALK)")
 			ShowStatus("Following Target...", ColorSuccess)
-			
-			followLoop = RunService.Heartbeat:Connect(function(deltaTime)
-				local target = Players:FindFirstChild(selectedPlayer.Name)
-				local myChar = LocalPlayer.Character
-				
+			ActiveConnections["Follow"] = RunService.Heartbeat:Connect(function(deltaTime)
+				local target = Players:FindFirstChild(selectedPlayer.Name); local myChar = LocalPlayer.Character
 				if not target or not target.Character or not target.Character:FindFirstChild("HumanoidRootPart") then StopAllModes(); ShowStatus("Target Lost", ColorError); return end
 				if not myChar or not myChar:FindFirstChild("HumanoidRootPart") or not myChar:FindFirstChild("Humanoid") then return end
-				
-				local myRoot = myChar.HumanoidRootPart
-				local targetRoot = target.Character.HumanoidRootPart
-				local hum = myChar.Humanoid
-				local tHum = target.Character:FindFirstChild("Humanoid")
-				
+				local myRoot = myChar.HumanoidRootPart; local targetRoot = target.Character.HumanoidRootPart; local hum = myChar.Humanoid; local tHum = target.Character:FindFirstChild("Humanoid")
 				local dist = (myRoot.Position - targetRoot.Position).Magnitude
-				
-				if dist > 150 then
-					myRoot.CFrame = targetRoot.CFrame * CFrame.new(0, 2, 3)
-					return 
-				end
-
-				if dist > 6 then 
+				if dist > 150 then myRoot.CFrame = targetRoot.CFrame * CFrame.new(0, 2, 3); return end
+				if dist > 8 then 
 					local predictedPos = targetRoot.Position + (targetRoot.AssemblyLinearVelocity * 0.1)
 					hum:MoveTo(predictedPos)
 					if (targetRoot.Position.Y > myRoot.Position.Y + 3) and dist < 15 then hum.Jump = true end
 					if tHum and tHum.Jump then hum.Jump = true end
-				else
-					hum:MoveTo(myRoot.Position)
-				end
+				elseif dist < 5 then hum:MoveTo(myRoot.Position) end
 			end)
 		end
 	end)
 
-	-- Tap Teleport Switch (Footer)
-	local tapConnection
 	local TapSwitch = CreateMainSwitch(parentFrame, "Teleport Tap (Click / Touch)", function(active)
-		if active then
-			tapConnection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
-				if gameProcessed then return end
-				if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-					local mouse = LocalPlayer:GetMouse(); local targetPos = mouse.Hit; local char = LocalPlayer.Character
-					if char and char:FindFirstChild("HumanoidRootPart") and targetPos then char.HumanoidRootPart.CFrame = CFrame.new(targetPos.X, targetPos.Y + 3, targetPos.Z) end
-				end
-			end)
-		else if tapConnection then tapConnection:Disconnect(); tapConnection = nil end end
+		if active then ActiveConnections["TapTP"] = UserInputService.InputBegan:Connect(function(input, gameProcessed) if gameProcessed then return end; if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then local mouse = LocalPlayer:GetMouse(); local targetPos = mouse.Hit; local char = LocalPlayer.Character; if char and char:FindFirstChild("HumanoidRootPart") and targetPos then char.HumanoidRootPart.CFrame = CFrame.new(targetPos.X, targetPos.Y + 3, targetPos.Z) end end end)
+		else if ActiveConnections["TapTP"] then ActiveConnections["TapTP"]:Disconnect() end end
 	end)
 	if TapSwitch.Card then TapSwitch.Card.LayoutOrder = 2; TapSwitch.Card.ZIndex = 1 end
-	
 	RefreshList()
 end
 
@@ -873,48 +723,12 @@ local function BuildVisualsTab(parentFrame)
 	local HP_Conn = {}
 	CreateSwitchCard(ESP_Container, "Health Bar", function(active) ToggleFeature(active, HP_Conn, function(char) if not char:FindFirstChild("Head") then return end; if char:FindFirstChild("NeeR_HP") then char.NeeR_HP:Destroy() end; local bb = Instance.new("BillboardGui"); bb.Name="NeeR_HP"; bb.Parent=char; bb.Adornee=char.Head; bb.Size=UDim2.new(0,40,0,4); bb.StudsOffset=Vector3.new(0,2.5,0); bb.AlwaysOnTop=true; local bg = Instance.new("Frame"); bg.Parent=bb; bg.Size=UDim2.new(1,0,1,0); bg.BackgroundColor3=Color3.new(0,0,0); bg.BorderSizePixel=0; local fill = Instance.new("Frame"); fill.Parent=bg; fill.Size=UDim2.new(1,0,1,0); fill.BackgroundColor3=Theme.Green; fill.BorderSizePixel=0; local hum = char:FindFirstChild("Humanoid"); if hum then local function Upd() local p = math.clamp(hum.Health/hum.MaxHealth, 0, 1); TweenService:Create(fill, TweenInfo.new(0.2), {Size=UDim2.new(p,0,1,0)}):Play(); fill.BackgroundColor3 = p < 0.3 and Theme.Red or Theme.Green end; Upd(); hum.HealthChanged:Connect(Upd) end end, function(char) if char:FindFirstChild("NeeR_HP") then char.NeeR_HP:Destroy() end end) end)
 
-	--// [VISUAL: SMART X-RAY]
 	local XRay_Container = CreateExpandableSection(parentFrame, "Wall X-Ray (Smart)")
-	local XRay_Cache = {}
-	local XRay_Opacity = 0.5
-	local XRay_Active = false
-
-	local function ApplyXRay()
-		if not XRay_Active then return end
-		for _, v in pairs(workspace:GetDescendants()) do
-			if v:IsA("BasePart") and not v:IsA("Terrain") then
-				local isCharacter = v.Parent:FindFirstChild("Humanoid") or v.Parent.Parent:FindFirstChild("Humanoid")
-				local isHidden = v.Transparency > 0.9
-				
-				if not isCharacter and not isHidden then
-					if not XRay_Cache[v] then XRay_Cache[v] = v.Transparency end
-					v.Transparency = XRay_Opacity
-				end
-			end
-		end
-	end
-
-	local function RemoveXRay()
-		for part, oldTransparency in pairs(XRay_Cache) do
-			if part and part.Parent then part.Transparency = oldTransparency end
-		end
-		table.clear(XRay_Cache)
-	end
-
-	CreateSmartSlider(XRay_Container, "Opacity", 0.1, 0.9, function() return 0.5 end, function(val)
-		XRay_Opacity = val
-		if XRay_Active then
-			for part, _ in pairs(XRay_Cache) do
-				if part and part.Parent then part.Transparency = XRay_Opacity end
-			end
-		end
-	end)
-
-	CreateSwitchCard(XRay_Container, "Enable X-Ray", function(active)
-		XRay_Active = active
-		if active then ApplyXRay() else RemoveXRay() end
-	end)
-	
+	local XRay_Cache = {}; local XRay_Opacity = 0.5; local XRay_Active = false
+	local function ApplyXRay() if not XRay_Active then return end; for _, v in pairs(workspace:GetDescendants()) do if v:IsA("BasePart") and not v:IsA("Terrain") then local isCharacter = v.Parent:FindFirstChild("Humanoid") or v.Parent.Parent:FindFirstChild("Humanoid"); local isHidden = v.Transparency > 0.9; if not isCharacter and not isHidden then if not XRay_Cache[v] then XRay_Cache[v] = v.Transparency end; v.Transparency = XRay_Opacity end end end end
+	local function RemoveXRay() for part, oldTransparency in pairs(XRay_Cache) do if part and part.Parent then part.Transparency = oldTransparency end end; table.clear(XRay_Cache) end
+	CreateSmartSlider(XRay_Container, "Opacity", 0.1, 0.9, function() return 0.5 end, function(val) XRay_Opacity = val; if XRay_Active then for part, _ in pairs(XRay_Cache) do if part and part.Parent then part.Transparency = XRay_Opacity end end end end)
+	CreateSwitchCard(XRay_Container, "Enable X-Ray", function(active) XRay_Active = active; if active then ApplyXRay() else RemoveXRay() end end)
 	CreateButtonCard(XRay_Container, "Refresh", "REFRESH", function() if XRay_Active then ApplyXRay() end end)
 
 	local World_Container = CreateExpandableSection(parentFrame, "World & Lighting")
@@ -967,20 +781,128 @@ local function BuildVisualsTab(parentFrame)
 end
 
 local function BuildSettingsTab(parentFrame)
-	local Layout = Instance.new("UIListLayout"); Layout.Parent = parentFrame; Layout.SortOrder = Enum.SortOrder.LayoutOrder; Layout.Padding = UDim.new(0, 10)
-	local Padding = Instance.new("UIPadding"); Padding.Parent = parentFrame; Padding.PaddingTop = UDim.new(0, 15); Padding.PaddingLeft = UDim.new(0, 15); Padding.PaddingRight = UDim.new(0, 15)
-	local DPICard = CreateCard(parentFrame, UDim2.new(1, 0, 0, 85)); DPICard.ClipsDescendants = false
-	local SettingsLabel = Instance.new("TextLabel"); SettingsLabel.Parent = DPICard; SettingsLabel.BackgroundTransparency = 1; SettingsLabel.Position = UDim2.new(0, 15, 0, 10); SettingsLabel.Size = UDim2.new(1, -30, 0, 20); SettingsLabel.Font = Theme.FontBold; SettingsLabel.Text = "Interface Scale (DPI)"; SettingsLabel.TextColor3 = Theme.Text; SettingsLabel.TextSize = 14; SettingsLabel.TextXAlignment = Enum.TextXAlignment.Left
-	local DPIBtn = Instance.new("TextButton"); DPIBtn.Parent = DPICard; DPIBtn.BackgroundColor3 = Theme.Sidebar; DPIBtn.Position = UDim2.new(0, 15, 0, 35); DPIBtn.Size = UDim2.new(1, -30, 0, 35); DPIBtn.Font = Theme.FontBold; DPIBtn.Text = IsMobile and "   Size: 75% (Medium)" or "   Size: 100% (Default)"; DPIBtn.TextColor3 = Theme.TextDim; DPIBtn.TextSize = 12; DPIBtn.TextXAlignment = Enum.TextXAlignment.Left; DPIBtn.AutoButtonColor = false; Instance.new("UICorner", DPIBtn).CornerRadius = UDim.new(0, 6); local DPIB_S = Instance.new("UIStroke"); DPIB_S.Parent = DPIBtn; DPIB_S.Color = Theme.Separator; DPIB_S.Thickness = 1
-	local DPIFrame = Instance.new("Frame"); DPIFrame.Parent = DPICard; DPIFrame.BackgroundColor3 = Theme.Main; DPIFrame.Position = UDim2.new(0, 15, 0, 75); DPIFrame.Size = UDim2.new(1, -30, 0, 0); DPIFrame.ClipsDescendants = true; DPIFrame.Visible = false; DPIFrame.ZIndex = 10; Instance.new("UICorner", DPIFrame).CornerRadius = UDim.new(0, 6); local DPIF_S = Instance.new("UIStroke"); DPIF_S.Parent = DPIFrame; DPIF_S.Color = Theme.Accent; DPIF_S.Transparency = 0.5; DPIF_S.Thickness = 1; local DPIList = Instance.new("UIListLayout"); DPIList.Parent = DPIFrame; DPIList.SortOrder = Enum.SortOrder.LayoutOrder
+	local Layout = Instance.new("UIListLayout"); Layout.Parent = parentFrame
+	Layout.SortOrder = Enum.SortOrder.LayoutOrder
+	Layout.Padding = UDim.new(0, 10)
+
+	local Padding = Instance.new("UIPadding"); Padding.Parent = parentFrame
+	Padding.PaddingTop = UDim.new(0, 15); Padding.PaddingLeft = UDim.new(0, 15); Padding.PaddingRight = UDim.new(0, 15)
+	
+	-- =================================================================
+	-- [GROUP 1: INTERFACE]
+	-- =================================================================
+	local DPICard = CreateCard(parentFrame, UDim2.new(1, 0, 0, 85))
+	DPICard.LayoutOrder = 1; DPICard.ZIndex = 100; DPICard.ClipsDescendants = false
+
+	local SettingsLabel = Instance.new("TextLabel"); SettingsLabel.Parent = DPICard
+	SettingsLabel.BackgroundTransparency = 1; SettingsLabel.Position = UDim2.new(0, 15, 0, 10); SettingsLabel.Size = UDim2.new(1, -30, 0, 20)
+	SettingsLabel.Font = Theme.FontBold; SettingsLabel.Text = "Interface Scale (DPI)"; SettingsLabel.TextColor3 = Theme.Text
+	SettingsLabel.TextSize = 14; SettingsLabel.TextXAlignment = Enum.TextXAlignment.Left
+	
+	local DPIBtn = Instance.new("TextButton"); DPIBtn.Parent = DPICard
+	DPIBtn.BackgroundColor3 = Theme.Sidebar; DPIBtn.Position = UDim2.new(0, 15, 0, 35); DPIBtn.Size = UDim2.new(1, -30, 0, 35)
+	DPIBtn.Font = Theme.FontBold; DPIBtn.Text = IsMobile and "  Size: 75% (Medium)" or "  Size: 100% (Default)"; DPIBtn.TextColor3 = Theme.TextDim
+	DPIBtn.TextSize = 12; DPIBtn.TextXAlignment = Enum.TextXAlignment.Left; DPIBtn.AutoButtonColor = false; DPIBtn.ZIndex = 101
+	Instance.new("UICorner", DPIBtn).CornerRadius = UDim.new(0, 6)
+	local DPIB_S = Instance.new("UIStroke"); DPIB_S.Parent = DPIBtn; DPIB_S.Color = Theme.Separator; DPIB_S.Thickness = 1
+	
+	local DPIFrame = Instance.new("Frame"); DPIFrame.Parent = DPICard
+	DPIFrame.BackgroundColor3 = Theme.Main; DPIFrame.Position = UDim2.new(0, 15, 0, 75); DPIFrame.Size = UDim2.new(1, -30, 0, 0)
+	DPIFrame.ClipsDescendants = true; DPIFrame.Visible = false; DPIFrame.ZIndex = 105
+	Instance.new("UICorner", DPIFrame).CornerRadius = UDim.new(0, 6)
+	local DPIF_S = Instance.new("UIStroke"); DPIF_S.Parent = DPIFrame; DPIF_S.Color = Theme.Accent; DPIF_S.Transparency = 0.5; DPIF_S.Thickness = 1
+	local DPIList = Instance.new("UIListLayout"); DPIList.Parent = DPIFrame; DPIList.SortOrder = Enum.SortOrder.LayoutOrder
+	
 	local dpiOpen, dpiConnection = false, nil
-	local function ToggleDPI(forceClose) if forceClose then dpiOpen = false else dpiOpen = not dpiOpen end; if dpiConnection then dpiConnection:Disconnect(); dpiConnection = nil end; if dpiOpen then DPIFrame.Visible = true; TweenService:Create(DPIFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(1, -30, 0, 105)}):Play(); dpiConnection = UserInputService.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then local mPos = Vector2.new(input.Position.X, input.Position.Y); local btnPos, btnSize = DPIBtn.AbsolutePosition, DPIBtn.AbsoluteSize; local frmPos, frmSize = DPIFrame.AbsolutePosition, DPIFrame.AbsoluteSize; if not (mPos.X >= btnPos.X and mPos.X <= btnPos.X + btnSize.X and mPos.Y >= btnPos.Y and mPos.Y <= btnPos.Y + btnSize.Y) and not (mPos.X >= frmPos.X and mPos.X <= frmPos.X + frmSize.X and mPos.Y >= frmPos.Y and mPos.Y <= frmPos.Y + frmSize.Y) then ToggleDPI(true) end end end) else TweenService:Create(DPIFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(1, -30, 0, 0)}):Play(); task.wait(0.3); if not dpiOpen then DPIFrame.Visible = false end end end
+	local function ToggleDPI(forceClose) 
+		if forceClose then dpiOpen = false else dpiOpen = not dpiOpen end
+		if dpiConnection then dpiConnection:Disconnect(); dpiConnection = nil end
+		if dpiOpen then 
+			DPIFrame.Visible = true; TweenService:Create(DPIFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(1, -30, 0, 105)}):Play()
+			dpiConnection = UserInputService.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then local mPos = Vector2.new(input.Position.X, input.Position.Y); local btnPos, btnSize = DPIBtn.AbsolutePosition, DPIBtn.AbsoluteSize; local frmPos, frmSize = DPIFrame.AbsolutePosition, DPIFrame.AbsoluteSize; if not (mPos.X >= btnPos.X and mPos.X <= btnPos.X + btnSize.X and mPos.Y >= btnPos.Y and mPos.Y <= btnPos.Y + btnSize.Y) and not (mPos.X >= frmPos.X and mPos.X <= frmPos.X + frmSize.X and mPos.Y >= frmPos.Y and mPos.Y <= frmPos.Y + frmSize.Y) then ToggleDPI(true) end end end) 
+		else TweenService:Create(DPIFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(1, -30, 0, 0)}):Play(); task.wait(0.3); if not dpiOpen then DPIFrame.Visible = false end end 
+	end
 	DPIBtn.MouseButton1Click:Connect(function() ToggleDPI() end)
-	local function AddDPIOption(txt, scaleVal) local Opt = Instance.new("TextButton"); Opt.Parent = DPIFrame; Opt.BackgroundColor3 = Theme.Main; Opt.Size = UDim2.new(1, 0, 0, 35); Opt.Font = Theme.FontMain; Opt.Text = txt; Opt.TextColor3 = Theme.TextDim; Opt.TextSize = 12; Opt.AutoButtonColor = true; Opt.MouseButton1Click:Connect(function() TweenService:Create(UIScale, TweenInfo.new(0.5, Enum.EasingStyle.Back), {Scale = scaleVal}):Play(); DPIBtn.Text = "   Size: " .. txt; ToggleDPI(true) end) end
+	local function AddDPIOption(txt, scaleVal) local Opt = Instance.new("TextButton"); Opt.Parent = DPIFrame; Opt.BackgroundColor3 = Theme.Main; Opt.Size = UDim2.new(1, 0, 0, 35); Opt.Font = Theme.FontMain; Opt.Text = txt; Opt.TextColor3 = Theme.TextDim; Opt.TextSize = 12; Opt.AutoButtonColor = true; Opt.ZIndex = 106; Opt.MouseButton1Click:Connect(function() TweenService:Create(UIScale, TweenInfo.new(0.5, Enum.EasingStyle.Back), {Scale = scaleVal}):Play(); DPIBtn.Text = "  Size: " .. txt; ToggleDPI(true) end) end
 	AddDPIOption("100% (Default)", 1); AddDPIOption("75% (Medium)", 0.75); AddDPIOption("50% (Small)", 0.5)
+
+	-- =================================================================
+	-- [GROUP 2: PERFORMANCE]
+	-- =================================================================
+	
+	-- 1. UNLOCK FPS
+	local FPSUnlock = CreateMainSwitch(parentFrame, "Unlock FPS (Limit 60 -> 999)", function(active)
+		if setfpscap then setfpscap(active and 999 or 60) end
+	end)
+	if FPSUnlock.Card then FPSUnlock.Card.LayoutOrder = 2; FPSUnlock.Card.ZIndex = 90 end
+
+	-- 2. LOW CPU / BLACK SCREEN
+	local BlackScreenGUI = nil
+	local LowCPU = CreateMainSwitch(parentFrame, "Low CPU (Black Screen)", function(active)
+		-- Matikan Rendering 3D
+		RunService:Set3dRenderingEnabled(not active)
+		
+		if active then
+			if not BlackScreenGUI then
+				BlackScreenGUI = Instance.new("ScreenGui")
+				BlackScreenGUI.Name = "NeeR_BlackScreen"
+				BlackScreenGUI.Parent = CoreGui
+				BlackScreenGUI.IgnoreGuiInset = true
+				
+				-- [LOGIKA PENTING] 
+				-- Pastikan layer BlackScreen selalu DI BAWAH layer Script Utama
+				-- Script utama (parentFrame.Parent) biasanya punya DisplayOrder 0 atau default.
+				-- Kita set script utama ke tinggi, dan black screen ke rendah.
+				
+				-- Ambil ScreenGui utama dari script ini
+				local MainGui = parentFrame:FindFirstAncestorOfClass("ScreenGui")
+				if MainGui then
+					MainGui.DisplayOrder = 100 -- Pastikan Menu selalu di atas
+					BlackScreenGUI.DisplayOrder = 90 -- Layar hitam di bawah Menu, tapi di atas Game
+				end
+				
+				local BlackFrame = Instance.new("Frame")
+				BlackFrame.Parent = BlackScreenGUI
+				BlackFrame.BackgroundColor3 = Color3.new(0, 0, 0)
+				BlackFrame.Size = UDim2.new(1, 0, 1, 0)
+				
+				local Info = Instance.new("TextLabel")
+				Info.Parent = BlackFrame; Info.BackgroundTransparency = 1
+				Info.Position = UDim2.new(0, 0, 0.9, 0); Info.Size = UDim2.new(1, 0, 0, 20)
+				Info.Font = Theme.FontMain; Info.Text = "Rendering Disabled (Battery Saver Active)"; Info.TextColor3 = Color3.fromRGB(100, 100, 100); Info.TextSize = 12
+			end
+		else
+			if BlackScreenGUI then BlackScreenGUI:Destroy(); BlackScreenGUI = nil end
+		end
+	end)
+	if LowCPU.Card then LowCPU.Card.LayoutOrder = 3; LowCPU.Card.ZIndex = 80 end
+
+	-- =================================================================
+	-- [GROUP 3: SYSTEM UTILITY]
+	-- =================================================================
+	local afkConnection = nil; local VirtualUser = game:GetService("VirtualUser")
+	local AFKSwitch = CreateMainSwitch(parentFrame, "Anti-AFK (Prevent Kick)", function(active)
+		if active then
+			afkConnection = LocalPlayer.Idled:Connect(function() VirtualUser:CaptureController(); VirtualUser:ClickButton2(Vector2.new()) end)
+		else if afkConnection then afkConnection:Disconnect(); afkConnection = nil end end
+	end)
+	if AFKSwitch.Card then AFKSwitch.Card.LayoutOrder = 4; AFKSwitch.Card.ZIndex = 70 end
+
+	-- =================================================================
+	-- [GROUP 4: DANGER ZONE]
+	-- =================================================================
+	local ExitBtn = Instance.new("TextButton"); ExitBtn.Parent = parentFrame
+	ExitBtn.LayoutOrder = 10; ExitBtn.ZIndex = 1
+	ExitBtn.BackgroundColor3 = Theme.Red; ExitBtn.BackgroundTransparency = 0.2
+	ExitBtn.Size = UDim2.new(1, 0, 0, 35)
+	ExitBtn.Font = Theme.FontBold; ExitBtn.Text = "INSTANT EXIT (FORCE CLOSE)"; ExitBtn.TextColor3 = Theme.Text; ExitBtn.TextSize = 12
+	Instance.new("UICorner", ExitBtn).CornerRadius = UDim.new(0, 8)
+	local RS = Instance.new("UIStroke"); RS.Parent = ExitBtn; RS.Color = Theme.Red; RS.Thickness = 1; RS.Transparency = 0.5
+	
+	ExitBtn.MouseButton1Click:Connect(function() game:Shutdown() end)
 end
 
---// [BAGIAN 8] EKSEKUSI ANIMASI LOADING & SETUP
+--// [7] EKSEKUSI
 Loader.Start()
 
 task.spawn(function()
@@ -992,7 +914,6 @@ task.spawn(function()
 	Loader.Update("Loading Settings...", 0.9); local TabSettings = CreateTabBtn("Settings", false); BuildSettingsTab(TabSettings); task.wait(0.5)
 	
 	Loader.Finish(function()
-		-- Animasi Masuk Main UI (Slow & Elegant)
 		MainFrame.Visible = true
 		MainFrame.Size = UDim2.new(0, 0, 0, 0)
 		TweenService:Create(MainFrame, TweenInfo.new(0.8, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
