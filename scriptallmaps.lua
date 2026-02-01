@@ -934,23 +934,41 @@ local function BuildToolsTab(parentFrame)
 		StateForce = { Active = false } 
 	}
 
-	-- [2] ENGINE UTAMA (UPDATED FOR MOBILE)
-	local ToolLoop, JumpRequestConn, MobileJumpConn
+	-- [2] ENGINE UTAMA (MOBILE FIX V2)
+	local ToolLoop, JumpRequestConn
 
 	local function StartToolEngine()
 		if ToolLoop then return end
 		
-		-- A. LOOP FRAME (RenderStepped)
+		-- A. LOOP FRAME (RenderStepped) - JANTUNG UTAMA
 		ToolLoop = RunService.RenderStepped:Connect(function()
 			local char = LocalPlayer.Character
 			local hum = char and char:FindFirstChild("Humanoid")
 			local root = char and char:FindFirstChild("HumanoidRootPart")
 
 			if hum and root then
-				-- Force Jump Values
+				-- >>> LOGIKA FORCE JUMP (DI-UPDATE KHUSUS MOBILE) <<<
 				if ToolsConfig.Jump.Active then
+					-- 1. Paksa Angka Power
 					if hum.JumpPower ~= ToolsConfig.Jump.Value then hum.JumpPower = ToolsConfig.Jump.Value end
 					if not hum.UseJumpPower then hum.UseJumpPower = true end
+					
+					-- 2. Paksa Saklar (State) Selalu ON
+					-- Ini penting agar tombol lompat di layar tidak "abu-abu" atau macet
+					hum:SetStateEnabled(Enum.HumanoidStateType.Jumping, true)
+					
+					-- 3. DETEKSI INPUT MOBILE (Aggressive Check)
+					-- Kita cek properti .Jump langsung di dalam loop super cepat ini
+					if hum.Jump then
+						-- Cek apakah karakter menapak tanah (FloorMaterial)
+						-- Agar tidak jadi Infinity Jump (terbang terus)
+						if hum.FloorMaterial ~= Enum.Material.Air then
+							-- PAKSA STATE LOMPAT SEKARANG JUGA!
+							hum:ChangeState(Enum.HumanoidStateType.Jumping)
+							-- Reset properti Jump biar tidak spamming
+							hum.Jump = false 
+						end
+					end
 				end
 
 				-- Force Speed
@@ -965,14 +983,15 @@ local function BuildToolsTab(parentFrame)
 					end
 				end
 				
-				-- Force Saklar
+				-- Force Saklar Manual (Tombol Merah)
 				if ToolsConfig.StateForce.Active then
 					hum:SetStateEnabled(Enum.HumanoidStateType.Jumping, true)
 				end
 			end
 		end)
 
-		-- B. JUMP TRIGGER 1: PC (SPASI)
+		-- B. JUMP TRIGGER (KHUSUS PC/KEYBOARD)
+		-- Tetap kita simpan untuk pengguna PC
 		JumpRequestConn = UserInputService.JumpRequest:Connect(function()
 			if ToolsConfig.Jump.Active then
 				local char = LocalPlayer.Character; local hum = char and char:FindFirstChild("Humanoid")
@@ -981,33 +1000,11 @@ local function BuildToolsTab(parentFrame)
 				end
 			end
 		end)
-		
-		-- C. JUMP TRIGGER 2: MOBILE (TOMBOL LAYAR) - [FIX]
-		-- Kita memantau properti .Jump pada Humanoid.
-		-- Saat tombol layar ditekan, .Jump menjadi true. Kita tangkap momen itu.
-		local function SetupMobileJump(character)
-			local h = character:WaitForChild("Humanoid", 10)
-			if h then
-				if MobileJumpConn then MobileJumpConn:Disconnect() end
-				MobileJumpConn = h:GetPropertyChangedSignal("Jump"):Connect(function()
-					if h.Jump and ToolsConfig.Jump.Active then
-						-- Cek tanah agar tidak infinity jump
-						if h.FloorMaterial ~= Enum.Material.Air then
-							h:ChangeState(Enum.HumanoidStateType.Jumping)
-						end
-					end
-				end)
-			end
-		end
-		
-		-- Setup awal & saat respawn
-		if LocalPlayer.Character then SetupMobileJump(LocalPlayer.Character) end
-		LocalPlayer.CharacterAdded:Connect(SetupMobileJump)
 	end
 	StartToolEngine()
 
 
-	-- [3] UI BUILDER (SAMA SEPERTI SEBELUMNYA)
+	-- [3] UI BUILDER (BAGIAN INI TIDAK BERUBAH)
 	local ForceSection = CreateExpandableSection(parentFrame, "Force Movement Control")
 	local MainCard = CreateCard(ForceSection, UDim2.new(1, 0, 0, 0), 0); MainCard.AutomaticSize = Enum.AutomaticSize.Y
 	local CardLayout = Instance.new("UIListLayout"); CardLayout.Parent = MainCard; CardLayout.SortOrder = Enum.SortOrder.LayoutOrder; CardLayout.Padding = UDim.new(0, 8); CardLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
