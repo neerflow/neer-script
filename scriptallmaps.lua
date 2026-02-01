@@ -865,11 +865,6 @@ local function BuildSettingsTab(parentFrame)
 				BlackScreenGUI.Parent = CoreGui
 				BlackScreenGUI.IgnoreGuiInset = true
 				
-				-- [LOGIKA PENTING] 
-				-- Pastikan layer BlackScreen selalu DI BAWAH layer Script Utama
-				-- Script utama (parentFrame.Parent) biasanya punya DisplayOrder 0 atau default.
-				-- Kita set script utama ke tinggi, dan black screen ke rendah.
-				
 				-- Ambil ScreenGui utama dari script ini
 				local MainGui = parentFrame:FindFirstAncestorOfClass("ScreenGui")
 				if MainGui then
@@ -893,12 +888,23 @@ local function BuildSettingsTab(parentFrame)
 	end)
 	if LowCPU.Card then LowCPU.Card.LayoutOrder = 3; LowCPU.Card.ZIndex = 80 end
 
-	local afkConnection = nil; local VirtualUser = game:GetService("VirtualUser")
-	local AFKSwitch = CreateMainSwitch(parentFrame, "Anti-AFK (Prevent Kick)", function(active)
-		if active then
-			afkConnection = LocalPlayer.Idled:Connect(function() VirtualUser:CaptureController(); VirtualUser:ClickButton2(Vector2.new()) end)
-		else if afkConnection then afkConnection:Disconnect(); afkConnection = nil end end
-	end)
+	-- [GANTI DENGAN INI]
+local afkConnection = nil
+-- Hapus variabel VirtualUser, kita ganti logikanya:
+local AFKSwitch = CreateMainSwitch(parentFrame, "Anti-AFK (Prevent Kick)", function(active)
+	if active then
+		-- Logika Baru: Tunggu sinyal 'Idled' dari Roblox, lalu lompat
+		afkConnection = LocalPlayer.Idled:Connect(function()
+			local char = LocalPlayer.Character
+			local hum = char and char:FindFirstChild("Humanoid")
+			if hum then
+				hum.Jump = true -- Memaksa karakter lompat (Terhitung aktivitas fisik)
+			end
+		end)
+	else
+		if afkConnection then afkConnection:Disconnect(); afkConnection = nil end
+	end
+end)
 	if AFKSwitch.Card then AFKSwitch.Card.LayoutOrder = 4; AFKSwitch.Card.ZIndex = 70 end
 
 	local ExitBtn = Instance.new("TextButton"); ExitBtn.Parent = parentFrame
@@ -984,7 +990,6 @@ local function BuildToolsTab(parentFrame)
 		end)
 	end
 	StartToolEngine()
-
 
 	-- [3] UI BUILDER (ALL IN ONE CARD)
 	local ForceSection = CreateExpandableSection(parentFrame, "Force Movement Control")
