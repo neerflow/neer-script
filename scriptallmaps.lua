@@ -109,18 +109,24 @@ function Loader.Finish(onFinishCallback)
 end
 
 --// [3] SESSION MANAGER
-local DefaultStats = { WalkSpeed = 16, JumpPower = 50 }
+--// [3] SESSION MANAGER
+-- Menambahkan 'Gravity' ke tabel penyimpanan default
+local DefaultStats = { WalkSpeed = 16, JumpPower = 50, Gravity = 196.2 } 
+
 local function SaveDefaultStats()
 	local char = LocalPlayer.Character
+	-- [PENTING] Simpan Gravitasi Map saat ini sebagai default
+	DefaultStats.Gravity = Workspace.Gravity 
+	
 	if char and char:FindFirstChild("Humanoid") then
 		DefaultStats.WalkSpeed = char.Humanoid.WalkSpeed
 		DefaultStats.JumpPower = char.Humanoid.JumpPower
 	end
 end
 LocalPlayer.CharacterAdded:Connect(function(char) char:WaitForChild("Humanoid", 5); SaveDefaultStats() end)
+-- Jalankan sekali di awal untuk menangkap status map
 SaveDefaultStats()
-
-local Session = { StopFly = function() end, StopWalk = function() end, StopJump = function() end, StopNoclip = function() end, StopInfJump = function() end, ResetAll = function() end }
+local Session = { StopFly = function() end, StopWalk = function() end, StopJump = function() end, StopGravity = function() end, StopNoclip = function() end, StopInfJump = function() end, ResetAll = function() end }
 
 --// [4] GUI SETUP
 local ViewportSize = workspace.CurrentCamera.ViewportSize
@@ -459,8 +465,9 @@ local function BuildMovementTab(parentFrame)
 	local Layout = Instance.new("UIListLayout"); Layout.Parent = parentFrame; Layout.SortOrder = Enum.SortOrder.LayoutOrder; Layout.Padding = UDim.new(0, 10)
 	local Padding = Instance.new("UIPadding"); Padding.Parent = parentFrame; Padding.PaddingTop = UDim.new(0, 15); Padding.PaddingLeft = UDim.new(0, 15); Padding.PaddingRight = UDim.new(0, 15)
 
+	-- [HELPER: CONTROL CARD]
 	local function CreateControlCard(title, defaultVal, onToggle, onValChange, onUpdate)
-		local Card = CreateCard(parentFrame, UDim2.new(1, 0, 0, 50), 0)
+		local Card = CreateCard(parentFrame, UDim2.new(1, 0, 0, 40), 0)
 		local TitleLbl = Instance.new("TextLabel"); TitleLbl.Parent = Card; TitleLbl.BackgroundTransparency = 1; TitleLbl.Position = UDim2.new(0, 15, 0, 0); TitleLbl.Size = UDim2.new(0, 70, 1, 0); TitleLbl.Font = Theme.FontBold; TitleLbl.Text = title; TitleLbl.TextColor3 = Theme.Text; TitleLbl.TextSize = 14; TitleLbl.TextXAlignment = Enum.TextXAlignment.Left
 		
 		local Controls = Instance.new("Frame"); Controls.Parent = Card; Controls.BackgroundTransparency = 1; Controls.Position = UDim2.new(1, -170, 0, 0); Controls.Size = UDim2.new(0, 160, 1, 0)
@@ -479,40 +486,25 @@ local function BuildMovementTab(parentFrame)
 			onToggle(isActive, currentVal)
 		end
 		Toggle.MouseButton1Click:Connect(function() SetToggleState(not isActive) end)
-		return { SetState = SetToggleState, Reset = function() currentVal = defaultVal; ValTxt.Text = tostring(currentVal); SetToggleState(false) end }
+		-- Penting: Return Card Object & Reset Function
+		return { 
+			SetState = SetToggleState, 
+			Reset = function() currentVal = defaultVal; ValTxt.Text = tostring(currentVal); SetToggleState(false) end,
+			Card = Card 
+		}
 	end
 
-	--// VARIABEL FLY
-	local flying = false
-	local flySpeed = 1
-	local bv = nil
-	local bg = nil
-	local flyLoop = nil
-	
+	--// 1. FLY MODE
+	local flying = false; local flySpeed = 1; local bv = nil; local bg = nil; local flyLoop = nil
 	Session.StopFly = function()
-		flying = false
-		if bv then bv:Destroy(); bv = nil end
-		if bg then bg:Destroy(); bg = nil end
-		if flyLoop then flyLoop:Disconnect(); flyLoop = nil end
-		
-		local char = LocalPlayer.Character
-		if char and char:FindFirstChild("Humanoid") then
-			char.Humanoid.PlatformStand = false
-			char.Humanoid:ChangeState(Enum.HumanoidStateType.Landed)
-		end
+		flying = false; if bv then bv:Destroy(); bv = nil end; if bg then bg:Destroy(); bg = nil end; if flyLoop then flyLoop:Disconnect(); flyLoop = nil end
+		local char = LocalPlayer.Character; if char and char:FindFirstChild("Humanoid") then char.Humanoid.PlatformStand = false; char.Humanoid:ChangeState(Enum.HumanoidStateType.Landed) end
 	end
-
 	local FlyCtrl = CreateControlCard("Fly Mode", 1, function(active, speed)
 		flying = active; flySpeed = speed
-		if not active then
-			Session.StopFly()
-		else
-			-- [SAFETY] Matikan mode lain sebelum Fly
+		if not active then Session.StopFly() else
 			Session.StopWalk(); Session.StopJump()
-			local char = LocalPlayer.Character
-			local root = char and char:FindFirstChild("HumanoidRootPart")
-			local hum = char and char:FindFirstChild("Humanoid")
-			local cam = workspace.CurrentCamera
+			local char = LocalPlayer.Character; local root = char and char:FindFirstChild("HumanoidRootPart"); local hum = char and char:FindFirstChild("Humanoid"); local cam = workspace.CurrentCamera
 			if not root or not hum then return end
 			if bv then bv:Destroy() end; if bg then bg:Destroy() end
 			bv = Instance.new("BodyVelocity"); bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge); bv.Velocity = Vector3.new(0,0,0); bv.Parent = root
@@ -522,50 +514,81 @@ local function BuildMovementTab(parentFrame)
 				if not flying or not char or not root.Parent then Session.StopFly() return end
 				local moveDir = hum.MoveDirection; local camCF = cam.CFrame
 				if moveDir.Magnitude > 0 then
-					local relDir = camCF:VectorToObjectSpace(moveDir)
-					local rawDir = (camCF.LookVector * -relDir.Z) + (camCF.RightVector * relDir.X)
+					local relDir = camCF:VectorToObjectSpace(moveDir); local rawDir = (camCF.LookVector * -relDir.Z) + (camCF.RightVector * relDir.X)
 					if rawDir.Magnitude > 0.01 then rawDir = rawDir.Unit end
 					bv.Velocity = bv.Velocity:Lerp(rawDir * (flySpeed * 50), 0.2)
-				else bv.Velocity = Vector3.new(0,0,0) end
-				bg.CFrame = cam.CFrame
+				else bv.Velocity = Vector3.new(0,0,0) end; bg.CFrame = cam.CFrame
 			end)
 		end
 	end, function(old, change) return math.max(1, old + change) end, function(newSpeed) flySpeed = newSpeed end)
 
+	--// 2. SPEED WALK
 	local walkLoop; local currentWalkMultiplier = 1
 	local SpeedCtrl = CreateControlCard("Speed Walk", 1, function(active, mul)
 		if walkLoop then walkLoop:Disconnect() end; currentWalkMultiplier = mul
-		if active then
-			Session.StopFly() -- [SAFETY]
-			walkLoop = RunService.Heartbeat:Connect(function() local char = LocalPlayer.Character; if char and char:FindFirstChild("Humanoid") then local targetSpeed = DefaultStats.WalkSpeed * currentWalkMultiplier; if char.Humanoid.WalkSpeed ~= targetSpeed then char.Humanoid.WalkSpeed = targetSpeed end end end) 
-		else Session.StopWalk() end
+		if active then Session.StopFly(); walkLoop = RunService.Heartbeat:Connect(function() local char = LocalPlayer.Character; if char and char:FindFirstChild("Humanoid") then local targetSpeed = DefaultStats.WalkSpeed * currentWalkMultiplier; if char.Humanoid.WalkSpeed ~= targetSpeed then char.Humanoid.WalkSpeed = targetSpeed end end end) else Session.StopWalk() end
 	end, function(old, change) return math.max(1, old + change) end, function(newMul) currentWalkMultiplier = newMul end)
 	Session.StopWalk = function() if walkLoop then walkLoop:Disconnect() end; local char = LocalPlayer.Character; if char and char:FindFirstChild("Humanoid") then char.Humanoid.WalkSpeed = DefaultStats.WalkSpeed end end
 
+	--// 3. HIGH JUMP
 	local jumpLoop; local currentJumpMultiplier = 1
 	local JumpCtrl = CreateControlCard("High Jump", 1, function(active, mul)
 		if jumpLoop then jumpLoop:Disconnect() end; currentJumpMultiplier = mul
-		if active then 
-			Session.StopFly() -- [SAFETY]
-			jumpLoop = RunService.Heartbeat:Connect(function() local char = LocalPlayer.Character; if char and char:FindFirstChild("Humanoid") then local targetJump = DefaultStats.JumpPower * currentJumpMultiplier; if not char.Humanoid.UseJumpPower then char.Humanoid.UseJumpPower = true end; if char.Humanoid.JumpPower ~= targetJump then char.Humanoid.JumpPower = targetJump end end end) 
-		else Session.StopJump() end
+		if active then Session.StopFly(); jumpLoop = RunService.Heartbeat:Connect(function() local char = LocalPlayer.Character; if char and char:FindFirstChild("Humanoid") then local targetJump = DefaultStats.JumpPower * currentJumpMultiplier; if not char.Humanoid.UseJumpPower then char.Humanoid.UseJumpPower = true end; if char.Humanoid.JumpPower ~= targetJump then char.Humanoid.JumpPower = targetJump end end end) else Session.StopJump() end
 	end, function(old, change) return math.max(1, old + change) end, function(newMul) currentJumpMultiplier = newMul end)
 	Session.StopJump = function() if jumpLoop then jumpLoop:Disconnect() end; local char = LocalPlayer.Character; if char and char:FindFirstChild("Humanoid") then char.Humanoid.JumpPower = DefaultStats.JumpPower end end
 
+	--// 4. LOW GRAVITY (Anti-Gravity) - [FITUR BARU]
+	local gravLoop; local currentGravLevel = 1
+	
+	-- Fungsi Reset Internal
+	Session.StopGravity = function()
+		if gravLoop then gravLoop:Disconnect(); gravLoop = nil end
+		Workspace.Gravity = DefaultStats.Gravity -- Kembali ke default map
+	end
+
+	local GravCtrl = CreateControlCard("Low Gravity (Divisor)", 1, function(active, level)
+		if gravLoop then gravLoop:Disconnect() end; currentGravLevel = level
+		if active then
+			-- Loop Gravitasi agar tidak di-overwrite game
+			gravLoop = RunService.Heartbeat:Connect(function()
+				-- Rumus: Gravitasi Default / Level (Makin besar level, makin ringan)
+				Workspace.Gravity = DefaultStats.Gravity / currentGravLevel
+			end)
+		else
+			Session.StopGravity()
+		end
+	end, function(old, change) 
+		-- Logic: Minimal 1 (Normal), Naik/Turun 1
+		return math.max(1, old + change) 
+	end, function(newVal) currentGravLevel = newVal end)
+
+	--// 5. NOCLIP (OLD MODEL)
 	local noclipLoop
 	local NoclipCtrl = CreateMainSwitch(parentFrame, "No Clip Mode", function(active)
 		if active then noclipLoop = RunService.Stepped:Connect(function() local char = LocalPlayer.Character; if char then for _, part in pairs(char:GetDescendants()) do if part:IsA("BasePart") and part.CanCollide then part.CanCollide = false end end end end) else Session.StopNoclip() end
 	end)
 	Session.StopNoclip = function() if noclipLoop then noclipLoop:Disconnect() end; local char = LocalPlayer.Character; local root = char and char:FindFirstChild("HumanoidRootPart"); local hum = char and char:FindFirstChild("Humanoid"); if char and root and hum then for _, part in pairs(char:GetDescendants()) do if part:IsA("BasePart") then if part.Name == "HumanoidRootPart" then part.CanCollide = true; part.Transparency = 1 else part.CanCollide = false end end end; local originalHip = hum.HipHeight; hum.HipHeight = 0; task.wait(); hum.HipHeight = originalHip; hum:ChangeState(Enum.HumanoidStateType.GettingUp) end end
 
+	--// 6. INF JUMP
 	local InfJumpConn
 	local InfJumpCtrl = CreateMainSwitch(parentFrame, "Infinity Jump", function(active)
 		if active then InfJumpConn = UserInputService.JumpRequest:Connect(function() local char = LocalPlayer.Character; if char and char:FindFirstChild("Humanoid") then char.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping) end end) else Session.StopInfJump() end
 	end)
 	Session.StopInfJump = function() if InfJumpConn then InfJumpConn:Disconnect() end end
 
+	--// RESET BUTTON
 	local ResetBtn = Instance.new("TextButton"); ResetBtn.Parent = parentFrame; ResetBtn.BackgroundColor3 = Theme.Red; ResetBtn.BackgroundTransparency = 0.2; ResetBtn.Size = UDim2.new(1, 0, 0, 35); ResetBtn.Font = Theme.FontBold; ResetBtn.Text = "RESET DEFAULT"; ResetBtn.TextColor3 = Theme.Text; ResetBtn.TextSize = 12; Instance.new("UICorner", ResetBtn).CornerRadius = UDim.new(0, 8); local RS = Instance.new("UIStroke"); RS.Parent = ResetBtn; RS.Color = Theme.Red; RS.Thickness = 1; RS.Transparency = 0.5
-	Session.ResetAll = function() FlyCtrl.Reset(); SpeedCtrl.Reset(); JumpCtrl.Reset(); NoclipCtrl.SetState(false); InfJumpCtrl.SetState(false); Session.StopFly(); Session.StopWalk(); Session.StopJump(); Session.StopNoclip(); Session.StopInfJump() end
+	
+	Session.ResetAll = function() 
+		-- Reset Controllers (UI)
+		FlyCtrl.Reset(); SpeedCtrl.Reset(); JumpCtrl.Reset(); GravCtrl.Reset()
+		NoclipCtrl.SetState(false); InfJumpCtrl.SetState(false)
+		
+		-- Stop Logic
+		Session.StopFly(); Session.StopWalk(); Session.StopJump(); Session.StopGravity()
+		Session.StopNoclip(); Session.StopInfJump() 
+	end
 	ResetBtn.MouseButton1Click:Connect(Session.ResetAll)
 end
 
