@@ -926,6 +926,9 @@ local function BuildToolsTab(parentFrame)
 	local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 	local hum = char:WaitForChild("Humanoid")
 	
+	-- UKURAN TOMBOL CUSTOM
+	local BTN_SIZE = 70 
+	
 	local ToolsConfig = {
 		Speed = { Active = false, Value = hum.WalkSpeed }, 
 		TPWalk = { Active = false, Value = 0.5 }, 
@@ -937,27 +940,28 @@ local function BuildToolsTab(parentFrame)
 	local JumpButtonGUI, PCJumpConn = nil, nil
 	local IsHoldingJump = false 
 
-	-- FUNGSI: Hanya Sembunyikan (Jangan pernah paksa munculkan)
-	local function ForceHideNativeJump()
+	-- FUNGSI: HANYA MENYEMBUNYIKAN TOMBOL ASLI (Tidak pernah memunculkan paksa)
+	local function SuppressNativeJump()
 		local PlayerGui = LocalPlayer:FindFirstChild("PlayerGui")
 		if PlayerGui and PlayerGui:FindFirstChild("TouchGui") then
 			local TouchControl = PlayerGui.TouchGui:FindFirstChild("TouchControlFrame")
 			if TouchControl and TouchControl:FindFirstChild("JumpButton") then
-				if TouchControl.JumpButton.Visible then
+				-- Kunci Logika: Jika tombol asli mencoba muncul, kita sembunyikan.
+				if TouchControl.JumpButton.Visible == true then
 					TouchControl.JumpButton.Visible = false
 				end
 			end
 		end
 	end
-	-- Catatan: Saat fitur dimatikan, kita TIDAK melakukan apa-apa.
-	-- Roblox CoreScript akan otomatis memunculkan tombol jika JumpPower > 0.
 
 	-- LOGIKA TOMBOL BUATAN (MOBILE)
 	local function SetMobileMode(active)
 		if active then
 			if JumpButtonGUI then JumpButtonGUI:Destroy() end
 			JumpButtonGUI = Instance.new("ImageButton"); JumpButtonGUI.Name = "NeeR_JumpReplica"; JumpButtonGUI.Parent = ScreenGui
-			JumpButtonGUI.BackgroundTransparency = 1; JumpButtonGUI.Size = UDim2.new(0, 70, 0, 70); JumpButtonGUI.ZIndex = 999
+			JumpButtonGUI.BackgroundTransparency = 1
+			JumpButtonGUI.Size = UDim2.new(0, BTN_SIZE, 0, BTN_SIZE) -- Ukuran 60x60
+			JumpButtonGUI.ZIndex = 999
 			JumpButtonGUI.AnchorPoint = Vector2.new(1, 1); JumpButtonGUI.Position = UDim2.new(1, -25, 1, -20) 
 			JumpButtonGUI.Image = "rbxasset://textures/ui/Input/TouchControlsSheetV2.png"
 			JumpButtonGUI.ImageRectOffset = Vector2.new(1, 146); JumpButtonGUI.ImageRectSize = Vector2.new(144, 144); JumpButtonGUI.ImageTransparency = 0.5
@@ -968,7 +972,7 @@ local function BuildToolsTab(parentFrame)
 					IsHoldingJump = true
 					JumpButtonGUI.ImageRectOffset = Vector2.new(146, 146); JumpButtonGUI.ImageTransparency = 0.2
 					
-					-- SPAM JUMP LOOP (Lebih Cepat)
+					-- SPAM JUMP LOOP
 					task.spawn(function()
 						while IsHoldingJump and JumpButtonGUI do
 							local c = LocalPlayer.Character; local r = c and c:FindFirstChild("HumanoidRootPart"); local h = c and c:FindFirstChild("Humanoid")
@@ -976,12 +980,11 @@ local function BuildToolsTab(parentFrame)
 								local rayParams = RaycastParams.new(); rayParams.FilterDescendantsInstances = {c}
 								local hit = workspace:Raycast(r.Position, Vector3.new(0, -3.5, 0), rayParams)
 								if hit then 
-									-- Suntik Velocity
 									r.AssemblyLinearVelocity = Vector3.new(r.AssemblyLinearVelocity.X, ToolsConfig.Jump.Value, r.AssemblyLinearVelocity.Z)
 									h:ChangeState(Enum.HumanoidStateType.Jumping)
 								end
 							end
-							RunService.Heartbeat:Wait() -- Gunakan Heartbeat agar secepat frame rate asli
+							RunService.Heartbeat:Wait()
 						end
 					end)
 				end
@@ -1034,9 +1037,17 @@ local function BuildToolsTab(parentFrame)
 			if ToolsConfig.Jump.Mode == "Mobile" then SetMobileMode(true)
 			elseif ToolsConfig.Jump.Mode == "PC" then SetPCMode(true) end
 		else
-			-- SAAT MATI: Kembalikan Nilai Default
+			-- SAAT MATI: KEMBALIKAN KONTROL KE MAP
+			-- Kita tidak perlu melakukan apa-apa pada tombol native.
+			-- Jika Map JumpPower = 0 -> Tombol hilang sendiri.
+			-- Jika Map JumpPower = 50 -> Tombol muncul sendiri.
+			
 			local h = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid")
-			if h then h.JumpPower = DefaultStats.JumpPower; h.UseJumpPower = true end
+			if h then 
+				-- Kembalikan nilai ke default map (agar tombol native berperilaku normal)
+				h.JumpPower = DefaultStats.JumpPower 
+				h.UseJumpPower = true 
+			end
 		end
 	end
 
@@ -1137,10 +1148,11 @@ local function BuildToolsTab(parentFrame)
 			local root = char and char:FindFirstChild("HumanoidRootPart")
 			
 			if hum then
-				-- >>> NATIVE BUTTON HIDER (AGRESIF) <<<
-				-- Hanya berjalan jika Force Jump Aktif DAN Mode Mobile
+				-- >>> LOGIKA HIDER (KUNCI PERBAIKAN) <<<
+				-- Hanya panggil SuppressNativeJump jika Force Jump AKTIF dan MODE MOBILE
+				-- Jika Force Jump MATI, loop ini tidak melakukan apa-apa ke tombol native
 				if ToolsConfig.Jump.Active and ToolsConfig.Jump.Mode == "Mobile" then
-					ForceHideNativeJump()
+					SuppressNativeJump()
 				end
 
 				-- Monitor Display
