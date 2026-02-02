@@ -935,30 +935,22 @@ local function BuildToolsTab(parentFrame)
 
 	-- [2] HANDLER JUMP SYSTEM
 	local JumpButtonGUI, PCJumpConn = nil, nil
-	local IsHoldingJump = false -- Variabel status hold
+	local IsHoldingJump = false 
 
-	-- FUNGSI: Agresif Menyembunyikan Tombol Asli
-	-- Kita panggil ini di dalam Loop RenderStepped nanti
+	-- FUNGSI: Hanya Sembunyikan (Jangan pernah paksa munculkan)
 	local function ForceHideNativeJump()
 		local PlayerGui = LocalPlayer:FindFirstChild("PlayerGui")
 		if PlayerGui and PlayerGui:FindFirstChild("TouchGui") then
 			local TouchControl = PlayerGui.TouchGui:FindFirstChild("TouchControlFrame")
 			if TouchControl and TouchControl:FindFirstChild("JumpButton") then
-				TouchControl.JumpButton.Visible = false -- Paksa Sembunyi
+				if TouchControl.JumpButton.Visible then
+					TouchControl.JumpButton.Visible = false
+				end
 			end
 		end
 	end
-	
-	-- FUNGSI: Mengembalikan Tombol Asli (Saat Fitur Mati)
-	local function RestoreNativeJump()
-		local PlayerGui = LocalPlayer:FindFirstChild("PlayerGui")
-		if PlayerGui and PlayerGui:FindFirstChild("TouchGui") then
-			local TouchControl = PlayerGui.TouchGui:FindFirstChild("TouchControlFrame")
-			if TouchControl and TouchControl:FindFirstChild("JumpButton") then
-				TouchControl.JumpButton.Visible = true
-			end
-		end
-	end
+	-- Catatan: Saat fitur dimatikan, kita TIDAK melakukan apa-apa.
+	-- Roblox CoreScript akan otomatis memunculkan tombol jika JumpPower > 0.
 
 	-- LOGIKA TOMBOL BUATAN (MOBILE)
 	local function SetMobileMode(active)
@@ -973,22 +965,23 @@ local function BuildToolsTab(parentFrame)
 			-- EVENT: TEKAN (HOLD START)
 			JumpButtonGUI.InputBegan:Connect(function(input)
 				if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-					IsHoldingJump = true -- Tandai sedang ditekan
+					IsHoldingJump = true
 					JumpButtonGUI.ImageRectOffset = Vector2.new(146, 146); JumpButtonGUI.ImageTransparency = 0.2
 					
-					-- LOOPING JUMP (SPAM/HOLD FEATURE)
+					-- SPAM JUMP LOOP (Lebih Cepat)
 					task.spawn(function()
 						while IsHoldingJump and JumpButtonGUI do
 							local c = LocalPlayer.Character; local r = c and c:FindFirstChild("HumanoidRootPart"); local h = c and c:FindFirstChild("Humanoid")
 							if r and h then
 								local rayParams = RaycastParams.new(); rayParams.FilterDescendantsInstances = {c}
 								local hit = workspace:Raycast(r.Position, Vector3.new(0, -3.5, 0), rayParams)
-								if hit then -- Hanya lompat jika menyentuh tanah
+								if hit then 
+									-- Suntik Velocity
 									r.AssemblyLinearVelocity = Vector3.new(r.AssemblyLinearVelocity.X, ToolsConfig.Jump.Value, r.AssemblyLinearVelocity.Z)
 									h:ChangeState(Enum.HumanoidStateType.Jumping)
 								end
 							end
-							task.wait(0.15) -- Interval antar lompatan (Biar smooth tidak crash)
+							RunService.Heartbeat:Wait() -- Gunakan Heartbeat agar secepat frame rate asli
 						end
 					end)
 				end
@@ -997,12 +990,11 @@ local function BuildToolsTab(parentFrame)
 			-- EVENT: LEPAS (HOLD END)
 			JumpButtonGUI.InputEnded:Connect(function(input)
 				if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-					IsHoldingJump = false -- Stop looping
+					IsHoldingJump = false
 					JumpButtonGUI.ImageRectOffset = Vector2.new(1, 146); JumpButtonGUI.ImageTransparency = 0.5
 				end
 			end)
 			
-			-- Safety: Jika jari keluar tombol tanpa lepas
 			JumpButtonGUI.MouseLeave:Connect(function() 
 				IsHoldingJump = false 
 				JumpButtonGUI.ImageRectOffset = Vector2.new(1, 146); JumpButtonGUI.ImageTransparency = 0.5
@@ -1042,9 +1034,7 @@ local function BuildToolsTab(parentFrame)
 			if ToolsConfig.Jump.Mode == "Mobile" then SetMobileMode(true)
 			elseif ToolsConfig.Jump.Mode == "PC" then SetPCMode(true) end
 		else
-			-- Saat dimatikan, kembalikan tombol asli
-			RestoreNativeJump()
-			
+			-- SAAT MATI: Kembalikan Nilai Default
 			local h = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid")
 			if h then h.JumpPower = DefaultStats.JumpPower; h.UseJumpPower = true end
 		end
@@ -1101,7 +1091,7 @@ local function BuildToolsTab(parentFrame)
 		return { SetState = SetState }
 	end
 
-	-- CONTROLS
+	-- C. CONTROLS
 	local ForceSpeedCtrl, TPWalkCtrl
 	ForceSpeedCtrl = CreateRow("Force Speed", ToolsConfig.Speed.Value, 5, 1, 500, function(active)
 		ToolsConfig.Speed.Active = active
@@ -1119,7 +1109,7 @@ local function BuildToolsTab(parentFrame)
 		UpdateJumpState()
 	end, function(val) ToolsConfig.Jump.Value = val end)
 
-	-- D. MODE SELECTOR
+	-- D. MODE SELECTOR (SPLIT)
 	local ModeContainer = Instance.new("Frame"); ModeContainer.Parent = MainCard; ModeContainer.BackgroundColor3 = Theme.Sidebar; ModeContainer.BackgroundTransparency = 0.5; ModeContainer.Size = UDim2.new(1, 0, 0, 30); ModeContainer.LayoutOrder = 3; Instance.new("UICorner", ModeContainer).CornerRadius = UDim.new(0, 6)
 	local MobBtn = Instance.new("TextButton"); MobBtn.Parent = ModeContainer; MobBtn.Size = UDim2.new(0.5, -2, 1, 0); MobBtn.Position = UDim2.new(0, 0, 0, 0); MobBtn.Text = "MOBILE MODE"; MobBtn.Font = Enum.Font.GothamBold; MobBtn.TextSize = 9; Instance.new("UICorner", MobBtn).CornerRadius = UDim.new(0, 6)
 	local PCBtn = Instance.new("TextButton"); PCBtn.Parent = ModeContainer; PCBtn.Size = UDim2.new(0.5, -2, 1, 0); PCBtn.Position = UDim2.new(0.5, 2, 0, 0); PCBtn.Text = "PC MODE"; PCBtn.Font = Enum.Font.GothamBold; PCBtn.TextSize = 9; Instance.new("UICorner", PCBtn).CornerRadius = UDim.new(0, 6)
@@ -1147,9 +1137,8 @@ local function BuildToolsTab(parentFrame)
 			local root = char and char:FindFirstChild("HumanoidRootPart")
 			
 			if hum then
-				-- >>> [PENTING] AUTO-HIDE NATIVE BUTTON <<<
-				-- Jika Force Jump Aktif DAN Mode Mobile Aktif, paksa sembunyikan tombol asli SETIAP FRAME
-				-- Ini mengatasi map yang "memaksa muncul" tombolnya lagi
+				-- >>> NATIVE BUTTON HIDER (AGRESIF) <<<
+				-- Hanya berjalan jika Force Jump Aktif DAN Mode Mobile
 				if ToolsConfig.Jump.Active and ToolsConfig.Jump.Mode == "Mobile" then
 					ForceHideNativeJump()
 				end
@@ -1163,8 +1152,13 @@ local function BuildToolsTab(parentFrame)
 				else JumpInfo.Text = tostring(math.floor(hum.JumpPower)); JumpInfo.TextColor3 = Theme.TextDim end
 				
 				local isJumpEnabled = hum:GetStateEnabled(Enum.HumanoidStateType.Jumping)
-				if isJumpEnabled then StateInfo.Text = "ACTIVE"; StateInfo.TextColor3 = Theme.Green; FixStateBtn.Visible = false; ToolsConfig.StateForce.Active = false
-				else StateInfo.Text = "DISABLED"; StateInfo.TextColor3 = Theme.Red; FixStateBtn.Visible = true end
+				if isJumpEnabled then
+					StateInfo.Text = "ACTIVE"; StateInfo.TextColor3 = Theme.Green
+					FixStateBtn.Visible = false; ToolsConfig.StateForce.Active = false
+				else
+					StateInfo.Text = "DISABLED"; StateInfo.TextColor3 = Theme.Red
+					FixStateBtn.Visible = true 
+				end
 
 				-- Force Movement
 				if root then
