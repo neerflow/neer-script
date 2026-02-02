@@ -922,7 +922,7 @@ local function BuildToolsTab(parentFrame)
 	local Layout = Instance.new("UIListLayout"); Layout.Parent = parentFrame; Layout.SortOrder = Enum.SortOrder.LayoutOrder; Layout.Padding = UDim.new(0, 10)
 	local Padding = Instance.new("UIPadding"); Padding.Parent = parentFrame; Padding.PaddingTop = UDim.new(0, 15); Padding.PaddingLeft = UDim.new(0, 15); Padding.PaddingRight = UDim.new(0, 15)
 
-	-- [1] DATA & CONFIG
+	-- [1] CONFIG & VARS
 	local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 	local hum = char:WaitForChild("Humanoid")
 	
@@ -933,25 +933,36 @@ local function BuildToolsTab(parentFrame)
 		StateForce = { Active = false }
 	}
 
-	-- [2] HANDLER JUMP & NATIVE BUTTON HIDER
+	-- [2] HANDLER JUMP SYSTEM
 	local JumpButtonGUI, PCJumpConn = nil, nil
+	local IsHoldingJump = false -- Variabel status hold
 
-	-- Fungsi untuk Menyembunyikan/Menampilkan Tombol Asli Roblox
-	local function ToggleNativeJump(hide)
-		pcall(function()
-			local PlayerGui = LocalPlayer:FindFirstChild("PlayerGui")
-			if PlayerGui and PlayerGui:FindFirstChild("TouchGui") then
-				local TouchControl = PlayerGui.TouchGui:FindFirstChild("TouchControlFrame")
-				if TouchControl and TouchControl:FindFirstChild("JumpButton") then
-					TouchControl.JumpButton.Visible = not hide -- Jika hide=true, Visible=false
-				end
+	-- FUNGSI: Agresif Menyembunyikan Tombol Asli
+	-- Kita panggil ini di dalam Loop RenderStepped nanti
+	local function ForceHideNativeJump()
+		local PlayerGui = LocalPlayer:FindFirstChild("PlayerGui")
+		if PlayerGui and PlayerGui:FindFirstChild("TouchGui") then
+			local TouchControl = PlayerGui.TouchGui:FindFirstChild("TouchControlFrame")
+			if TouchControl and TouchControl:FindFirstChild("JumpButton") then
+				TouchControl.JumpButton.Visible = false -- Paksa Sembunyi
 			end
-		end)
+		end
+	end
+	
+	-- FUNGSI: Mengembalikan Tombol Asli (Saat Fitur Mati)
+	local function RestoreNativeJump()
+		local PlayerGui = LocalPlayer:FindFirstChild("PlayerGui")
+		if PlayerGui and PlayerGui:FindFirstChild("TouchGui") then
+			local TouchControl = PlayerGui.TouchGui:FindFirstChild("TouchControlFrame")
+			if TouchControl and TouchControl:FindFirstChild("JumpButton") then
+				TouchControl.JumpButton.Visible = true
+			end
+		end
 	end
 
+	-- LOGIKA TOMBOL BUATAN (MOBILE)
 	local function SetMobileMode(active)
 		if active then
-			-- 1. Buat Tombol Kita
 			if JumpButtonGUI then JumpButtonGUI:Destroy() end
 			JumpButtonGUI = Instance.new("ImageButton"); JumpButtonGUI.Name = "NeeR_JumpReplica"; JumpButtonGUI.Parent = ScreenGui
 			JumpButtonGUI.BackgroundTransparency = 1; JumpButtonGUI.Size = UDim2.new(0, 75, 0, 75); JumpButtonGUI.ZIndex = 999
@@ -959,35 +970,51 @@ local function BuildToolsTab(parentFrame)
 			JumpButtonGUI.Image = "rbxasset://textures/ui/Input/TouchControlsSheetV2.png"
 			JumpButtonGUI.ImageRectOffset = Vector2.new(1, 146); JumpButtonGUI.ImageRectSize = Vector2.new(144, 144); JumpButtonGUI.ImageTransparency = 0.5
 			
-			-- 2. Sembunyikan Tombol Asli
-			ToggleNativeJump(true)
-
+			-- EVENT: TEKAN (HOLD START)
 			JumpButtonGUI.InputBegan:Connect(function(input)
 				if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+					IsHoldingJump = true -- Tandai sedang ditekan
 					JumpButtonGUI.ImageRectOffset = Vector2.new(146, 146); JumpButtonGUI.ImageTransparency = 0.2
-					local c = LocalPlayer.Character; local r = c and c:FindFirstChild("HumanoidRootPart"); local h = c and c:FindFirstChild("Humanoid")
-					if r and h then
-						local rayParams = RaycastParams.new(); rayParams.FilterDescendantsInstances = {c}
-						local hit = workspace:Raycast(r.Position, Vector3.new(0, -3.5, 0), rayParams)
-						if hit then
-							r.AssemblyLinearVelocity = Vector3.new(r.AssemblyLinearVelocity.X, ToolsConfig.Jump.Value, r.AssemblyLinearVelocity.Z)
-							h:ChangeState(Enum.HumanoidStateType.Jumping)
+					
+					-- LOOPING JUMP (SPAM/HOLD FEATURE)
+					task.spawn(function()
+						while IsHoldingJump and JumpButtonGUI do
+							local c = LocalPlayer.Character; local r = c and c:FindFirstChild("HumanoidRootPart"); local h = c and c:FindFirstChild("Humanoid")
+							if r and h then
+								local rayParams = RaycastParams.new(); rayParams.FilterDescendantsInstances = {c}
+								local hit = workspace:Raycast(r.Position, Vector3.new(0, -3.5, 0), rayParams)
+								if hit then -- Hanya lompat jika menyentuh tanah
+									r.AssemblyLinearVelocity = Vector3.new(r.AssemblyLinearVelocity.X, ToolsConfig.Jump.Value, r.AssemblyLinearVelocity.Z)
+									h:ChangeState(Enum.HumanoidStateType.Jumping)
+								end
+							end
+							task.wait(0.15) -- Interval antar lompatan (Biar smooth tidak crash)
 						end
-					end
+					end)
 				end
 			end)
+			
+			-- EVENT: LEPAS (HOLD END)
 			JumpButtonGUI.InputEnded:Connect(function(input)
 				if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+					IsHoldingJump = false -- Stop looping
 					JumpButtonGUI.ImageRectOffset = Vector2.new(1, 146); JumpButtonGUI.ImageTransparency = 0.5
 				end
 			end)
+			
+			-- Safety: Jika jari keluar tombol tanpa lepas
+			JumpButtonGUI.MouseLeave:Connect(function() 
+				IsHoldingJump = false 
+				JumpButtonGUI.ImageRectOffset = Vector2.new(1, 146); JumpButtonGUI.ImageTransparency = 0.5
+			end)
+
 		else
 			if JumpButtonGUI then JumpButtonGUI:Destroy(); JumpButtonGUI = nil end
-			-- Kembalikan Tombol Asli (Opsional, tapi lebih baik dikembalikan jika fitur dimatikan)
-			ToggleNativeJump(false)
+			IsHoldingJump = false
 		end
 	end
 
+	-- LOGIKA PC (KEYBOARD)
 	local function SetPCMode(active)
 		if active then
 			if PCJumpConn then PCJumpConn:Disconnect() end
@@ -1015,6 +1042,9 @@ local function BuildToolsTab(parentFrame)
 			if ToolsConfig.Jump.Mode == "Mobile" then SetMobileMode(true)
 			elseif ToolsConfig.Jump.Mode == "PC" then SetPCMode(true) end
 		else
+			-- Saat dimatikan, kembalikan tombol asli
+			RestoreNativeJump()
+			
 			local h = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid")
 			if h then h.JumpPower = DefaultStats.JumpPower; h.UseJumpPower = true end
 		end
@@ -1026,7 +1056,7 @@ local function BuildToolsTab(parentFrame)
 	local CardLayout = Instance.new("UIListLayout"); CardLayout.Parent = MainCard; CardLayout.SortOrder = Enum.SortOrder.LayoutOrder; CardLayout.Padding = UDim.new(0, 8); CardLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 	local CardPad = Instance.new("UIPadding"); CardPad.Parent = MainCard; CardPad.PaddingTop = UDim.new(0, 10); CardPad.PaddingBottom = UDim.new(0, 10); CardPad.PaddingLeft = UDim.new(0, 10); CardPad.PaddingRight = UDim.new(0, 10)
 
-	-- A. HEADER (INFO + FIX BUTTON)
+	-- A. HEADER
 	local HeaderFrame = Instance.new("Frame"); HeaderFrame.Parent = MainCard; HeaderFrame.BackgroundTransparency = 1; HeaderFrame.Size = UDim2.new(1, 0, 0, 25); HeaderFrame.LayoutOrder = 0
 	local InfoTxt = Instance.new("TextLabel"); InfoTxt.Parent = HeaderFrame
 	InfoTxt.Text = "* Use this tools if map disables jump/speed."; InfoTxt.Position = UDim2.new(0, 5, 0, 0); InfoTxt.Size = UDim2.new(0.65, 0, 1, 0)
@@ -1042,7 +1072,7 @@ local function BuildToolsTab(parentFrame)
 		FixStateBtn.Text = "FIXED!"; task.wait(1); FixStateBtn.Text = "FIX JUMP"; fixDebounce = false
 	end)
 
-	-- B. INFO DASHBOARD (VALUE REALTIME)
+	-- B. DASHBOARD
 	local InfoRow = Instance.new("Frame"); InfoRow.Parent = MainCard; InfoRow.BackgroundTransparency = 1; InfoRow.Size = UDim2.new(1, 0, 0, 40); InfoRow.LayoutOrder = 1
 	local InfoLayout = Instance.new("UIListLayout"); InfoLayout.Parent = InfoRow; InfoLayout.FillDirection = Enum.FillDirection.Horizontal; InfoLayout.Padding = UDim.new(0, 5)
 	local function CreateInfoBox(title, defaultText)
@@ -1051,10 +1081,7 @@ local function BuildToolsTab(parentFrame)
 		local V = Instance.new("TextLabel"); V.Parent = Box; V.Text = defaultText; V.Size = UDim2.new(1,0,0.6,0); V.Position = UDim2.new(0,0,0.4,0); V.BackgroundTransparency = 1; V.TextColor3 = Theme.Accent; V.Font = Theme.FontBold; V.TextSize = 11
 		return V
 	end
-	-- Kita simpan referensi text labelnya untuk diupdate di loop
-	local SpeedInfo = CreateInfoBox("STATUS SPEED", "0")
-	local JumpInfo = CreateInfoBox("STATUS JUMP", "0")
-	local StateInfo = CreateInfoBox("JUMP SAKLAR", "Wait")
+	local SpeedInfo = CreateInfoBox("STATUS SPEED", "0"); local JumpInfo = CreateInfoBox("STATUS JUMP", "0"); local StateInfo = CreateInfoBox("JUMP SAKLAR", "Wait")
 
 	-- Helper: Control Row
 	local function CreateRow(title, defaultNum, step, min, max, onToggle, onValChange)
@@ -1074,7 +1101,7 @@ local function BuildToolsTab(parentFrame)
 		return { SetState = SetState }
 	end
 
-	-- Controls
+	-- CONTROLS
 	local ForceSpeedCtrl, TPWalkCtrl
 	ForceSpeedCtrl = CreateRow("Force Speed", ToolsConfig.Speed.Value, 5, 1, 500, function(active)
 		ToolsConfig.Speed.Active = active
@@ -1120,46 +1147,29 @@ local function BuildToolsTab(parentFrame)
 			local root = char and char:FindFirstChild("HumanoidRootPart")
 			
 			if hum then
-				-- >>> SMART DISPLAY LOGIC <<<
-				-- Jika Force Speed Aktif, tampilkan nilai Config. Jika tidak, tampilkan nilai asli Humanoid.
-				if ToolsConfig.Speed.Active then
-					SpeedInfo.Text = tostring(ToolsConfig.Speed.Value) .. " (Forced)"
-					SpeedInfo.TextColor3 = Theme.Accent
-				elseif ToolsConfig.TPWalk.Active then
-					SpeedInfo.Text = "TP: " .. tostring(ToolsConfig.TPWalk.Value)
-					SpeedInfo.TextColor3 = Theme.Accent
-				else
-					SpeedInfo.Text = tostring(math.floor(hum.WalkSpeed))
-					SpeedInfo.TextColor3 = Theme.TextDim
+				-- >>> [PENTING] AUTO-HIDE NATIVE BUTTON <<<
+				-- Jika Force Jump Aktif DAN Mode Mobile Aktif, paksa sembunyikan tombol asli SETIAP FRAME
+				-- Ini mengatasi map yang "memaksa muncul" tombolnya lagi
+				if ToolsConfig.Jump.Active and ToolsConfig.Jump.Mode == "Mobile" then
+					ForceHideNativeJump()
 				end
 
-				-- Jika Force Jump Aktif, tampilkan nilai Config.
-				if ToolsConfig.Jump.Active then
-					JumpInfo.Text = tostring(ToolsConfig.Jump.Value) .. " (Forced)"
-					JumpInfo.TextColor3 = Theme.Accent
-				else
-					JumpInfo.Text = tostring(math.floor(hum.JumpPower))
-					JumpInfo.TextColor3 = Theme.TextDim
-				end
+				-- Monitor Display
+				if ToolsConfig.Speed.Active then SpeedInfo.Text = tostring(ToolsConfig.Speed.Value) .. " (Forced)"; SpeedInfo.TextColor3 = Theme.Accent
+				elseif ToolsConfig.TPWalk.Active then SpeedInfo.Text = "TP: " .. tostring(ToolsConfig.TPWalk.Value); SpeedInfo.TextColor3 = Theme.Accent
+				else SpeedInfo.Text = tostring(math.floor(hum.WalkSpeed)); SpeedInfo.TextColor3 = Theme.TextDim end
+
+				if ToolsConfig.Jump.Active then JumpInfo.Text = tostring(ToolsConfig.Jump.Value) .. " (Forced)"; JumpInfo.TextColor3 = Theme.Accent
+				else JumpInfo.Text = tostring(math.floor(hum.JumpPower)); JumpInfo.TextColor3 = Theme.TextDim end
 				
-				-- Logic Button Fix
 				local isJumpEnabled = hum:GetStateEnabled(Enum.HumanoidStateType.Jumping)
-				if isJumpEnabled then
-					StateInfo.Text = "ACTIVE"; StateInfo.TextColor3 = Theme.Green
-					FixStateBtn.Visible = false; ToolsConfig.StateForce.Active = false
-				else
-					StateInfo.Text = "DISABLED"; StateInfo.TextColor3 = Theme.Red
-					FixStateBtn.Visible = true 
-				end
+				if isJumpEnabled then StateInfo.Text = "ACTIVE"; StateInfo.TextColor3 = Theme.Green; FixStateBtn.Visible = false; ToolsConfig.StateForce.Active = false
+				else StateInfo.Text = "DISABLED"; StateInfo.TextColor3 = Theme.Red; FixStateBtn.Visible = true end
 
 				-- Force Movement
 				if root then
-					if ToolsConfig.Speed.Active and not ToolsConfig.TPWalk.Active then 
-						if hum.WalkSpeed ~= ToolsConfig.Speed.Value then hum.WalkSpeed = ToolsConfig.Speed.Value end 
-					end
-					if ToolsConfig.TPWalk.Active then 
-						if hum.MoveDirection.Magnitude > 0 then root.CFrame = root.CFrame + (hum.MoveDirection * (ToolsConfig.TPWalk.Value * 0.2)) end 
-					end
+					if ToolsConfig.Speed.Active and not ToolsConfig.TPWalk.Active then if hum.WalkSpeed ~= ToolsConfig.Speed.Value then hum.WalkSpeed = ToolsConfig.Speed.Value end end
+					if ToolsConfig.TPWalk.Active then if hum.MoveDirection.Magnitude > 0 then root.CFrame = root.CFrame + (hum.MoveDirection * (ToolsConfig.TPWalk.Value * 0.2)) end end
 					
 					if ToolsConfig.Jump.Active then 
 						if hum.JumpPower ~= ToolsConfig.Jump.Value then hum.JumpPower = ToolsConfig.Jump.Value end
