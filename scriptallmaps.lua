@@ -922,62 +922,43 @@ local function BuildToolsTab(parentFrame)
 	local Layout = Instance.new("UIListLayout"); Layout.Parent = parentFrame; Layout.SortOrder = Enum.SortOrder.LayoutOrder; Layout.Padding = UDim.new(0, 10)
 	local Padding = Instance.new("UIPadding"); Padding.Parent = parentFrame; Padding.PaddingTop = UDim.new(0, 15); Padding.PaddingLeft = UDim.new(0, 15); Padding.PaddingRight = UDim.new(0, 15)
 
-	-- [1] VARIABEL & INIT
+	-- [1] DATA & CONFIG
 	local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 	local hum = char:WaitForChild("Humanoid")
 	
-	-- Konfigurasi Live
 	local ToolsConfig = {
 		Speed = { Active = false, Value = hum.WalkSpeed }, 
 		TPWalk = { Active = false, Value = 0.5 }, 
-		Jump = { Active = false, Value = 50 } 
+		Jump = { Active = false, Value = 50, Mode = "Mobile" },
+		StateForce = { Active = false }
 	}
 
-	-- [2] LOGIKA TOMBOL REPLIKA (POSISI -25, -20)
-	local JumpButtonGUI = nil
-	
-	local function ToggleJumpButton(isActive)
-		if isActive then
-			if JumpButtonGUI then JumpButtonGUI:Destroy() end
-			
-			JumpButtonGUI = Instance.new("ImageButton")
-			JumpButtonGUI.Name = "NeeR_JumpReplica"
-			JumpButtonGUI.Parent = ScreenGui
-			JumpButtonGUI.BackgroundTransparency = 1
-			JumpButtonGUI.Size = UDim2.new(0, 75, 0, 75) -- Ukuran pas
-			JumpButtonGUI.ZIndex = 999
-			
-			-- POSISI FIXED (Sesuai Request)
-			JumpButtonGUI.AnchorPoint = Vector2.new(1, 1)
-			JumpButtonGUI.Position = UDim2.new(1, -25, 1, -20) 
+	-- [2] HANDLER JUMP (PC & MOBILE)
+	local JumpButtonGUI, PCJumpConn = nil, nil
 
+	local function SetMobileMode(active)
+		if active then
+			if JumpButtonGUI then JumpButtonGUI:Destroy() end
+			JumpButtonGUI = Instance.new("ImageButton"); JumpButtonGUI.Name = "NeeR_JumpReplica"; JumpButtonGUI.Parent = ScreenGui
+			JumpButtonGUI.BackgroundTransparency = 1; JumpButtonGUI.Size = UDim2.new(0, 75, 0, 75); JumpButtonGUI.ZIndex = 999
+			JumpButtonGUI.AnchorPoint = Vector2.new(1, 1); JumpButtonGUI.Position = UDim2.new(1, -25, 1, -20) 
 			JumpButtonGUI.Image = "rbxasset://textures/ui/Input/TouchControlsSheetV2.png"
-			JumpButtonGUI.ImageRectOffset = Vector2.new(1, 146)
-			JumpButtonGUI.ImageRectSize = Vector2.new(144, 144)
-			JumpButtonGUI.ImageTransparency = 0.5
+			JumpButtonGUI.ImageRectOffset = Vector2.new(1, 146); JumpButtonGUI.ImageRectSize = Vector2.new(144, 144); JumpButtonGUI.ImageTransparency = 0.5
 			
-			-- Logic Sentuh (Velocity Bypass)
 			JumpButtonGUI.InputBegan:Connect(function(input)
 				if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 					JumpButtonGUI.ImageRectOffset = Vector2.new(146, 146); JumpButtonGUI.ImageTransparency = 0.2
-					
-					local c = LocalPlayer.Character
-					local r = c and c:FindFirstChild("HumanoidRootPart")
-					local h = c and c:FindFirstChild("Humanoid")
-					
+					local c = LocalPlayer.Character; local r = c and c:FindFirstChild("HumanoidRootPart"); local h = c and c:FindFirstChild("Humanoid")
 					if r and h then
 						local rayParams = RaycastParams.new(); rayParams.FilterDescendantsInstances = {c}
 						local hit = workspace:Raycast(r.Position, Vector3.new(0, -3.5, 0), rayParams)
-						
 						if hit then
-							local vel = r.AssemblyLinearVelocity
-							r.AssemblyLinearVelocity = Vector3.new(vel.X, ToolsConfig.Jump.Value, vel.Z)
+							r.AssemblyLinearVelocity = Vector3.new(r.AssemblyLinearVelocity.X, ToolsConfig.Jump.Value, r.AssemblyLinearVelocity.Z)
 							h:ChangeState(Enum.HumanoidStateType.Jumping)
 						end
 					end
 				end
 			end)
-			
 			JumpButtonGUI.InputEnded:Connect(function(input)
 				if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 					JumpButtonGUI.ImageRectOffset = Vector2.new(1, 146); JumpButtonGUI.ImageTransparency = 0.5
@@ -988,30 +969,76 @@ local function BuildToolsTab(parentFrame)
 		end
 	end
 
-	-- [3] UI BUILDER: CARD & DASHBOARD
+	local function SetPCMode(active)
+		if active then
+			if PCJumpConn then PCJumpConn:Disconnect() end
+			PCJumpConn = UserInputService.InputBegan:Connect(function(input, gameProcessed)
+				if not gameProcessed and input.KeyCode == Enum.KeyCode.Space then
+					local c = LocalPlayer.Character; local r = c and c:FindFirstChild("HumanoidRootPart"); local h = c and c:FindFirstChild("Humanoid")
+					if r and h then
+						local rayParams = RaycastParams.new(); rayParams.FilterDescendantsInstances = {c}
+						local hit = workspace:Raycast(r.Position, Vector3.new(0, -3.5, 0), rayParams)
+						if hit then
+							r.AssemblyLinearVelocity = Vector3.new(r.AssemblyLinearVelocity.X, ToolsConfig.Jump.Value, r.AssemblyLinearVelocity.Z)
+							h:ChangeState(Enum.HumanoidStateType.Jumping)
+						end
+					end
+				end
+			end)
+		else
+			if PCJumpConn then PCJumpConn:Disconnect(); PCJumpConn = nil end
+		end
+	end
+
+	local function UpdateJumpState()
+		SetMobileMode(false); SetPCMode(false)
+		if ToolsConfig.Jump.Active then
+			if ToolsConfig.Jump.Mode == "Mobile" then SetMobileMode(true)
+			elseif ToolsConfig.Jump.Mode == "PC" then SetPCMode(true) end
+		else
+			local h = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid")
+			if h then h.JumpPower = DefaultStats.JumpPower; h.UseJumpPower = true end
+		end
+	end
+
+	-- [3] UI BUILDER
 	local ForceSection = CreateExpandableSection(parentFrame, "Force Movement (Anti-Kick)")
 	local MainCard = CreateCard(ForceSection, UDim2.new(1, 0, 0, 0), 0); MainCard.AutomaticSize = Enum.AutomaticSize.Y
+	local CardLayout = Instance.new("UIListLayout"); CardLayout.Parent = MainCard; CardLayout.SortOrder = Enum.SortOrder.LayoutOrder; CardLayout.Padding = UDim.new(0, 8); CardLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	local CardPad = Instance.new("UIPadding"); CardPad.Parent = MainCard; CardPad.PaddingTop = UDim.new(0, 10); CardPad.PaddingBottom = UDim.new(0, 10); CardPad.PaddingLeft = UDim.new(0, 10); CardPad.PaddingRight = UDim.new(0, 10)
+
+	-- A. HEADER (INFO + FIX BUTTON) - LayoutOrder 0
+	local HeaderFrame = Instance.new("Frame"); HeaderFrame.Parent = MainCard; HeaderFrame.BackgroundTransparency = 1; HeaderFrame.Size = UDim2.new(1, 0, 0, 10); HeaderFrame.LayoutOrder = 0
 	
-	-- A. INFO DASHBOARD (DIKEMBALIKAN)
+	-- Teks Informasi
+	local InfoTxt = Instance.new("TextLabel"); InfoTxt.Parent = HeaderFrame
+	InfoTxt.Text = "* Use this tools if map disables jump/speed."; InfoTxt.Position = UDim2.new(0, 5, 0, 0); InfoTxt.Size = UDim2.new(0.65, 0, 0.5, 0)
+	InfoTxt.Font = Enum.Font.Gotham; InfoTxt.TextColor3 = Theme.TextDim; InfoTxt.TextSize = 11; InfoTxt.BackgroundTransparency = 1; InfoTxt.TextXAlignment = Enum.TextXAlignment.Left; InfoTxt.TextWrapped = true
+
+	-- Tombol Fix (Merah)
+	local FixStateBtn = Instance.new("TextButton"); FixStateBtn.Parent = HeaderFrame
+	FixStateBtn.Position = UDim2.new(0.7, 0, 0, 0); FixStateBtn.Size = UDim2.new(0.3, 0, 1, 0)
+	FixStateBtn.BackgroundColor3 = Theme.Red; FixStateBtn.Text = "FIX JUMP"; FixStateBtn.TextColor3 = Theme.Text; FixStateBtn.Font = Enum.Font.GothamBold; FixStateBtn.TextSize = 10; FixStateBtn.Visible = false; Instance.new("UICorner", FixStateBtn).CornerRadius = UDim.new(0, 4)
+	
+	local fixDebounce = false
+	FixStateBtn.MouseButton1Click:Connect(function()
+		if fixDebounce then return end; fixDebounce = true
+		ToolsConfig.StateForce.Active = true -- Aktifkan Loop Paksa
+		FixStateBtn.Text = "FIXED!"; task.wait(1); FixStateBtn.Text = "FIX JUMP"; fixDebounce = false
+	end)
+
+	-- B. INFO DASHBOARD (VALUE REALTIME) - LayoutOrder 1
 	local InfoRow = Instance.new("Frame"); InfoRow.Parent = MainCard; InfoRow.BackgroundTransparency = 1; InfoRow.Size = UDim2.new(1, 0, 0, 40); InfoRow.LayoutOrder = 1
 	local InfoLayout = Instance.new("UIListLayout"); InfoLayout.Parent = InfoRow; InfoLayout.FillDirection = Enum.FillDirection.Horizontal; InfoLayout.Padding = UDim.new(0, 5)
-	
 	local function CreateInfoBox(title, defaultText)
 		local Box = Instance.new("Frame"); Box.Parent = InfoRow; Box.BackgroundColor3 = Theme.Main; Box.BackgroundTransparency = 0.3; Box.Size = UDim2.new(0.32, 0, 1, 0); Instance.new("UICorner", Box).CornerRadius = UDim.new(0, 6)
 		local T = Instance.new("TextLabel"); T.Parent = Box; T.Text = title; T.Size = UDim2.new(1,0,0.4,0); T.BackgroundTransparency = 1; T.TextColor3 = Theme.TextDim; T.Font = Theme.FontMain; T.TextSize = 9
 		local V = Instance.new("TextLabel"); V.Parent = Box; V.Text = defaultText; V.Size = UDim2.new(1,0,0.6,0); V.Position = UDim2.new(0,0,0.4,0); V.BackgroundTransparency = 1; V.TextColor3 = Theme.Accent; V.Font = Theme.FontBold; V.TextSize = 11
 		return V
 	end
-	
-	local SpeedInfo = CreateInfoBox("REAL SPEED", "0")
-	local JumpInfo = CreateInfoBox("REAL JUMP", "0")
-	local StateInfo = CreateInfoBox("JUMP STATE", "Wait")
+	local SpeedInfo = CreateInfoBox("REAL SPEED", "0"); local JumpInfo = CreateInfoBox("REAL JUMP", "0"); local StateInfo = CreateInfoBox("JUMP STATE", "Wait")
 
-	-- Layout Controls
-	local CardLayout = Instance.new("UIListLayout"); CardLayout.Parent = MainCard; CardLayout.SortOrder = Enum.SortOrder.LayoutOrder; CardLayout.Padding = UDim.new(0, 8); CardLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	local CardPad = Instance.new("UIPadding"); CardPad.Parent = MainCard; CardPad.PaddingTop = UDim.new(0, 10); CardPad.PaddingBottom = UDim.new(0, 10); CardPad.PaddingLeft = UDim.new(0, 10); CardPad.PaddingRight = UDim.new(0, 10)
-
-	-- Helper: Create Row
+	-- Helper: Control Row
 	local function CreateRow(title, defaultNum, step, min, max, onToggle, onValChange)
 		local Row = Instance.new("Frame"); Row.Parent = MainCard; Row.BackgroundColor3 = Theme.Sidebar; Row.BackgroundTransparency = 0.5; Row.Size = UDim2.new(1, 0, 0, 35); Instance.new("UICorner", Row).CornerRadius = UDim.new(0, 6); Row.LayoutOrder = 2
 		local Lbl = Instance.new("TextLabel"); Lbl.Parent = Row; Lbl.Text = title; Lbl.Position = UDim2.new(0, 10, 0, 0); Lbl.Size = UDim2.new(0.35, 0, 1, 0); Lbl.Font = Enum.Font.GothamBold; Lbl.TextColor3 = Theme.Text; Lbl.TextSize = 10; Lbl.BackgroundTransparency = 1; Lbl.TextXAlignment = Enum.TextXAlignment.Left
@@ -1019,11 +1046,9 @@ local function BuildToolsTab(parentFrame)
 		local MinBtn = Instance.new("TextButton"); MinBtn.Parent = Ctrl; MinBtn.Text = "-"; MinBtn.Size = UDim2.new(0, 20, 1, 0); MinBtn.BackgroundColor3 = Theme.Main; MinBtn.TextColor3 = Theme.Red; MinBtn.Font = Enum.Font.GothamBold; Instance.new("UICorner", MinBtn).CornerRadius = UDim.new(0, 4)
 		local PlusBtn = Instance.new("TextButton"); PlusBtn.Parent = Ctrl; PlusBtn.Text = "+"; PlusBtn.Position = UDim2.new(1, -20, 0, 0); PlusBtn.Size = UDim2.new(0, 20, 1, 0); PlusBtn.BackgroundColor3 = Theme.Main; PlusBtn.TextColor3 = Theme.Green; PlusBtn.Font = Enum.Font.GothamBold; Instance.new("UICorner", PlusBtn).CornerRadius = UDim.new(0, 4)
 		local ValLbl = Instance.new("TextLabel"); ValLbl.Parent = Ctrl; ValLbl.Text = tostring(defaultNum); ValLbl.Size = UDim2.new(1, -40, 1, 0); ValLbl.Position = UDim2.new(0, 20, 0, 0); ValLbl.BackgroundTransparency = 1; ValLbl.TextColor3 = Theme.Text; ValLbl.Font = Enum.Font.GothamBold; ValLbl.TextSize = 11
-		
 		local currentVal = defaultNum
 		MinBtn.MouseButton1Click:Connect(function() currentVal = math.max(min, currentVal - step); if step < 1 then ValLbl.Text = string.format("%.1f", currentVal) else ValLbl.Text = tostring(currentVal) end; onValChange(currentVal) end)
 		PlusBtn.MouseButton1Click:Connect(function() currentVal = math.min(max, currentVal + step); if step < 1 then ValLbl.Text = string.format("%.1f", currentVal) else ValLbl.Text = tostring(currentVal) end; onValChange(currentVal) end)
-		
 		local Tog = Instance.new("TextButton"); Tog.Parent = Row; Tog.Position = UDim2.new(0.8, 0, 0.15, 0); Tog.Size = UDim2.new(0.18, 0, 0.7, 0); Tog.BackgroundColor3 = Theme.Main; Tog.Text = "OFF"; Tog.TextColor3 = Theme.TextDim; Tog.Font = Enum.Font.GothamBold; Tog.TextSize = 10; Instance.new("UICorner", Tog).CornerRadius = UDim.new(0, 4)
 		local active = false
 		local function SetState(state) active = state; if active then Tog.BackgroundColor3 = Theme.Accent; Tog.Text = "ON"; Tog.TextColor3 = Theme.Main else Tog.BackgroundColor3 = Theme.Main; Tog.Text = "OFF"; Tog.TextColor3 = Theme.TextDim end; onToggle(active) end
@@ -1031,45 +1056,48 @@ local function BuildToolsTab(parentFrame)
 		return { SetState = SetState }
 	end
 
-	-- B. CONTROL ROWS
+	-- C. CONTROLS (MUTUAL EXCLUSIVE LOGIC)
 	local ForceSpeedCtrl, TPWalkCtrl
 	
-	-- Row 1: Force Speed
+	-- Speed Row
 	ForceSpeedCtrl = CreateRow("Force Speed", ToolsConfig.Speed.Value, 5, 1, 500, function(active)
 		ToolsConfig.Speed.Active = active
-		if active and TPWalkCtrl then TPWalkCtrl.SetState(false) end
-		
-		-- RESTORE DEFAULT SAAT MATI
-		if not active then
-			local char = LocalPlayer.Character
-			local h = char and char:FindFirstChild("Humanoid")
-			if h then h.WalkSpeed = DefaultStats.WalkSpeed end
-		end
+		if active and TPWalkCtrl then TPWalkCtrl.SetState(false) end -- Matikan TP Walk jika Speed Aktif
+		if not active then local h = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid"); if h then h.WalkSpeed = DefaultStats.WalkSpeed end end
 	end, function(val) ToolsConfig.Speed.Value = val end)
 	
-	-- Row 2: TP Walk
+	-- TP Walk Row
 	TPWalkCtrl = CreateRow("TP Walk (Bypass)", 0.5, 0.1, 0.1, 5.0, function(active)
 		ToolsConfig.TPWalk.Active = active
-		if active and ForceSpeedCtrl then ForceSpeedCtrl.SetState(false) end
+		if active and ForceSpeedCtrl then ForceSpeedCtrl.SetState(false) end -- Matikan Speed jika TP Walk Aktif
 	end, function(val) ToolsConfig.TPWalk.Value = val end)
 	
-	-- Row 3: Force Jump (Mobile Replica)
-	CreateRow("Force Jump", ToolsConfig.Jump.Value, 10, 0, 500, function(active) 
+	-- Jump Row
+	CreateRow("Force Jump", ToolsConfig.Jump.Value, 10, 0, 500, function(active)
 		ToolsConfig.Jump.Active = active
-		ToggleJumpButton(active) -- Munculkan/Hapus Tombol Palsu
-		
-		-- RESTORE DEFAULT SAAT MATI
-		if not active then
-			local char = LocalPlayer.Character
-			local h = char and char:FindFirstChild("Humanoid")
-			if h then 
-				h.JumpPower = DefaultStats.JumpPower -- Balik ke nilai map
-				h.UseJumpPower = true -- Pastikan mode power aktif
-			end
-		end
+		UpdateJumpState()
 	end, function(val) ToolsConfig.Jump.Value = val end)
 
-	-- [4] ENGINE LOOP & MONITOR
+	-- D. MODE SELECTOR (SPLIT BUTTONS) - LayoutOrder 3
+	local ModeContainer = Instance.new("Frame"); ModeContainer.Parent = MainCard; ModeContainer.BackgroundColor3 = Theme.Sidebar; ModeContainer.BackgroundTransparency = 0.5; ModeContainer.Size = UDim2.new(1, 0, 0, 30); ModeContainer.LayoutOrder = 3; Instance.new("UICorner", ModeContainer).CornerRadius = UDim.new(0, 6)
+	local MobBtn = Instance.new("TextButton"); MobBtn.Parent = ModeContainer; MobBtn.Size = UDim2.new(0.5, -2, 1, 0); MobBtn.Position = UDim2.new(0, 0, 0, 0); MobBtn.Text = "MOBILE MODE"; MobBtn.Font = Enum.Font.GothamBold; MobBtn.TextSize = 9; Instance.new("UICorner", MobBtn).CornerRadius = UDim.new(0, 6)
+	local PCBtn = Instance.new("TextButton"); PCBtn.Parent = ModeContainer; PCBtn.Size = UDim2.new(0.5, -2, 1, 0); PCBtn.Position = UDim2.new(0.5, 2, 0, 0); PCBtn.Text = "PC MODE"; PCBtn.Font = Enum.Font.GothamBold; PCBtn.TextSize = 9; Instance.new("UICorner", PCBtn).CornerRadius = UDim.new(0, 6)
+	
+	local function UpdateModeVisuals()
+		if ToolsConfig.Jump.Mode == "Mobile" then
+			MobBtn.BackgroundColor3 = Theme.Accent; MobBtn.TextColor3 = Theme.Main
+			PCBtn.BackgroundColor3 = Theme.Main; PCBtn.TextColor3 = Theme.TextDim
+		else
+			MobBtn.BackgroundColor3 = Theme.Main; MobBtn.TextColor3 = Theme.TextDim
+			PCBtn.BackgroundColor3 = Theme.Accent; PCBtn.TextColor3 = Theme.Main
+		end
+	end
+	UpdateModeVisuals() -- Init
+
+	MobBtn.MouseButton1Click:Connect(function() ToolsConfig.Jump.Mode = "Mobile"; UpdateModeVisuals(); if ToolsConfig.Jump.Active then UpdateJumpState() end end)
+	PCBtn.MouseButton1Click:Connect(function() ToolsConfig.Jump.Mode = "PC"; UpdateModeVisuals(); if ToolsConfig.Jump.Active then UpdateJumpState() end end)
+
+	-- [4] ENGINE MONITOR & FORCE LOOP
 	local ToolLoop
 	local function StartToolEngine()
 		if ToolLoop then return end
@@ -1079,32 +1107,31 @@ local function BuildToolsTab(parentFrame)
 			local root = char and char:FindFirstChild("HumanoidRootPart")
 			
 			if hum then
-				-- A. UPDATE MONITOR VISUAL (REAL-TIME)
-				SpeedInfo.Text = tostring(math.floor(hum.WalkSpeed))
-				JumpInfo.Text = tostring(math.floor(hum.JumpPower))
+				-- Monitor
+				SpeedInfo.Text = tostring(math.floor(hum.WalkSpeed)); JumpInfo.Text = tostring(math.floor(hum.JumpPower))
+				local isJumpEnabled = hum:GetStateEnabled(Enum.HumanoidStateType.Jumping)
 				
-				if hum:GetStateEnabled(Enum.HumanoidStateType.Jumping) then 
-					StateInfo.Text = "ACTIVE"; StateInfo.TextColor3 = Theme.Green 
-				else 
-					StateInfo.Text = "DISABLED"; StateInfo.TextColor3 = Theme.Red 
+				-- Logic Button Fix (Muncul jika Map mematikan Jump)
+				if isJumpEnabled then
+					StateInfo.Text = "ACTIVE"; StateInfo.TextColor3 = Theme.Green
+					FixStateBtn.Visible = false; ToolsConfig.StateForce.Active = false
+				else
+					StateInfo.Text = "DISABLED"; StateInfo.TextColor3 = Theme.Red
+					FixStateBtn.Visible = true -- Tampilkan jika saklar mati
 				end
 
-				-- B. FORCE LOGIC (Hanya jika Active)
+				-- Force Movement
 				if root then
-					if ToolsConfig.Speed.Active and not ToolsConfig.TPWalk.Active then
-						if hum.WalkSpeed ~= ToolsConfig.Speed.Value then hum.WalkSpeed = ToolsConfig.Speed.Value end
-					end
-					if ToolsConfig.TPWalk.Active then
-						if hum.MoveDirection.Magnitude > 0 then
-							root.CFrame = root.CFrame + (hum.MoveDirection * (ToolsConfig.TPWalk.Value * 0.2))
-						end
+					if ToolsConfig.Speed.Active and not ToolsConfig.TPWalk.Active then if hum.WalkSpeed ~= ToolsConfig.Speed.Value then hum.WalkSpeed = ToolsConfig.Speed.Value end end
+					if ToolsConfig.TPWalk.Active then if hum.MoveDirection.Magnitude > 0 then root.CFrame = root.CFrame + (hum.MoveDirection * (ToolsConfig.TPWalk.Value * 0.2)) end end
+					
+					if ToolsConfig.Jump.Active then 
+						if hum.JumpPower ~= ToolsConfig.Jump.Value then hum.JumpPower = ToolsConfig.Jump.Value end
+						if not hum.UseJumpPower then hum.UseJumpPower = true end
 					end
 					
-					-- Saat Jump Active, kita paksa saklar state ON di background
-					-- (Tombol Merah dihapus, fungsinya dipindah kesini otomatis)
-					if ToolsConfig.Jump.Active then
-						hum:SetStateEnabled(Enum.HumanoidStateType.Jumping, true)
-					end
+					-- Looping Paksa Saklar (Hanya jika tombol FIX ditekan)
+					if ToolsConfig.StateForce.Active then hum:SetStateEnabled(Enum.HumanoidStateType.Jumping, true) end
 				end
 			end
 		end)
