@@ -927,7 +927,7 @@ local function BuildToolsTab(parentFrame)
 	local hum = char:WaitForChild("Humanoid")
 	
 	-- UKURAN TOMBOL CUSTOM
-	local BTN_SIZE = 70 
+	local BTN_SIZE = 60 
 	
 	local ToolsConfig = {
 		Speed = { Active = false, Value = hum.WalkSpeed }, 
@@ -940,18 +940,18 @@ local function BuildToolsTab(parentFrame)
 	local JumpButtonGUI, PCJumpConn = nil, nil
 	local IsHoldingJump = false 
 
-	-- FUNGSI: HANYA MENYEMBUNYIKAN TOMBOL ASLI (Tidak pernah memunculkan paksa)
-	local function SuppressNativeJump()
-		local PlayerGui = LocalPlayer:FindFirstChild("PlayerGui")
-		if PlayerGui and PlayerGui:FindFirstChild("TouchGui") then
-			local TouchControl = PlayerGui.TouchGui:FindFirstChild("TouchControlFrame")
-			if TouchControl and TouchControl:FindFirstChild("JumpButton") then
-				-- Kunci Logika: Jika tombol asli mencoba muncul, kita sembunyikan.
-				if TouchControl.JumpButton.Visible == true then
-					TouchControl.JumpButton.Visible = false
+	-- FUNGSI: Mengatur Visibilitas Tombol Asli
+	-- visible = true (Munculkan), visible = false (Sembunyikan)
+	local function SetNativeJumpVisible(visible)
+		pcall(function()
+			local PlayerGui = LocalPlayer:FindFirstChild("PlayerGui")
+			if PlayerGui and PlayerGui:FindFirstChild("TouchGui") then
+				local TouchControl = PlayerGui.TouchGui:FindFirstChild("TouchControlFrame")
+				if TouchControl and TouchControl:FindFirstChild("JumpButton") then
+					TouchControl.JumpButton.Visible = visible
 				end
 			end
-		end
+		end)
 	end
 
 	-- LOGIKA TOMBOL BUATAN (MOBILE)
@@ -1031,22 +1031,31 @@ local function BuildToolsTab(parentFrame)
 		end
 	end
 
+	-- [UPDATE] MASTER TOGGLE DENGAN LOGIKA RESTORE PINTAR
 	local function UpdateJumpState()
 		SetMobileMode(false); SetPCMode(false)
+		
 		if ToolsConfig.Jump.Active then
+			-- AKTIF: Nyalakan mode sesuai pilihan
 			if ToolsConfig.Jump.Mode == "Mobile" then SetMobileMode(true)
 			elseif ToolsConfig.Jump.Mode == "PC" then SetPCMode(true) end
 		else
-			-- SAAT MATI: KEMBALIKAN KONTROL KE MAP
-			-- Kita tidak perlu melakukan apa-apa pada tombol native.
-			-- Jika Map JumpPower = 0 -> Tombol hilang sendiri.
-			-- Jika Map JumpPower = 50 -> Tombol muncul sendiri.
-			
+			-- NON-AKTIF: Restore Logic
 			local h = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid")
 			if h then 
-				-- Kembalikan nilai ke default map (agar tombol native berperilaku normal)
+				-- 1. Kembalikan Value ke Default Map
 				h.JumpPower = DefaultStats.JumpPower 
 				h.UseJumpPower = true 
+				
+				-- 2. CEK: Apakah Map aslinya membolehkan lompat?
+				if DefaultStats.JumpPower > 0 then
+					-- JIKA YA: Kita wajib memunculkan kembali tombol asli
+					-- (Karena sebelumnya mungkin disembunyikan oleh fitur kita)
+					SetNativeJumpVisible(true)
+				else
+					-- JIKA TIDAK (0): Kita biarkan saja.
+					-- Jangan dipaksa muncul, biarkan sistem Roblox menyembunyikannya karena power 0.
+				end
 			end
 		end
 	end
@@ -1148,11 +1157,10 @@ local function BuildToolsTab(parentFrame)
 			local root = char and char:FindFirstChild("HumanoidRootPart")
 			
 			if hum then
-				-- >>> LOGIKA HIDER (KUNCI PERBAIKAN) <<<
-				-- Hanya panggil SuppressNativeJump jika Force Jump AKTIF dan MODE MOBILE
-				-- Jika Force Jump MATI, loop ini tidak melakukan apa-apa ke tombol native
+				-- >>> NATIVE BUTTON HIDER (AGRESIF) <<<
+				-- Hanya sembunyikan jika Force Jump Aktif DAN Mode Mobile
 				if ToolsConfig.Jump.Active and ToolsConfig.Jump.Mode == "Mobile" then
-					SuppressNativeJump()
+					SetNativeJumpVisible(false) -- False = Sembunyikan
 				end
 
 				-- Monitor Display
