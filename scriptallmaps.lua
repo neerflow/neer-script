@@ -927,7 +927,7 @@ local function BuildToolsTab(parentFrame)
 	local hum = char:WaitForChild("Humanoid")
 	
 	-- UKURAN TOMBOL CUSTOM
-	local BTN_SIZE = 70 
+	local BTN_SIZE = 75 
 	
 	local ToolsConfig = {
 		Speed = { Active = false, Value = hum.WalkSpeed }, 
