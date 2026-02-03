@@ -817,34 +817,42 @@ local function BuildTeleportTab(parentFrame)
 		table.clear(ActiveConnections)
 	end
 
-	-- Card Utama (Tinggi dikurangi lagi jadi 150px karena lebih hemat tempat)
+	-- Card Utama
 	local TpCard = CreateCard(parentFrame, UDim2.new(1, 0, 0, 150)) 
 	TpCard.ClipsDescendants = false; TpCard.LayoutOrder = 1; TpCard.ZIndex = 10 
 
-	-- 1. JUDUL (Kiri Atas)
+	-- 1. JUDUL
 	local Title = Instance.new("TextLabel"); Title.Parent = TpCard; Title.BackgroundTransparency = 1
-	Title.Position = UDim2.new(0, 15, 0, 10)
-	Title.Size = UDim2.new(0.5, 0, 0, 15) -- Setengah lebar
+	Title.Position = UDim2.new(0, 15, 0, 10); Title.Size = UDim2.new(0.6, 0, 0, 15) 
 	Title.Font = Theme.FontBold; Title.Text = "Player Teleport & Follow"; Title.TextColor3 = Theme.Text
 	Title.TextSize = 12; Title.TextXAlignment = Enum.TextXAlignment.Left
 	
-	-- 2. STATUS LABEL (Kanan Atas - Sejajar Title)
+	-- 2. STATUS LABEL (Kanan Atas - Awalnya Kosong)
 	local StatusLbl = Instance.new("TextLabel"); StatusLbl.Parent = TpCard; StatusLbl.BackgroundTransparency = 1
-	StatusLbl.AnchorPoint = Vector2.new(1, 0) -- Anchor Kanan
-	StatusLbl.Position = UDim2.new(1, -15, 0, 10) -- Posisi Y sama dengan Title (10)
-	StatusLbl.Size = UDim2.new(0.5, 0, 0, 15)
-	StatusLbl.Font = Theme.FontMain
-	StatusLbl.Text = "Select player..."; StatusLbl.TextColor3 = Theme.TextDim
-	StatusLbl.TextSize = 10; StatusLbl.TextXAlignment = Enum.TextXAlignment.Right -- Rata Kanan
+	StatusLbl.AnchorPoint = Vector2.new(0, 0) 
+	StatusLbl.Position = UDim2.new(1, -95, 0, 10) 
+	StatusLbl.Size = UDim2.new(0, 80, 0, 15)
+	StatusLbl.Font = Theme.FontBold
+	StatusLbl.Text = ""; StatusLbl.TextColor3 = Theme.TextDim -- Kosong saat awal
+	StatusLbl.TextSize = 10; StatusLbl.TextXAlignment = Enum.TextXAlignment.Left 
 	
-	local function ShowStatus(text, color) StatusLbl.Text = text; StatusLbl.TextColor3 = color or Theme.Text; if statusTimer then task.cancel(statusTimer) end; statusTimer = task.delay(3, function() if StatusLbl then StatusLbl.Text = "Ready." StatusLbl.TextColor3 = Theme.TextDim end statusTimer = nil end) end
+	local function ShowStatus(text, color)
+		StatusLbl.Text = "(!) " .. text
+		StatusLbl.TextColor3 = color or Theme.Text
+		
+		if statusTimer then task.cancel(statusTimer) end
+		statusTimer = task.delay(3, function() 
+			-- Kembali Kosong setelah 3 detik
+			if StatusLbl then StatusLbl.Text = ""; StatusLbl.TextColor3 = Theme.TextDim end 
+			statusTimer = nil 
+		end) 
+	end
 
-	-- 3. CONTAINER DROPDOWN & REFRESH (Dinaikkan ke Y=35)
+	-- 3. CONTAINER
 	local DropContainer = Instance.new("Frame"); DropContainer.Parent = TpCard; DropContainer.BackgroundTransparency = 1
-	DropContainer.Position = UDim2.new(0, 15, 0, 35) -- Naik mengisi ruang kosong
-	DropContainer.Size = UDim2.new(1, -30, 0, 30); DropContainer.ZIndex = 20
+	DropContainer.Position = UDim2.new(0, 15, 0, 35); DropContainer.Size = UDim2.new(1, -30, 0, 30); DropContainer.ZIndex = 20
 	
-	-- Dropdown Button
+	-- Dropdown
 	local DropBtn = Instance.new("TextButton"); DropBtn.Parent = DropContainer
 	DropBtn.BackgroundColor3 = Theme.Main
 	DropBtn.Size = UDim2.new(1, -85, 1, 0); DropBtn.Font = Theme.FontMain
@@ -854,7 +862,7 @@ local function BuildTeleportTab(parentFrame)
 	Instance.new("UICorner", DropBtn).CornerRadius = UDim.new(0, 6)
 	local DS = Instance.new("UIStroke"); DS.Parent = DropBtn; DS.Color = Theme.Separator; DS.Thickness = 1; DS.Transparency = 0.5
 	
-	-- Refresh Button
+	-- Refresh
 	local RefreshBtn = Instance.new("TextButton"); RefreshBtn.Parent = DropContainer
 	RefreshBtn.BackgroundColor3 = Theme.Main
 	RefreshBtn.Position = UDim2.new(1, -80, 0, 0); RefreshBtn.Size = UDim2.new(0, 80, 1, 0)
@@ -882,11 +890,8 @@ local function BuildTeleportTab(parentFrame)
 				PBtn.Font = Theme.FontMain; PBtn.TextSize = 11; PBtn.TextXAlignment = Enum.TextXAlignment.Left; PBtn.AutoButtonColor = true; PBtn.ZIndex = 31
 				local labelText = "  " .. p.DisplayName .. " (@" .. p.Name .. ")"; PBtn.Text = labelText; PBtn.TextColor3 = Theme.TextDim
 				PBtn.MouseButton1Click:Connect(function() 
-					selectedPlayer = p
-					DropBtn.Text = "  " .. p.DisplayName
-					DropBtn.TextColor3 = Theme.Text
-					DS.Color = Theme.Accent; DS.Transparency = 0
-					ToggleDropdown(true) 
+					selectedPlayer = p; DropBtn.Text = "  " .. p.DisplayName; DropBtn.TextColor3 = Theme.Text
+					DS.Color = Theme.Accent; DS.Transparency = 0; ToggleDropdown(true) 
 				end)
 			end
 		end
@@ -897,15 +902,14 @@ local function BuildTeleportTab(parentFrame)
 	RefreshBtn.MouseButton1Click:Connect(function() 
 		RefreshBtn.Text = "WAIT..."
 		RefreshList(); task.wait(0.2)
-		ShowStatus("List Refreshed!", ColorSuccess)
+		ShowStatus("Refreshed", ColorSuccess)
 		RefreshBtn.Text = "DONE"; task.wait(0.5)
 		RefreshBtn.Text = "REFRESH"
 	end)
 
-	-- Container Tombol Aksi (Dinaikkan ke Y=75 agar padat)
+	-- Container Tombol Aksi
 	local BtnContainer = Instance.new("Frame"); BtnContainer.Parent = TpCard; BtnContainer.BackgroundTransparency = 1
-	BtnContainer.Position = UDim2.new(0, 15, 0, 75) 
-	BtnContainer.Size = UDim2.new(1, -30, 0, 60)
+	BtnContainer.Position = UDim2.new(0, 15, 0, 75); BtnContainer.Size = UDim2.new(1, -30, 0, 60)
 	
 	local function CreateNeonBtn(name, pos, size)
 		local Btn = Instance.new("TextButton"); Btn.Parent = BtnContainer
@@ -942,41 +946,47 @@ local function BuildTeleportTab(parentFrame)
 	SpectateBtn.MouseButton1Click:Connect(function()
 		if ActiveConnections["Spectate"] then StopAllModes() else
 			StopAllModes() 
-			if not selectedPlayer then ShowStatus("Select Player First!", ColorError); return end
+			if not selectedPlayer then ShowStatus("Select Player", ColorError); return end
 			local target = Players:FindFirstChild(selectedPlayer.Name)
 			if target then
 				SetButtonStyle(SpectateBtn, SS, true, "STOP VIEW", "SPECTATE") 
-				ShowStatus("Spectating...", ColorSuccess)
+				ShowStatus("Spectating", ColorSuccess)
 				ActiveConnections["Spectate"] = RunService.RenderStepped:Connect(function() 
-					if not target or not target.Parent then StopAllModes(); ShowStatus("Target Left", ColorError); return end
+					if not target or not target.Parent then StopAllModes(); ShowStatus("Player Left", ColorError); return end
 					if target.Character and target.Character:FindFirstChild("Humanoid") then workspace.CurrentCamera.CameraSubject = target.Character.Humanoid end 
 				end)
-			else ShowStatus("Player Unavailable", ColorError) end
+			else ShowStatus("Player Left", ColorError) end
 		end
 	end)
 
 	TeleportBtn.MouseButton1Click:Connect(function()
-		if not selectedPlayer then ShowStatus("Select a player!", ColorError); return end
-		local target = Players:FindFirstChild(selectedPlayer.Name); if not target then ShowStatus("Player Left.", ColorError); return end
+		if not selectedPlayer then ShowStatus("Select Player", ColorError); return end
+		local target = Players:FindFirstChild(selectedPlayer.Name); 
+		if not target then ShowStatus("Player Left", ColorError); return end
+		
 		local tChar = target.Character; local lChar = LocalPlayer.Character
 		TeleportBtn.Text = "TP..."; task.wait(0.1)
+		
 		if tChar and tChar:FindFirstChild("HumanoidRootPart") and lChar and lChar:FindFirstChild("HumanoidRootPart") then 
 			lChar.HumanoidRootPart.CFrame = tChar.HumanoidRootPart.CFrame * CFrame.new(0, 0, 3)
-			ShowStatus("Teleported!", ColorSuccess)
-			TeleportBtn.Text = "DONE"
-		else ShowStatus("Unreachable", ColorError); TeleportBtn.Text = "FAIL" end
+			ShowStatus("Teleported", ColorSuccess); TeleportBtn.Text = "DONE"
+		else 
+			ShowStatus("Unreachable", ColorError); TeleportBtn.Text = "FAIL" 
+		end
 		task.delay(0.5, function() TeleportBtn.Text = "TELEPORT" end)
 	end)
 
 	FollowBtn.MouseButton1Click:Connect(function()
 		if ActiveConnections["Follow"] then StopAllModes() else
 			StopAllModes()
-			if not selectedPlayer then ShowStatus("Select Player First!", ColorError); return end
+			if not selectedPlayer then ShowStatus("Select Player", ColorError); return end
+			
 			SetButtonStyle(FollowBtn, FS, true, "STOP FOLLOWING", "SMART FOLLOW (WALK)")
-			ShowStatus("Following Target...", ColorSuccess)
+			ShowStatus("Following", ColorSuccess)
+			
 			ActiveConnections["Follow"] = RunService.Heartbeat:Connect(function(deltaTime)
 				local target = Players:FindFirstChild(selectedPlayer.Name); local myChar = LocalPlayer.Character
-				if not target or not target.Character or not target.Character:FindFirstChild("HumanoidRootPart") then StopAllModes(); ShowStatus("Target Lost", ColorError); return end
+				if not target or not target.Character or not target.Character:FindFirstChild("HumanoidRootPart") then StopAllModes(); ShowStatus("Player Left", ColorError); return end
 				if not myChar or not myChar:FindFirstChild("HumanoidRootPart") or not myChar:FindFirstChild("Humanoid") then return end
 				local myRoot = myChar.HumanoidRootPart; local targetRoot = target.Character.HumanoidRootPart; local hum = myChar.Humanoid; local tHum = target.Character:FindFirstChild("Humanoid")
 				local dist = (myRoot.Position - targetRoot.Position).Magnitude
@@ -991,11 +1001,29 @@ local function BuildTeleportTab(parentFrame)
 		end
 	end)
 
-	-- Tap Teleport (Switch Helper Global)
-	local TapSwitch = CreateMainSwitch(parentFrame, "Teleport Tap (Click / Touch)", function(active)
-		if active then ActiveConnections["TapTP"] = UserInputService.InputBegan:Connect(function(input, gameProcessed) if gameProcessed then return end; if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then local mouse = LocalPlayer:GetMouse(); local targetPos = mouse.Hit; local char = LocalPlayer.Character; if char and char:FindFirstChild("HumanoidRootPart") and targetPos then char.HumanoidRootPart.CFrame = CFrame.new(targetPos.X, targetPos.Y + 3, targetPos.Z) end end end)
-		else if ActiveConnections["TapTP"] then ActiveConnections["TapTP"]:Disconnect() end end
+	-- Teleport Tool
+	local ToolInstance = nil
+	local TapSwitch = CreateMainSwitch(parentFrame, "Teleport Tool (Equip to Click)", function(active)
+		if active then
+			if ToolInstance then ToolInstance:Destroy() end
+			ToolInstance = Instance.new("Tool"); ToolInstance.Name = "Teleport [CLICK]"; ToolInstance.RequiresHandle = false; ToolInstance.TextureId = "rbxassetid://7368482438"; ToolInstance.Parent = LocalPlayer.Backpack
+			ToolInstance.Activated:Connect(function()
+				local mouse = LocalPlayer:GetMouse(); local targetPos = mouse.Hit; local char = LocalPlayer.Character
+				if char and char:FindFirstChild("HumanoidRootPart") and targetPos then
+					char.HumanoidRootPart.CFrame = CFrame.new(targetPos.X, targetPos.Y + 3, targetPos.Z)
+					local marker = Instance.new("Part"); marker.Anchored = true; marker.CanCollide = false; marker.Transparency = 0.5; marker.Color = Theme.Accent; marker.Material = Enum.Material.Neon; marker.Size = Vector3.new(1, 50, 1); marker.Position = targetPos.Position; marker.Parent = workspace; game:GetService("Debris"):AddItem(marker, 0.5)
+				end
+			end)
+			if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then LocalPlayer.Character.Humanoid:EquipTool(ToolInstance) end
+			ShowStatus("Tool Ready", ColorSuccess)
+		else
+			if ToolInstance then ToolInstance:Destroy(); ToolInstance = nil end
+			local held = LocalPlayer.Character:FindFirstChild("Teleport [CLICK]"); if held then held:Destroy() end
+			local pack = LocalPlayer.Backpack:FindFirstChild("Teleport [CLICK]"); if pack then pack:Destroy() end
+			ShowStatus("Unequipped", ColorError)
+		end
 	end)
+	
 	if TapSwitch.Card then TapSwitch.Card.LayoutOrder = 2; TapSwitch.Card.ZIndex = 1 end
 	RefreshList()
 end
