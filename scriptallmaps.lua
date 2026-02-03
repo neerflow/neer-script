@@ -239,10 +239,7 @@ CloseBtn.MouseButton1Click:Connect(function() MainFrame.Visible = false; ExitFra
 NoBtn.MouseButton1Click:Connect(function() local c = TweenService:Create(ExitFrame, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0)}); c:Play(); c.Completed:Connect(function() ExitFrame.Visible = false; MainFrame.Visible = true end) end)
 YesBtn.MouseButton1Click:Connect(function() local b = TweenService:Create(ExitFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0)}); b:Play(); b.Completed:Connect(function() Session.ResetAll(); ScreenGui:Destroy() end) end)
 
--- =================================================================
--- [5] KUMPULAN HELPER (GLOBAL UI SYSTEM - FIXED RESET & ALIGNMENT)
--- =================================================================
-
+--// [5]  KUMPULAN HELPER 
 local Tabs = {}
 local function SwitchTab(tabName)
 	for _, page in pairs(ContentArea:GetChildren()) do if page:IsA("ScrollingFrame") then page.Visible = false end end
@@ -299,8 +296,6 @@ local function CreateExpandableSection(parent, title)
 	end)
 	return ContentFrame
 end
-
--- === [MASTER FEATURE HELPERS] === --
 
 -- 1. FEATURE CARD (Updated Alignment)
 local function CreateFeatureCard(parent, title, height)
@@ -1032,12 +1027,12 @@ local function BuildToolsTab(parentFrame)
 	local Layout = Instance.new("UIListLayout"); Layout.Parent = parentFrame; Layout.SortOrder = Enum.SortOrder.LayoutOrder; Layout.Padding = UDim.new(0, 10)
 	local Padding = Instance.new("UIPadding"); Padding.Parent = parentFrame; Padding.PaddingTop = UDim.new(0, 15); Padding.PaddingLeft = UDim.new(0, 15); Padding.PaddingRight = UDim.new(0, 15)
 
-	-- CONFIG
+	-- [1] CONFIG & VARS
 	local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 	local hum = char:WaitForChild("Humanoid")
 	local ToolsConfig = { Speed = { Active = false, Value = hum.WalkSpeed }, TPWalk = { Active = false, Value = 0.5 }, Jump = { Active = false, Value = 50, Mode = "Mobile" }, StateForce = { Active = false } }
 
-	-- HANDLER JUMP
+	-- [2] HANDLER JUMP (Logic Tetap)
 	local JumpButtonGUI, PCJumpConn, IsHoldingJump = nil, nil, false
 	local function SetNativeJumpVisible(visible) pcall(function() LocalPlayer.PlayerGui.TouchGui.TouchControlFrame.JumpButton.Visible = visible end) end
 	local function SetMobileMode(active)
@@ -1051,7 +1046,7 @@ local function BuildToolsTab(parentFrame)
 	local function SetPCMode(active) if active then if PCJumpConn then PCJumpConn:Disconnect() end; PCJumpConn=UserInputService.InputBegan:Connect(function(i,g) if not g and i.KeyCode==Enum.KeyCode.Space then local c=LocalPlayer.Character; local r=c and c:FindFirstChild("HumanoidRootPart"); local h=c and c:FindFirstChild("Humanoid"); if r and h then local hit=workspace:Raycast(r.Position,Vector3.new(0,-3.5,0),RaycastParams.new{FilterDescendantsInstances={c}}); if hit then r.AssemblyLinearVelocity=Vector3.new(r.AssemblyLinearVelocity.X, ToolsConfig.Jump.Value, r.AssemblyLinearVelocity.Z); h:ChangeState(Enum.HumanoidStateType.Jumping) end end end end) else if PCJumpConn then PCJumpConn:Disconnect() end end end
 	local function UpdateJumpState() SetMobileMode(false); SetPCMode(false); if ToolsConfig.Jump.Active then if ToolsConfig.Jump.Mode=="Mobile" then SetMobileMode(true) else SetPCMode(true) end else local h=LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid"); if h then h.JumpPower=DefaultStats.JumpPower; h.UseJumpPower=true; if DefaultStats.JumpPower>0 then SetNativeJumpVisible(true) end end end end
 
-	-- UI BUILDER
+	-- [3] UI BUILDER: FORCE MOVEMENT
 	local ForceSection = CreateExpandableSection(parentFrame, "Force Movement (Anti-Kick)")
 	
 	-- DASHBOARD MONITOR
@@ -1072,12 +1067,11 @@ local function BuildToolsTab(parentFrame)
 	local SV = Instance.new("TextLabel"); SV.Parent = StateBox; SV.Text = "ACTIVE"; SV.Size = UDim2.new(1, 0, 0.6, 0); SV.Position = UDim2.new(0, 0, 0.4, 0); SV.BackgroundTransparency = 1; SV.TextColor3 = Theme.Green; SV.Font = Theme.FontBold; SV.TextSize = 12
 	StateBox.MouseButton1Click:Connect(function() if SV.Text == "DISABLED (FIX)" then ToolsConfig.StateForce.Active = true; SV.Text = "FIXING..."; task.wait(0.5) end end)
 
-	-- CONTROLS
 	local ForceSpeedCtrl, TPWalkCtrl
 	
 	ForceSpeedCtrl = CreateStepperCard(ForceSection, "Force Speed", ToolsConfig.Speed.Value, 1, 500, 5, function(active)
 		ToolsConfig.Speed.Active = active
-		Session.OverrideSpeed = active -- [FIX] Set Global Override
+		Session.OverrideSpeed = active 
 		if active and TPWalkCtrl then TPWalkCtrl.Reset() end
 		if not active then local h = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid"); if h then h.WalkSpeed = DefaultStats.WalkSpeed end end
 	end, function(val) ToolsConfig.Speed.Value = val end)
@@ -1089,11 +1083,10 @@ local function BuildToolsTab(parentFrame)
 	
 	CreateStepperCard(ForceSection, "Force Jump", ToolsConfig.Jump.Value, 0, 500, 10, function(active)
 		ToolsConfig.Jump.Active = active
-		Session.OverrideJump = active -- [FIX] Set Global Override
+		Session.OverrideJump = active
 		UpdateJumpState()
 	end, function(val) ToolsConfig.Jump.Value = val end)
 
-	-- MODE SELECTOR
 	local ModeCard = CreateFeatureCard(ForceSection, "Jump Mode Selector", 32)
 	local MobBtn = Instance.new("TextButton"); MobBtn.Parent = ModeCard; MobBtn.BackgroundColor3 = Theme.Accent; MobBtn.Position = UDim2.new(1, -110, 0.5, -9); MobBtn.Size = UDim2.new(0, 50, 0, 18); MobBtn.Text = "MOBILE"; MobBtn.Font = Theme.FontBold; MobBtn.TextColor3 = Theme.Main; MobBtn.TextSize = 8; Instance.new("UICorner", MobBtn).CornerRadius = UDim.new(0, 4)
 	local PCBtn = Instance.new("TextButton"); PCBtn.Parent = ModeCard; PCBtn.BackgroundColor3 = Theme.Sidebar; PCBtn.Position = UDim2.new(1, -55, 0.5, -9); PCBtn.Size = UDim2.new(0, 50, 0, 18); PCBtn.Text = "PC/KEY"; PCBtn.Font = Theme.FontBold; PCBtn.TextColor3 = Theme.TextDim; PCBtn.TextSize = 8; Instance.new("UICorner", PCBtn).CornerRadius = UDim.new(0, 4)
@@ -1103,6 +1096,54 @@ local function BuildToolsTab(parentFrame)
 	end
 	MobBtn.MouseButton1Click:Connect(function() ToolsConfig.Jump.Mode = "Mobile"; UpdateModeVisuals(); if ToolsConfig.Jump.Active then UpdateJumpState() end end)
 	PCBtn.MouseButton1Click:Connect(function() ToolsConfig.Jump.Mode = "PC"; UpdateModeVisuals(); if ToolsConfig.Jump.Active then UpdateJumpState() end end)
+
+	-- [4] UI BUILDER: ESP & X-RAY (VISUAL ASSIST)
+	local ESP_Section = CreateExpandableSection(parentFrame, "Visual Assistance")
+	local HL_Conn, Name_Conn, HP_Conn = {}, {}, {}
+
+	local function ToggleESP(isActive, storageTable, onAdd, onRemove)
+		if isActive then
+			local function Setup(plr) if plr == LocalPlayer then return end; if plr.Character then onAdd(plr.Character, plr) end; local c = plr.CharacterAdded:Connect(function(ch) ch:WaitForChild("HumanoidRootPart", 5); onAdd(ch, plr) end); table.insert(storageTable, c) end
+			for _, p in pairs(Players:GetPlayers()) do Setup(p) end; table.insert(storageTable, Players.PlayerAdded:Connect(Setup))
+		else for _, c in pairs(storageTable) do c:Disconnect() end; table.clear(storageTable); for _, p in pairs(Players:GetPlayers()) do if p.Character then onRemove(p.Character) end end end
+	end
+
+	-- 1. CHAMS
+	local C1 = CreateFeatureCard(ESP_Section, "Visual Chams (Highlight)", 32)
+	AttachSwitch(C1, false, function(a) ToggleESP(a, HL_Conn, function(c) if c:FindFirstChild("NeeR_HL") then c.NeeR_HL:Destroy() end; local h=Instance.new("Highlight",c); h.Name="NeeR_HL"; h.FillColor=Theme.Red; h.OutlineColor=Color3.new(1,1,1); h.FillTransparency=0.5 end, function(c) if c:FindFirstChild("NeeR_HL") then c.NeeR_HL:Destroy() end end) end)
+	
+	-- 2. PLAYER NAMES (FIXED OFFSET)
+	local C2 = CreateFeatureCard(ESP_Section, "Player Names", 32)
+	AttachSwitch(C2, false, function(a) ToggleESP(a, Name_Conn, function(c,p) 
+		if not c:FindFirstChild("Head") then return end
+		if c:FindFirstChild("NeeR_Nm") then c.NeeR_Nm:Destroy() end
+		local b=Instance.new("BillboardGui",c); b.Name="NeeR_Nm"; b.Adornee=c.Head
+		b.Size=UDim2.new(0,100,0,20); b.AlwaysOnTop=true
+		-- [FIX] Naikkan offset ke 6.0 agar tidak menimpa Healthbar
+		b.StudsOffset=Vector3.new(0, 6.0, 0) 
+		local t=Instance.new("TextLabel",b); t.Size=UDim2.new(1,0,1,0); t.BackgroundTransparency=1; t.Text=p.DisplayName; t.TextColor3=Color3.new(1,1,1); t.Font=Theme.FontBold; t.TextSize=12; t.TextStrokeTransparency=0 
+	end, function(c) if c:FindFirstChild("NeeR_Nm") then c.NeeR_Nm:Destroy() end end) end)
+	
+	-- 3. HEALTH BAR
+	local C3 = CreateFeatureCard(ESP_Section, "Health Bar", 32)
+	AttachSwitch(C3, false, function(a) ToggleESP(a, HP_Conn, function(c) 
+		if not c:FindFirstChild("Head") then return end
+		if c:FindFirstChild("NeeR_HP") then c.NeeR_HP:Destroy() end
+		local b=Instance.new("BillboardGui",c); b.Name="NeeR_HP"; b.Adornee=c.Head
+		b.Size=UDim2.new(0,40,0,4); b.AlwaysOnTop=true
+		-- Offset standar Healthbar
+		b.StudsOffset=Vector3.new(0, 3.5, 0) 
+		local f=Instance.new("Frame",b); f.Size=UDim2.new(1,0,1,0); f.BackgroundColor3=Color3.new(0,0,0); local fill=Instance.new("Frame",f); fill.Size=UDim2.new(1,0,1,0); fill.BackgroundColor3=Theme.Green; local h=c:FindFirstChild("Humanoid"); if h then local function U() local p=math.clamp(h.Health/h.MaxHealth,0,1); TweenService:Create(fill,TweenInfo.new(0.2),{Size=UDim2.new(p,0,1,0)}):Play(); fill.BackgroundColor3=p<0.3 and Theme.Red or Theme.Green end; U(); h.HealthChanged:Connect(U) end 
+	end, function(c) if c:FindFirstChild("NeeR_HP") then c.NeeR_HP:Destroy() end end) end)
+
+	-- 4. X-RAY (Dipindah ke Tools)
+	local xr_op, xr_cache, xr_conn = 0.5, {}, nil
+	local function DoXR(v) if v:IsA("BasePart") and not v:IsA("Terrain") then local h=v.Parent:FindFirstChild("Humanoid") or v.Parent.Parent:FindFirstChild("Humanoid"); if not h and v.Transparency<0.9 then if not xr_cache[v] then xr_cache[v]=v.Transparency end; v.Transparency=xr_op end end end
+	
+	CreateHybridCard(ESP_Section, "Wall X-Ray (Auto Detect)", function(active)
+		if active then for _,v in pairs(workspace:GetDescendants()) do DoXR(v) end; xr_conn=workspace.DescendantAdded:Connect(DoXR)
+		else if xr_conn then xr_conn:Disconnect() end; for p,t in pairs(xr_cache) do if p.Parent then p.Transparency=t end end; table.clear(xr_cache) end
+	end, 0.1, 0.9, 0.5, function(v) xr_op=v; if next(xr_cache) then for p,_ in pairs(xr_cache) do if p.Parent then p.Transparency=xr_op end end end end, "")
 
 	-- ENGINE MONITOR
 	local ToolLoop
@@ -1130,37 +1171,13 @@ local function BuildVisualsTab(parentFrame)
 	local Layout = Instance.new("UIListLayout"); Layout.Parent = parentFrame; Layout.SortOrder = Enum.SortOrder.LayoutOrder; Layout.Padding = UDim.new(0, 8)
 	local Padding = Instance.new("UIPadding"); Padding.Parent = parentFrame; Padding.PaddingTop = UDim.new(0, 10); Padding.PaddingLeft = UDim.new(0, 10); Padding.PaddingRight = UDim.new(0, 10)
 
-	-- [1] TACTICAL ESP
-	local function ToggleESP(isActive, storageTable, onAdd, onRemove)
-		if isActive then
-			local function Setup(plr) if plr == LocalPlayer then return end; if plr.Character then onAdd(plr.Character, plr) end; local c = plr.CharacterAdded:Connect(function(ch) ch:WaitForChild("HumanoidRootPart", 5); onAdd(ch, plr) end); table.insert(storageTable, c) end
-			for _, p in pairs(Players:GetPlayers()) do Setup(p) end; table.insert(storageTable, Players.PlayerAdded:Connect(Setup))
-		else for _, c in pairs(storageTable) do c:Disconnect() end; table.clear(storageTable); for _, p in pairs(Players:GetPlayers()) do if p.Character then onRemove(p.Character) end end end
-	end
-	
-	local ESP_Section = CreateExpandableSection(parentFrame, "Tactical ESP")
-	local HL_Conn, Name_Conn, HP_Conn = {}, {}, {}
-	
-	local C1 = CreateFeatureCard(ESP_Section, "Visual Chams (Highlight)", 32)
-	AttachSwitch(C1, false, function(a) ToggleESP(a, HL_Conn, function(c) if c:FindFirstChild("NeeR_HL") then c.NeeR_HL:Destroy() end; local h=Instance.new("Highlight",c); h.Name="NeeR_HL"; h.FillColor=Theme.Red; h.OutlineColor=Color3.new(1,1,1); h.FillTransparency=0.5 end, function(c) if c:FindFirstChild("NeeR_HL") then c.NeeR_HL:Destroy() end end) end)
-	
-	local C2 = CreateFeatureCard(ESP_Section, "Player Names", 32)
-	AttachSwitch(C2, false, function(a) ToggleESP(a, Name_Conn, function(c,p) if not c:FindFirstChild("Head") then return end; if c:FindFirstChild("NeeR_Nm") then c.NeeR_Nm:Destroy() end; local b=Instance.new("BillboardGui",c); b.Name="NeeR_Nm"; b.Adornee=c.Head; b.Size=UDim2.new(0,100,0,20); b.StudsOffset=Vector3.new(0,3.5,0); b.AlwaysOnTop=true; local t=Instance.new("TextLabel",b); t.Size=UDim2.new(1,0,1,0); t.BackgroundTransparency=1; t.Text=p.DisplayName; t.TextColor3=Color3.new(1,1,1); t.Font=Theme.FontBold; t.TextSize=12; t.TextStrokeTransparency=0 end, function(c) if c:FindFirstChild("NeeR_Nm") then c.NeeR_Nm:Destroy() end end) end)
-	
-	local C3 = CreateFeatureCard(ESP_Section, "Health Bar", 32)
-	AttachSwitch(C3, false, function(a) ToggleESP(a, HP_Conn, function(c) if not c:FindFirstChild("Head") then return end; if c:FindFirstChild("NeeR_HP") then c.NeeR_HP:Destroy() end; local b=Instance.new("BillboardGui",c); b.Name="NeeR_HP"; b.Adornee=c.Head; b.Size=UDim2.new(0,40,0,4); b.StudsOffset=Vector3.new(0,2.5,0); b.AlwaysOnTop=true; local f=Instance.new("Frame",b); f.Size=UDim2.new(1,0,1,0); f.BackgroundColor3=Color3.new(0,0,0); local fill=Instance.new("Frame",f); fill.Size=UDim2.new(1,0,1,0); fill.BackgroundColor3=Theme.Green; local h=c:FindFirstChild("Humanoid"); if h then local function U() local p=math.clamp(h.Health/h.MaxHealth,0,1); TweenService:Create(fill,TweenInfo.new(0.2),{Size=UDim2.new(p,0,1,0)}):Play(); fill.BackgroundColor3=p<0.3 and Theme.Red or Theme.Green end; U(); h.HealthChanged:Connect(U) end end, function(c) if c:FindFirstChild("NeeR_HP") then c.NeeR_HP:Destroy() end end) end)
+	-- =================================================================
+	-- [GROUP 1] CAMERA ADJUSTMENTS (Offset & FOV)
+	-- =================================================================
+	local CamAdj_Sec = CreateExpandableSection(parentFrame, "View Customization")
 
-	-- [2] CAMERA SUITE
-	local Cam_Section = CreateExpandableSection(parentFrame, "Camera Suite")
-	
-	local CS1 = CreateFeatureCard(Cam_Section, "Force Shift Lock", 32)
-	local sl_conn = nil
-	AttachSwitch(CS1, false, function(active)
-		if active then sl_conn = RunService.RenderStepped:Connect(function() UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter; local c = LocalPlayer.Character; if c and c:FindFirstChild("HumanoidRootPart") then local r = c.HumanoidRootPart; local cam = workspace.CurrentCamera.CFrame; r.CFrame = CFrame.new(r.Position, r.Position + Vector3.new(cam.LookVector.X, 0, cam.LookVector.Z)) end end)
-		else if sl_conn then sl_conn:Disconnect() end; UserInputService.MouseBehavior = Enum.MouseBehavior.Default end
-	end)
-
-	local CS2 = CreateFeatureCard(Cam_Section, "Camera Offsets", 95)
+	-- 1. Camera Offsets
+	local CS2 = CreateFeatureCard(CamAdj_Sec, "Camera Offsets", 95)
 	local Grid = Instance.new("Frame"); Grid.Parent = CS2; Grid.BackgroundTransparency = 1; Grid.Position = UDim2.new(0, 10, 0, 32); Grid.Size = UDim2.new(1, -20, 0, 50)
 	local GL = Instance.new("UIGridLayout"); GL.Parent = Grid; GL.CellSize = UDim2.new(0.48, 0, 1, 0); GL.CellPadding = UDim2.new(0.04, 0, 0, 0); GL.SortOrder = Enum.SortOrder.LayoutOrder
 	local cx, cy = 0, 0; local function UpdCam() if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then LocalPlayer.Character.Humanoid.CameraOffset = Vector3.new(cx, cy, 0) end end
@@ -1184,46 +1201,59 @@ local function BuildVisualsTab(parentFrame)
 	CreatePerfectMiniSlider(Grid, "Horizontal (X)", function(v) cx=v; UpdCam() end)
 	CreatePerfectMiniSlider(Grid, "Vertical (Y)", function(v) cy=v; UpdCam() end)
 
-	local CS3 = CreateFeatureCard(Cam_Section, "Field of View (FOV)", 60)
+	-- 2. Field of View
+	local CS3 = CreateFeatureCard(CamAdj_Sec, "Field of View (FOV)", 60)
 	AttachSlider(CS3, 70, 120, 70, function(v) workspace.CurrentCamera.FieldOfView = v end, "")
 
-	local CS4 = CreateFeatureCard(Cam_Section, "Unlock Max Zoom", 32)
+	-- =================================================================
+	-- [GROUP 2] CAMERA UTILITIES
+	-- =================================================================
+	local CamUtil_Sec = CreateExpandableSection(parentFrame, "Camera Mechanics")
+
+	-- 1. Force Shift Lock
+	local CS1 = CreateFeatureCard(CamUtil_Sec, "Force Shift Lock", 32)
+	local sl_conn = nil
+	AttachSwitch(CS1, false, function(active)
+		if active then sl_conn = RunService.RenderStepped:Connect(function() UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter; local c = LocalPlayer.Character; if c and c:FindFirstChild("HumanoidRootPart") then local r = c.HumanoidRootPart; local cam = workspace.CurrentCamera.CFrame; r.CFrame = CFrame.new(r.Position, r.Position + Vector3.new(cam.LookVector.X, 0, cam.LookVector.Z)) end end)
+		else if sl_conn then sl_conn:Disconnect() end; UserInputService.MouseBehavior = Enum.MouseBehavior.Default end
+	end)
+
+	-- 2. Unlock Max Zoom
+	local CS4 = CreateFeatureCard(CamUtil_Sec, "Unlock Max Zoom", 32)
 	AttachSwitch(CS4, false, function(a) LocalPlayer.CameraMaxZoomDistance = a and 100000 or 128 end)
 
-	local CS5 = CreateFeatureCard(Cam_Section, "Camera Noclip", 32)
+	-- 3. Camera Noclip
+	local CS5 = CreateFeatureCard(CamUtil_Sec, "Camera Noclip", 32)
 	AttachSwitch(CS5, false, function(a) LocalPlayer.DevCameraOcclusionMode = a and Enum.DevCameraOcclusionMode.Invisicam or Enum.DevCameraOcclusionMode.Zoom end)
 
-	-- [3] WORLD & ATMOSPHERE
-	local World_Section = CreateExpandableSection(parentFrame, "World & Atmosphere")
+	-- =================================================================
+	-- [GROUP 3] ATMOSPHERE & LIGHTING
+	-- =================================================================
+	local Env_Sec = CreateExpandableSection(parentFrame, "Atmosphere & Lighting")
 
-	local WS1 = CreateFeatureCard(World_Section, "Full Brightness", 32)
-	local fb_loop; local LB = {}
+	-- 1. Custom Fog
+	local fVal, fLoop = 10000, nil
+	CreateHybridCard(Env_Sec, "Custom Fog (Dual Engine)", function(active)
+		if active then if not fLoop then fLoop = RunService.RenderStepped:Connect(function() game.Lighting.FogStart=0; game.Lighting.FogEnd=fVal; local r=math.clamp(fVal/10000,0,1); local d=(1-r)*0.55; for _,c in pairs(game.Lighting:GetChildren()) do if c:IsA("Atmosphere") then c.Density=d; c.Offset=0; c.Haze=0 end end end) end
+		else if fLoop then fLoop:Disconnect(); fLoop=nil end end
+	end, 100, 10000, 10000, function(v) fVal = v end, "")
+
+	-- 2. Time of Day
+	local WS4 = CreateFeatureCard(Env_Sec, "Time of Day", 60)
+	local fb_loop; local LB = {} -- Variable utk fullbright juga
+	AttachSlider(WS4, 0, 24, 14, function(v) if not fb_loop then Lighting.ClockTime = v end end, "h")
+
+	-- 3. Full Brightness
+	local WS1 = CreateFeatureCard(Env_Sec, "Full Brightness", 32)
 	AttachSwitch(WS1, false, function(active)
 		if active then LB = {B=Lighting.Brightness, C=Lighting.ClockTime, S=Lighting.GlobalShadows, O=Lighting.OutdoorAmbient}; fb_loop = RunService.RenderStepped:Connect(function() Lighting.Brightness=2; Lighting.ClockTime=14; Lighting.GlobalShadows=false; Lighting.OutdoorAmbient=Color3.fromRGB(128,128,128) end)
 		else if fb_loop then fb_loop:Disconnect() end; if LB.B then Lighting.Brightness=LB.B; Lighting.ClockTime=LB.C; Lighting.GlobalShadows=LB.S; Lighting.OutdoorAmbient=LB.O end end
 	end)
 
-	-- X-Ray (Height 60 via Helper)
-	local xr_op, xr_cache, xr_conn = 0.5, {}, nil
-	local function DoXR(v) if v:IsA("BasePart") and not v:IsA("Terrain") then local h=v.Parent:FindFirstChild("Humanoid") or v.Parent.Parent:FindFirstChild("Humanoid"); if not h and v.Transparency<0.9 then if not xr_cache[v] then xr_cache[v]=v.Transparency end; v.Transparency=xr_op end end end
-	CreateHybridCard(World_Section, "Wall X-Ray (Auto Detect)", function(active)
-		if active then for _,v in pairs(workspace:GetDescendants()) do DoXR(v) end; xr_conn=workspace.DescendantAdded:Connect(DoXR)
-		else if xr_conn then xr_conn:Disconnect() end; for p,t in pairs(xr_cache) do if p.Parent then p.Transparency=t end end; table.clear(xr_cache) end
-	end, 0.1, 0.9, 0.5, function(v) xr_op=v; if next(xr_cache) then for p,_ in pairs(xr_cache) do if p.Parent then p.Transparency=xr_op end end end end, "")
-
-	-- Fog (Height 60 via Helper)
-	local fVal, fLoop = 10000, nil
-	CreateHybridCard(World_Section, "Custom Fog (Dual Engine)", function(active)
-		if active then if not fLoop then fLoop = RunService.RenderStepped:Connect(function() game.Lighting.FogStart=0; game.Lighting.FogEnd=fVal; local r=math.clamp(fVal/10000,0,1); local d=(1-r)*0.55; for _,c in pairs(game.Lighting:GetChildren()) do if c:IsA("Atmosphere") then c.Density=d; c.Offset=0; c.Haze=0 end end end) end
-		else if fLoop then fLoop:Disconnect(); fLoop=nil end end
-	end, 100, 10000, 10000, function(v) fVal = v end, "")
-
-	-- Time of Day (Manual set height 55 agar sama dengan Xray/Fog)
-	local WS4 = CreateFeatureCard(World_Section, "Time of Day", 55)
-	AttachSlider(WS4, 0, 24, 14, function(v) if not fb_loop then Lighting.ClockTime = v end end, "h")
-
-	-- [4] OPTIMIZATION
-	local FPS_Section = CreateExpandableSection(parentFrame, "Optimization")
+	-- =================================================================
+	-- [GROUP 4] GRAPHICS & OPTIMIZATION
+	-- =================================================================
+	local FPS_Section = CreateExpandableSection(parentFrame, "Graphics & FPS")
 	
 	local FS1 = CreateFeatureCard(FPS_Section, "No Shadows/Effects", 32)
 	AttachSwitch(FS1, false, function(a) Lighting.GlobalShadows = not a; for _,v in pairs(Lighting:GetChildren()) do if v:IsA("PostEffect") then v.Enabled = not a end end end)
@@ -1475,8 +1505,8 @@ task.spawn(function()
 	Loader.Update("Initializing Modules...", 0.1); task.wait(1)
 	Loader.Update("Loading Informations...", 0.3); local TabInfo = CreateTabBtn("Informations", true); BuildInfoTab(TabInfo); task.wait(0.4)
 	Loader.Update("Loading Movement...", 0.5); local TabMovement = CreateTabBtn("Movement", false); BuildMovementTab(TabMovement); task.wait(0.4)
-	Loader.Update("Loading Tools...", 0.6); local TabTools = CreateTabBtn("Tools", false); BuildToolsTab(TabTools); task.wait(0.4)
-	Loader.Update("Loading Teleports...", 0.7); local TabTeleports = CreateTabBtn("Teleports", false); BuildTeleportTab(TabTeleports); task.wait(0.3)
+	Loader.Update("Loading Teleports...", 0.6); local TabTeleports = CreateTabBtn("Teleports", false); BuildTeleportTab(TabTeleports); task.wait(0.3)
+	Loader.Update("Loading Tools...", 0.7); local TabTools = CreateTabBtn("Tools", false); BuildToolsTab(TabTools); task.wait(0.4)
 	Loader.Update("Loading Visuals...", 0.8); local TabVisuals = CreateTabBtn("Visuals", false); BuildVisualsTab(TabVisuals); task.wait(0.3)
 	Loader.Update("Loading Settings...", 0.9); local TabSettings = CreateTabBtn("Settings", false); BuildSettingsTab(TabSettings); task.wait(0.3)
 	
