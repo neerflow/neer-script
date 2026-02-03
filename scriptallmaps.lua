@@ -605,7 +605,7 @@ local function BuildInfoTab(parentFrame)
 	end)
 
 	-- 2. SERVER HOP LOW (Green) - Dengan Efek Teks
-	CreateSessionBtn("SERVER HOP (LOW/SEPI)", Theme.Green, UDim2.new(0, 15, 0, 70), function(btn)
+	CreateSessionBtn("SERVER HOP (LOW PLAYER)", Theme.Green, UDim2.new(0, 15, 0, 70), function(btn)
 		btn.Text = "SEARCHING LOW SERVER..." -- Ubah teks
 		btn.AutoButtonColor = false
 		
@@ -822,42 +822,36 @@ local function BuildTeleportTab(parentFrame)
 	Title.Font = Theme.FontBold; Title.Text = "Player Teleport & Follow"; Title.TextColor3 = Theme.Text
 	Title.TextSize = 12; Title.TextXAlignment = Enum.TextXAlignment.Left
 	
-	-- 2. STATUS LABEL (Kanan Atas - Awalnya Kosong)
+	-- 2. STATUS LABEL
 	local StatusLbl = Instance.new("TextLabel"); StatusLbl.Parent = TpCard; StatusLbl.BackgroundTransparency = 1
 	StatusLbl.AnchorPoint = Vector2.new(0, 0) 
 	StatusLbl.Position = UDim2.new(1, -95, 0, 10) 
 	StatusLbl.Size = UDim2.new(0, 80, 0, 15)
 	StatusLbl.Font = Theme.FontBold
-	StatusLbl.Text = ""; StatusLbl.TextColor3 = Theme.TextDim -- Kosong saat awal
+	StatusLbl.Text = ""; StatusLbl.TextColor3 = Theme.TextDim
 	StatusLbl.TextSize = 10; StatusLbl.TextXAlignment = Enum.TextXAlignment.Left 
 	
 	local function ShowStatus(text, color)
-		StatusLbl.Text = "(!) " .. text
-		StatusLbl.TextColor3 = color or Theme.Text
-		
+		StatusLbl.Text = "(!) " .. text; StatusLbl.TextColor3 = color or Theme.Text
 		if statusTimer then task.cancel(statusTimer) end
-		statusTimer = task.delay(3, function() 
-			-- Kembali Kosong setelah 3 detik
-			if StatusLbl then StatusLbl.Text = ""; StatusLbl.TextColor3 = Theme.TextDim end 
-			statusTimer = nil 
-		end) 
+		statusTimer = task.delay(3, function() if StatusLbl then StatusLbl.Text = ""; StatusLbl.TextColor3 = Theme.TextDim end statusTimer = nil end) 
 	end
 
 	-- 3. CONTAINER
 	local DropContainer = Instance.new("Frame"); DropContainer.Parent = TpCard; DropContainer.BackgroundTransparency = 1
 	DropContainer.Position = UDim2.new(0, 15, 0, 35); DropContainer.Size = UDim2.new(1, -30, 0, 30); DropContainer.ZIndex = 20
 	
-	-- Dropdown
+	-- Dropdown Button (Flat & Clean)
 	local DropBtn = Instance.new("TextButton"); DropBtn.Parent = DropContainer
 	DropBtn.BackgroundColor3 = Theme.Main
-	DropBtn.Size = UDim2.new(1, -85, 1, 0); DropBtn.Font = Theme.FontMain
+	DropBtn.Size = UDim2.new(1, -85, 1, 0)
+	DropBtn.Font = Theme.FontMain 
 	DropBtn.Text = "  Select Player..."; DropBtn.TextColor3 = Theme.TextDim
 	DropBtn.TextSize = 11; DropBtn.TextXAlignment = Enum.TextXAlignment.Left
-	DropBtn.AutoButtonColor = false; DropBtn.ZIndex = 20
+	DropBtn.AutoButtonColor = false; DropBtn.BorderSizePixel = 0; DropBtn.ZIndex = 20
 	Instance.new("UICorner", DropBtn).CornerRadius = UDim.new(0, 6)
-	local DS = Instance.new("UIStroke"); DS.Parent = DropBtn; DS.Color = Theme.Separator; DS.Thickness = 1; DS.Transparency = 0.5
 	
-	-- Refresh
+	-- Refresh Button
 	local RefreshBtn = Instance.new("TextButton"); RefreshBtn.Parent = DropContainer
 	RefreshBtn.BackgroundColor3 = Theme.Main
 	RefreshBtn.Position = UDim2.new(1, -80, 0, 0); RefreshBtn.Size = UDim2.new(0, 80, 1, 0)
@@ -882,11 +876,18 @@ local function BuildTeleportTab(parentFrame)
 		for _, p in pairs(Players:GetPlayers()) do
 			if p ~= LocalPlayer then
 				local PBtn = Instance.new("TextButton"); PBtn.Parent = ListFrame; PBtn.BackgroundColor3 = Theme.Main; PBtn.Size = UDim2.new(1, 0, 0, 25)
-				PBtn.Font = Theme.FontMain; PBtn.TextSize = 11; PBtn.TextXAlignment = Enum.TextXAlignment.Left; PBtn.AutoButtonColor = true; PBtn.ZIndex = 31
-				local labelText = "  " .. p.DisplayName .. " (@" .. p.Name .. ")"; PBtn.Text = labelText; PBtn.TextColor3 = Theme.TextDim
+				PBtn.Font = Theme.FontMain; PBtn.TextSize = 11; PBtn.TextXAlignment = Enum.TextXAlignment.Left; PBtn.AutoButtonColor = false; PBtn.ZIndex = 31
+				
+				-- Format Nama Lengkap
+				local labelText = "  " .. p.DisplayName .. " (@" .. p.Name .. ")"
+				PBtn.Text = labelText; PBtn.TextColor3 = Theme.TextDim
+				
 				PBtn.MouseButton1Click:Connect(function() 
-					selectedPlayer = p; DropBtn.Text = "  " .. p.DisplayName; DropBtn.TextColor3 = Theme.Text
-					DS.Color = Theme.Accent; DS.Transparency = 0; ToggleDropdown(true) 
+					selectedPlayer = p
+					-- [UPDATE] Tampilkan nama lengkap di Dropdown juga
+					DropBtn.Text = labelText 
+					DropBtn.TextColor3 = Theme.Text
+					ToggleDropdown(true) 
 				end)
 			end
 		end
@@ -1049,6 +1050,17 @@ local function BuildToolsTab(parentFrame)
 	-- [3] UI BUILDER: FORCE MOVEMENT
 	local ForceSection = CreateExpandableSection(parentFrame, "Force Movement (Anti-Kick)")
 	
+	-- [INFO LABEL - ADDED HERE]
+	local InfoLbl = Instance.new("TextLabel"); InfoLbl.Parent = ForceSection
+	InfoLbl.BackgroundTransparency = 1
+	InfoLbl.Size = UDim2.new(1, 0, 0, 20)
+	InfoLbl.Font = Theme.FontMain
+	InfoLbl.Text = "*Note: Use this if the map restricts WalkSpeed or JumpPower."
+	InfoLbl.TextColor3 = Color3.fromRGB(150, 150, 150) -- Sedikit lebih gelap dari text biasa
+	InfoLbl.TextSize = 10
+	InfoLbl.TextXAlignment = Enum.TextXAlignment.Left
+	InfoLbl.TextWrapped = true
+
 	-- DASHBOARD MONITOR
 	local DashCard = CreateCard(ForceSection, UDim2.new(1, 0, 0, 50))
 	local DashLayout = Instance.new("UIListLayout"); DashLayout.Parent = DashCard; DashLayout.FillDirection = Enum.FillDirection.Horizontal; DashLayout.Padding = UDim.new(0, 5); DashLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center; DashLayout.VerticalAlignment = Enum.VerticalAlignment.Center
@@ -1136,7 +1148,7 @@ local function BuildToolsTab(parentFrame)
 		local f=Instance.new("Frame",b); f.Size=UDim2.new(1,0,1,0); f.BackgroundColor3=Color3.new(0,0,0); local fill=Instance.new("Frame",f); fill.Size=UDim2.new(1,0,1,0); fill.BackgroundColor3=Theme.Green; local h=c:FindFirstChild("Humanoid"); if h then local function U() local p=math.clamp(h.Health/h.MaxHealth,0,1); TweenService:Create(fill,TweenInfo.new(0.2),{Size=UDim2.new(p,0,1,0)}):Play(); fill.BackgroundColor3=p<0.3 and Theme.Red or Theme.Green end; U(); h.HealthChanged:Connect(U) end 
 	end, function(c) if c:FindFirstChild("NeeR_HP") then c.NeeR_HP:Destroy() end end) end)
 
-	-- 4. X-RAY (Dipindah ke Tools)
+	-- 4. X-RAY
 	local xr_op, xr_cache, xr_conn = 0.5, {}, nil
 	local function DoXR(v) if v:IsA("BasePart") and not v:IsA("Terrain") then local h=v.Parent:FindFirstChild("Humanoid") or v.Parent.Parent:FindFirstChild("Humanoid"); if not h and v.Transparency<0.9 then if not xr_cache[v] then xr_cache[v]=v.Transparency end; v.Transparency=xr_op end end end
 	
@@ -1171,9 +1183,6 @@ local function BuildVisualsTab(parentFrame)
 	local Layout = Instance.new("UIListLayout"); Layout.Parent = parentFrame; Layout.SortOrder = Enum.SortOrder.LayoutOrder; Layout.Padding = UDim.new(0, 8)
 	local Padding = Instance.new("UIPadding"); Padding.Parent = parentFrame; Padding.PaddingTop = UDim.new(0, 10); Padding.PaddingLeft = UDim.new(0, 10); Padding.PaddingRight = UDim.new(0, 10)
 
-	-- =================================================================
-	-- [GROUP 1] CAMERA ADJUSTMENTS (Offset & FOV)
-	-- =================================================================
 	local CamAdj_Sec = CreateExpandableSection(parentFrame, "View Customization")
 
 	-- 1. Camera Offsets
@@ -1226,9 +1235,6 @@ local function BuildVisualsTab(parentFrame)
 	local CS5 = CreateFeatureCard(CamUtil_Sec, "Camera Noclip", 32)
 	AttachSwitch(CS5, false, function(a) LocalPlayer.DevCameraOcclusionMode = a and Enum.DevCameraOcclusionMode.Invisicam or Enum.DevCameraOcclusionMode.Zoom end)
 
-	-- =================================================================
-	-- [GROUP 3] ATMOSPHERE & LIGHTING
-	-- =================================================================
 	local Env_Sec = CreateExpandableSection(parentFrame, "Atmosphere & Lighting")
 
 	-- 1. Custom Fog
@@ -1250,9 +1256,6 @@ local function BuildVisualsTab(parentFrame)
 		else if fb_loop then fb_loop:Disconnect() end; if LB.B then Lighting.Brightness=LB.B; Lighting.ClockTime=LB.C; Lighting.GlobalShadows=LB.S; Lighting.OutdoorAmbient=LB.O end end
 	end)
 
-	-- =================================================================
-	-- [GROUP 4] GRAPHICS & OPTIMIZATION
-	-- =================================================================
 	local FPS_Section = CreateExpandableSection(parentFrame, "Graphics & FPS")
 	
 	local FS1 = CreateFeatureCard(FPS_Section, "No Shadows/Effects", 32)
@@ -1263,33 +1266,6 @@ local function BuildVisualsTab(parentFrame)
 end
 
 local function BuildSettingsTab(parentFrame)
-	local Layout = Instance.new("UIListLayout"); Layout.Parent = parentFrame; Layout.SortOrder = Enum.SortOrder.LayoutOrder; Layout.Padding = UDim.new(0, 10)
-	local Padding = Instance.new("UIPadding"); Padding.Parent = parentFrame; Padding.PaddingTop = UDim.new(0, 15); Padding.PaddingLeft = UDim.new(0, 15); Padding.PaddingRight = UDim.new(0, 15)
-	
-	-- 1. DEVICE
-	local Dev_Sec = CreateExpandableSection(parentFrame, "Device & Display")
-	local C1 = CreateFeatureCard(Dev_Sec, "Interface Scale (DPI)", 32)
-	local modes, names, idx = {1, 0.75, 0.5}, {"100%", "75%", "50%"}, 1
-	local DPIBtn = Instance.new("TextButton"); DPIBtn.Parent = C1; DPIBtn.BackgroundColor3 = Theme.Sidebar; DPIBtn.AnchorPoint=Vector2.new(1,0.5); DPIBtn.Position=UDim2.new(1,-8,0.5,0); DPIBtn.Size=UDim2.new(0,50,0,18); DPIBtn.Text=names[1]; DPIBtn.Font=Theme.FontBold; DPIBtn.TextColor3=Theme.Text; DPIBtn.TextSize=9; Instance.new("UICorner", DPIBtn).CornerRadius=UDim.new(0,4)
-	DPIBtn.MouseButton1Click:Connect(function() idx = idx + 1; if idx > 3 then idx = 1 end; DPIBtn.Text = names[idx]; TweenService:Create(UIScale, TweenInfo.new(0.5, Enum.EasingStyle.Back), {Scale = modes[idx]}):Play() end)
-
-	local C2 = CreateFeatureCard(Dev_Sec, "Unlock FPS (Bypass 60)", 32)
-	AttachSwitch(C2, false, function(a) if setfpscap then setfpscap(a and 999 or 60) end end)
-
-	-- 2. GAMEPLAY
-	local Game_Sec = CreateExpandableSection(parentFrame, "Gameplay Utilities")
-	local C3 = CreateFeatureCard(Game_Sec, "Auto Rejoin (Anti-Kick)", 32)
-	local rj_conn; AttachSwitch(C3, false, function(a) if a then rj_conn = game.CoreGui.RobloxPromptGui.promptOverlay.ChildAdded:Connect(function(c) if c.Name=="ErrorPrompt" then game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer) end end) else if rj_conn then rj_conn:Disconnect() end end end)
-
-	local C4 = CreateFeatureCard(Game_Sec, "Low CPU (Black Screen)", 32)
-	local blk; AttachSwitch(C4, false, function(a) RunService:Set3dRenderingEnabled(not a); if a then blk=Instance.new("ScreenGui",CoreGui); local f=Instance.new("Frame",blk); f.Size=UDim2.new(1,0,1,0); f.BackgroundColor3=Color3.new(0,0,0); local t=Instance.new("TextLabel",f); t.Text="Low CPU Active"; t.Size=UDim2.new(1,0,1,0); t.TextColor3=Color3.new(1,1,1); t.BackgroundTransparency=1 else if blk then blk:Destroy() end end end)
-
-	-- 3. DANGER
-	local Danger_Sec = CreateExpandableSection(parentFrame, "Danger Zone")
-	CreateActionCard(Danger_Sec, "Instant Force Close", "EXIT", Theme.Red, function() game:Shutdown() end)
-end
-
-local function BuildSettingsTab(parentFrame)
 	local Layout = Instance.new("UIListLayout"); Layout.Parent = parentFrame
 	Layout.SortOrder = Enum.SortOrder.LayoutOrder
 	Layout.Padding = UDim.new(0, 10)
@@ -1297,11 +1273,12 @@ local function BuildSettingsTab(parentFrame)
 	local Padding = Instance.new("UIPadding"); Padding.Parent = parentFrame
 	Padding.PaddingTop = UDim.new(0, 15); Padding.PaddingLeft = UDim.new(0, 15); Padding.PaddingRight = UDim.new(0, 15)
 	
-	-- [1] DPI SETTINGS - LayoutOrder 1
+	-- =========================================================
+	-- [1] DPI SETTINGS (Flat - LayoutOrder 1)
+	-- =========================================================
 	local DPICard = CreateCard(parentFrame, UDim2.new(1, 0, 0, 0)); DPICard.AutomaticSize = Enum.AutomaticSize.Y
 	DPICard.LayoutOrder = 1; DPICard.ZIndex = 100; DPICard.ClipsDescendants = false
 	
-	-- Layout Internal DPI
 	local DPI_InnerLayout = Instance.new("UIListLayout"); DPI_InnerLayout.Parent = DPICard; DPI_InnerLayout.SortOrder = Enum.SortOrder.LayoutOrder; DPI_InnerLayout.Padding = UDim.new(0, 5)
 	local DPI_Pad = Instance.new("UIPadding"); DPI_Pad.Parent = DPICard; DPI_Pad.PaddingTop = UDim.new(0, 10); DPI_Pad.PaddingBottom = UDim.new(0, 10); DPI_Pad.PaddingLeft = UDim.new(0, 15); DPI_Pad.PaddingRight = UDim.new(0, 15)
 
@@ -1332,71 +1309,24 @@ local function BuildSettingsTab(parentFrame)
 	local function AddDPIOption(txt, scaleVal) local Opt = Instance.new("TextButton"); Opt.Parent = DPIFrame; Opt.BackgroundColor3 = Theme.Main; Opt.Size = UDim2.new(1, 0, 0, 35); Opt.Font = Theme.FontMain; Opt.Text = txt; Opt.TextColor3 = Theme.TextDim; Opt.TextSize = 12; Opt.AutoButtonColor = true; Opt.ZIndex = 106; Opt.MouseButton1Click:Connect(function() TweenService:Create(UIScale, TweenInfo.new(0.5, Enum.EasingStyle.Back), {Scale = scaleVal}):Play(); DPIBtn.Text = "  Size: " .. txt; dpiOpen = false; TweenService:Create(DPIFrame, TweenInfo.new(0.3), {Size = UDim2.new(1, 0, 0, 0)}):Play(); task.wait(0.3); DPIFrame.Visible = false end) end
 	AddDPIOption("100% (Default)", 1); AddDPIOption("75% (Medium)", 0.75); AddDPIOption("50% (Small)", 0.5)
 
-
-	-- [2] PERFORMANCE SUITE (UNLOCK + BENCHMARK) - LayoutOrder 2
-	local PerfCard = CreateCard(parentFrame, UDim2.new(1, 0, 0, 0)); PerfCard.AutomaticSize = Enum.AutomaticSize.Y
-	PerfCard.LayoutOrder = 2
+	-- =========================================================
+	-- [2] FPS BENCHMARK (Expandable - LayoutOrder 2)
+	-- =========================================================
+	local Bench_Sec = CreateExpandableSection(parentFrame, "FPS Benchmark Tool")
+	Bench_Sec.Parent.LayoutOrder = 2 -- POSISI DI BAWAH DPI
 	
-	local P_Layout = Instance.new("UIListLayout"); P_Layout.Parent = PerfCard; P_Layout.SortOrder = Enum.SortOrder.LayoutOrder; P_Layout.Padding = UDim.new(0, 12)
-	local P_Pad = Instance.new("UIPadding"); P_Pad.Parent = PerfCard; P_Pad.PaddingTop = UDim.new(0, 12); P_Pad.PaddingBottom = UDim.new(0, 12); P_Pad.PaddingLeft = UDim.new(0, 15); P_Pad.PaddingRight = UDim.new(0, 15)
+	local BenchCard = CreateCard(Bench_Sec, UDim2.new(1, 0, 0, 85)) 
+	local B_Layout = Instance.new("UIListLayout"); B_Layout.Parent = BenchCard; B_Layout.SortOrder = Enum.SortOrder.LayoutOrder; B_Layout.Padding = UDim.new(0, 8); B_Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	local B_Pad = Instance.new("UIPadding"); B_Pad.Parent = BenchCard; B_Pad.PaddingTop = UDim.new(0, 10); B_Pad.PaddingBottom = UDim.new(0, 10); B_Pad.PaddingLeft = UDim.new(0, 10); B_Pad.PaddingRight = UDim.new(0, 10)
 
-	-- A. UNLOCK FPS SWITCH
-	local UnlockContainer = Instance.new("Frame"); UnlockContainer.Parent = PerfCard; UnlockContainer.BackgroundTransparency = 1; UnlockContainer.Size = UDim2.new(1, 0, 0, 24); UnlockContainer.LayoutOrder = 1
-	
-	local UnlockTitle = Instance.new("TextLabel"); UnlockTitle.Parent = UnlockContainer
-	UnlockTitle.Text = "Unlock FPS Limit (Bypass 60)"; UnlockTitle.Font = Theme.FontBold; UnlockTitle.TextColor3 = Theme.Text; UnlockTitle.TextSize = 13
-	UnlockTitle.BackgroundTransparency = 1; UnlockTitle.Position = UDim2.new(0, 0, 0, 0); UnlockTitle.Size = UDim2.new(0.7, 0, 1, 0); UnlockTitle.TextXAlignment = Enum.TextXAlignment.Left
-
-	local ToggleBtn = Instance.new("TextButton"); ToggleBtn.Parent = UnlockContainer
-	ToggleBtn.AnchorPoint = Vector2.new(1, 0.5); ToggleBtn.Position = UDim2.new(1, 0, 0.5, 0); ToggleBtn.Size = UDim2.new(0, 46, 0, 22)
-	ToggleBtn.BackgroundColor3 = Theme.Sidebar; ToggleBtn.Text = ""; Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(1, 0)
-	local Circle = Instance.new("Frame"); Circle.Parent = ToggleBtn; Circle.BackgroundColor3 = Theme.TextDim; Circle.Size = UDim2.new(0, 16, 0, 16); Circle.Position = UDim2.new(0, 3, 0.5, -8); Instance.new("UICorner", Circle).CornerRadius = UDim.new(1, 0)
-	
-	local fpsUnlocked = false
-	ToggleBtn.MouseButton1Click:Connect(function()
-		fpsUnlocked = not fpsUnlocked
-		if fpsUnlocked then
-			TweenService:Create(Circle, TweenInfo.new(0.2), {Position = UDim2.new(1, -19, 0.5, -8), BackgroundColor3 = Theme.Main}):Play()
-			TweenService:Create(ToggleBtn, TweenInfo.new(0.2), {BackgroundColor3 = Theme.Accent}):Play()
-			if setfpscap then setfpscap(999) end
-		else
-			TweenService:Create(Circle, TweenInfo.new(0.2), {Position = UDim2.new(0, 3, 0.5, -8), BackgroundColor3 = Theme.TextDim}):Play()
-			TweenService:Create(ToggleBtn, TweenInfo.new(0.2), {BackgroundColor3 = Theme.Sidebar}):Play()
-			if setfpscap then setfpscap(60) end
-		end
-	end)
-
-	-- B. BENCHMARK TOOL (Card dalam Card)
-	local BenchContainer = Instance.new("Frame"); BenchContainer.Parent = PerfCard; BenchContainer.LayoutOrder = 2
-	BenchContainer.BackgroundColor3 = Theme.Sidebar; BenchContainer.BackgroundTransparency = 0.5
-	BenchContainer.Size = UDim2.new(1, 0, 0, 0); BenchContainer.AutomaticSize = Enum.AutomaticSize.Y
-	Instance.new("UICorner", BenchContainer).CornerRadius = UDim.new(0, 8)
-	local BenchStroke = Instance.new("UIStroke"); BenchStroke.Parent = BenchContainer; BenchStroke.Color = Theme.Separator; BenchStroke.Thickness = 1; BenchStroke.Transparency = 0.8
-
-	local B_Layout = Instance.new("UIListLayout"); B_Layout.Parent = BenchContainer; B_Layout.SortOrder = Enum.SortOrder.LayoutOrder; B_Layout.Padding = UDim.new(0, 10); B_Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	local B_Pad = Instance.new("UIPadding"); B_Pad.Parent = BenchContainer; B_Pad.PaddingTop = UDim.new(0, 10); B_Pad.PaddingBottom = UDim.new(0, 10); B_Pad.PaddingLeft = UDim.new(0, 10); B_Pad.PaddingRight = UDim.new(0, 10)
-
-	local B_Title = Instance.new("TextLabel"); B_Title.Parent = BenchContainer; B_Title.LayoutOrder = 1
-	B_Title.Text = "FPS BENCHMARK ANALYZER"; B_Title.Font = Theme.FontBold; B_Title.TextColor3 = Theme.TextDim; B_Title.TextSize = 10; B_Title.Size = UDim2.new(1, 0, 0, 12); B_Title.BackgroundTransparency = 1
-
-	-- Grid Statistik (Horizontal Row)
-	local GridFrame = Instance.new("Frame"); GridFrame.Parent = BenchContainer; GridFrame.LayoutOrder = 2
-	GridFrame.BackgroundTransparency = 1; GridFrame.Size = UDim2.new(1, 0, 0, 45) -- Tinggi diperkecil untuk 1 baris
+	local GridFrame = Instance.new("Frame"); GridFrame.Parent = BenchCard; GridFrame.BackgroundTransparency = 1; GridFrame.Size = UDim2.new(1, 0, 0, 35)
 	local Grid = Instance.new("UIListLayout"); Grid.Parent = GridFrame; Grid.FillDirection = Enum.FillDirection.Horizontal; Grid.HorizontalAlignment = Enum.HorizontalAlignment.Center; Grid.Padding = UDim.new(0, 6)
 
-	-- Helper: Create Compact Stat Box
 	local function CreateStatBox(label, defaultColor)
-		local Box = Instance.new("Frame"); Box.Parent = GridFrame; Box.BackgroundColor3 = Theme.Main; Box.BackgroundTransparency = 0.5
-		Box.Size = UDim2.new(0.235, 0, 1, 0) -- Ukuran pas untuk 4 item (0.235 * 4 < 1.0)
-		Instance.new("UICorner", Box).CornerRadius = UDim.new(0, 6)
-		
-		local T = Instance.new("TextLabel"); T.Parent = Box; T.Text = label
-		T.Size = UDim2.new(1, 0, 0.4, 0); T.Position = UDim2.new(0, 0, 0, 5)
-		T.BackgroundTransparency = 1; T.TextColor3 = Theme.TextDim; T.Font = Theme.FontMain; T.TextSize = 8; T.TextXAlignment = Enum.TextXAlignment.Center -- Center Align
-		
-		local V = Instance.new("TextLabel"); V.Parent = Box; V.Text = "-"; 
-		V.Size = UDim2.new(1, 0, 0.6, 0); V.Position = UDim2.new(0, 0, 0.35, 0)
-		V.BackgroundTransparency = 1; V.TextColor3 = defaultColor; V.Font = Theme.FontBold; V.TextSize = 14; V.TextXAlignment = Enum.TextXAlignment.Center -- Center Align
+		local Box = Instance.new("Frame"); Box.Parent = GridFrame; Box.BackgroundColor3 = Theme.Sidebar; Box.BackgroundTransparency = 0
+		Box.Size = UDim2.new(0.23, 0, 1, 0); Instance.new("UICorner", Box).CornerRadius = UDim.new(0, 6)
+		local T = Instance.new("TextLabel"); T.Parent = Box; T.Text = label; T.Size = UDim2.new(1, 0, 0.4, 0); T.Position = UDim2.new(0, 0, 0, 2); T.BackgroundTransparency = 1; T.TextColor3 = Theme.TextDim; T.Font = Theme.FontMain; T.TextSize = 8; T.TextXAlignment = Enum.TextXAlignment.Center
+		local V = Instance.new("TextLabel"); V.Parent = Box; V.Text = "-"; V.Size = UDim2.new(1, 0, 0.6, 0); V.Position = UDim2.new(0, 0, 0.4, 0); V.BackgroundTransparency = 1; V.TextColor3 = defaultColor; V.Font = Theme.FontBold; V.TextSize = 12; V.TextXAlignment = Enum.TextXAlignment.Center
 		return V
 	end
 	
@@ -1405,78 +1335,75 @@ local function BuildSettingsTab(parentFrame)
 	local HighVal = CreateStatBox("MAX", Theme.Green)
 	local LowVal = CreateStatBox("MIN", Theme.Red)
 
-	-- Tombol Start
-	local StartBtn = Instance.new("TextButton"); StartBtn.Parent = BenchContainer; StartBtn.LayoutOrder = 3
+	local StartBtn = Instance.new("TextButton"); StartBtn.Parent = BenchCard
 	StartBtn.Text = "START TEST (30s)"; StartBtn.BackgroundColor3 = Theme.Accent; StartBtn.TextColor3 = Theme.Main; StartBtn.Font = Theme.FontBold; StartBtn.TextSize = 11
 	StartBtn.Size = UDim2.new(1, 0, 0, 32); Instance.new("UICorner", StartBtn).CornerRadius = UDim.new(0, 6)
 
-	-- Logika Benchmark
 	local isRunning = false
 	StartBtn.MouseButton1Click:Connect(function()
 		if isRunning then return end
 		isRunning = true
 		StartBtn.BackgroundColor3 = Theme.Sidebar; StartBtn.TextColor3 = Theme.TextDim
-		
-		local min, max, total, count = 999, 0, 0, 0
-		local startTime = tick()
-		local connection
-		
+		local min, max, total, count = 999, 0, 0, 0; local startTime = tick(); local connection
 		LiveVal.Text = "..."; AvgVal.Text = "..."; HighVal.Text = "..."; LowVal.Text = "..."
-		
 		connection = RunService.RenderStepped:Connect(function(dt)
-			local fps = 1 / dt
-			local elapsed = tick() - startTime
-			local remaining = 30 - math.floor(elapsed)
-			
+			local fps = 1 / dt; local elapsed = tick() - startTime; local remaining = 30 - math.floor(elapsed)
 			StartBtn.Text = "TESTING... " .. tostring(remaining) .. "s"
-			
 			LiveVal.Text = string.format("%.0f", fps)
 			if fps >= 55 then LiveVal.TextColor3 = Theme.Green elseif fps >= 30 then LiveVal.TextColor3 = Color3.fromRGB(255, 200, 0) else LiveVal.TextColor3 = Theme.Red end
-
 			if elapsed > 1 then
 				if fps < min then min = fps; LowVal.Text = string.format("%.0f", min) end
 				if fps > max then max = fps; HighVal.Text = string.format("%.0f", max) end
-				total = total + fps
-				count = count + 1
-				AvgVal.Text = string.format("%.0f", total / count)
+				total = total + fps; count = count + 1; AvgVal.Text = string.format("%.0f", total / count)
 			end
-			
 			if elapsed >= 30 then
-				connection:Disconnect()
-				isRunning = false
+				connection:Disconnect(); isRunning = false
 				StartBtn.Text = "START TEST (RESET)"; StartBtn.BackgroundColor3 = Theme.Accent; StartBtn.TextColor3 = Theme.Main
 			end
 		end)
 	end)
 
-	-- [3] AUTO REJOIN - LayoutOrder 3
-	local rejoinConn = nil
-	local RejoinSwitch = CreateMainSwitch(parentFrame, "Auto Rejoin (Kick/DC)", function(active)
+	-- =========================================================
+	-- [3] UNLOCK FPS (Flat - LayoutOrder 3)
+	-- =========================================================
+	local FpsCard = CreateFeatureCard(parentFrame, "Unlock FPS Limit (Bypass 60)", 32)
+	FpsCard.LayoutOrder = 3 -- POSISI DI BAWAH BENCHMARK
+	AttachSwitch(FpsCard, false, function(active)
+		if setfpscap then setfpscap(active and 999 or 60) end
+	end)
+
+	-- =========================================================
+	-- [4] AUTO REJOIN (Flat - LayoutOrder 4)
+	-- =========================================================
+	local RjCard = CreateFeatureCard(parentFrame, "Auto Rejoin (Kick/DC)", 32)
+	RjCard.LayoutOrder = 4
+	local rj_conn
+	AttachSwitch(RjCard, false, function(active)
 		if active then
 			local PromptGui = game:GetService("CoreGui"):WaitForChild("RobloxPromptGui", 2)
 			if PromptGui and PromptGui:FindFirstChild("promptOverlay") then
-				rejoinConn = PromptGui.promptOverlay.ChildAdded:Connect(function(child)
+				rj_conn = PromptGui.promptOverlay.ChildAdded:Connect(function(child)
 					if child.Name == "ErrorPrompt" then
-						local TS = game:GetService("TeleportService")
-						TS:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
+						game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
 					end
 				end)
 			end
 		else
-			if rejoinConn then rejoinConn:Disconnect(); rejoinConn = nil end
+			if rj_conn then rj_conn:Disconnect(); rj_conn = nil end
 		end
 	end)
-	if RejoinSwitch.Card then RejoinSwitch.Card.LayoutOrder = 3; RejoinSwitch.Card.ZIndex = 95 end
 
-	-- [4] LOW CPU - LayoutOrder 4
+	-- =========================================================
+	-- [5] LOW CPU (Flat - LayoutOrder 5)
+	-- =========================================================
+	local CpuCard = CreateFeatureCard(parentFrame, "Low CPU (Black Screen)", 32)
+	CpuCard.LayoutOrder = 5
 	local BlackScreenGUI = nil
-	local LowCPU = CreateMainSwitch(parentFrame, "Low CPU (Black Screen)", function(active)
+	AttachSwitch(CpuCard, false, function(active)
 		RunService:Set3dRenderingEnabled(not active)
 		if active then
 			if not BlackScreenGUI then
 				BlackScreenGUI = Instance.new("ScreenGui"); BlackScreenGUI.Name = "NeeR_BlackScreen"; BlackScreenGUI.Parent = CoreGui; BlackScreenGUI.IgnoreGuiInset = true
-				local MainGui = parentFrame:FindFirstAncestorOfClass("ScreenGui")
-				if MainGui then MainGui.DisplayOrder = 100; BlackScreenGUI.DisplayOrder = 90 end
 				local BlackFrame = Instance.new("Frame"); BlackFrame.Parent = BlackScreenGUI; BlackFrame.BackgroundColor3 = Color3.new(0, 0, 0); BlackFrame.Size = UDim2.new(1, 0, 1, 0)
 				local Info = Instance.new("TextLabel"); Info.Parent = BlackFrame; Info.BackgroundTransparency = 1; Info.Position = UDim2.new(0, 0, 0.9, 0); Info.Size = UDim2.new(1, 0, 0, 20); Info.Font = Theme.FontMain; Info.Text = "Rendering Disabled (Battery Saver Active)"; Info.TextColor3 = Color3.fromRGB(100, 100, 100); Info.TextSize = 12
 			end
@@ -1484,9 +1411,10 @@ local function BuildSettingsTab(parentFrame)
 			if BlackScreenGUI then BlackScreenGUI:Destroy(); BlackScreenGUI = nil end
 		end
 	end)
-	if LowCPU.Card then LowCPU.Card.LayoutOrder = 4; LowCPU.Card.ZIndex = 80 end
 
-	-- [5] INSTANT EXIT - LayoutOrder 10
+	-- =========================================================
+	-- [6] INSTANT EXIT (Flat - LayoutOrder 10)
+	-- =========================================================
 	local ExitBtn = Instance.new("TextButton"); ExitBtn.Parent = parentFrame
 	ExitBtn.LayoutOrder = 10; ExitBtn.ZIndex = 1
 	ExitBtn.BackgroundColor3 = Theme.Red; ExitBtn.BackgroundTransparency = 0.2
