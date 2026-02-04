@@ -328,7 +328,6 @@ local function AttachSwitch(parentCard, default, callback)
 	return SetState
 end
 
--- [GLOBAL SLIDER SYSTEM]
 local ActiveSlider = nil 
 local function UpdateSliderValue(input)
 	if not ActiveSlider then return end
@@ -524,26 +523,32 @@ local function BuildInfoTab(parentFrame)
 	local Layout = Instance.new("UIListLayout"); Layout.Parent = parentFrame; Layout.SortOrder = Enum.SortOrder.LayoutOrder; Layout.Padding = UDim.new(0, 14)
 	local Padding = Instance.new("UIPadding"); Padding.Parent = parentFrame; Padding.PaddingTop = UDim.new(0, 15); Padding.PaddingLeft = UDim.new(0, 15); Padding.PaddingRight = UDim.new(0, 15)
 	
+	-- [PING CARD]
 	local PingCard = CreateCard(parentFrame, UDim2.new(1, 0, 0,60), 1)
 	local PingTitle = Instance.new("TextLabel"); PingTitle.Parent = PingCard; PingTitle.BackgroundTransparency = 1; PingTitle.Position = UDim2.new(0, 15, 0, 5); PingTitle.Size = UDim2.new(1, -30, 0, 20); PingTitle.Font = Theme.FontBold; PingTitle.Text = "Network Ping"; PingTitle.TextColor3 = Theme.TextDim; PingTitle.TextSize = 12; PingTitle.TextXAlignment = Enum.TextXAlignment.Left
 	local PingValue = Instance.new("TextLabel"); PingValue.Parent = PingCard; PingValue.BackgroundTransparency = 1; PingValue.Position = UDim2.new(0, 15, 0, 5); PingValue.Size = UDim2.new(1, -30, 0, 20); PingValue.Font = Theme.FontBold; PingValue.Text = "0 ms"; PingValue.TextColor3 = Theme.Accent; PingValue.TextSize = 12; PingValue.TextXAlignment = Enum.TextXAlignment.Right
 	local BarBg = Instance.new("Frame"); BarBg.Parent = PingCard; BarBg.BackgroundColor3 = Color3.fromRGB(30, 30, 40); BarBg.Position = UDim2.new(0, 15, 0, 35); BarBg.Size = UDim2.new(1, -30, 0, 10); Instance.new("UICorner", BarBg).CornerRadius = UDim.new(1, 0)
 	local BarFill = Instance.new("Frame"); BarFill.Parent = BarBg; BarFill.BackgroundColor3 = Theme.Accent; BarFill.Size = UDim2.new(0.5, 0, 1, 0); Instance.new("UICorner", BarFill).CornerRadius = UDim.new(1, 0)
 
+	-- [GRID: FPS & MEMORY]
 	local GridContainer = Instance.new("Frame"); GridContainer.Parent = parentFrame; GridContainer.BackgroundTransparency = 1; GridContainer.Size = UDim2.new(1,1, 0, 50); GridContainer.LayoutOrder = 2
 	local GL = Instance.new("UIGridLayout"); GL.Parent = GridContainer; GL.CellPadding = UDim2.new(0, 5, 0, 0); GL.CellSize = UDim2.new(0.493, 0, 1, 0); GL.SortOrder = Enum.SortOrder.LayoutOrder; GL.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	
 	local FPSCard = CreateCard(GridContainer, UDim2.new(0,0,0,0), 1)
 	local FPSTitle = Instance.new("TextLabel"); FPSTitle.Parent = FPSCard; FPSTitle.BackgroundTransparency = 1; FPSTitle.Position = UDim2.new(0, 12, 0, 35); FPSTitle.Size = UDim2.new(1, -24, 0, 10); FPSTitle.Font = Theme.FontMain; FPSTitle.Text = "FPS Counter"; FPSTitle.TextColor3 = Theme.TextDim; FPSTitle.TextSize = 12; FPSTitle.TextXAlignment = Enum.TextXAlignment.Left
 	local FPSNum = Instance.new("TextLabel"); FPSNum.Parent = FPSCard; FPSNum.BackgroundTransparency = 1; FPSNum.Position = UDim2.new(0, 12, 0, 12); FPSNum.Size = UDim2.new(1, -24, 0, 10); FPSNum.Font = Theme.FontBold; FPSNum.Text = "60"; FPSNum.TextColor3 = Theme.Text; FPSNum.TextSize = 28; FPSNum.TextXAlignment = Enum.TextXAlignment.Left
+	
 	local MemCard = CreateCard(GridContainer, UDim2.new(0,0,0,0), 2)
 	local MemTitle = Instance.new("TextLabel"); MemTitle.Parent = MemCard; MemTitle.BackgroundTransparency = 1; MemTitle.Position = UDim2.new(0, 12, 0, 35); MemTitle.Size = UDim2.new(1, -24, 0, 10); MemTitle.Font = Theme.FontMain; MemTitle.Text = "Memory RAM"; MemTitle.TextColor3 = Theme.TextDim; MemTitle.TextSize = 12; MemTitle.TextXAlignment = Enum.TextXAlignment.Left
 	local MemNum = Instance.new("TextLabel"); MemNum.Parent = MemCard; MemNum.BackgroundTransparency = 1; MemNum.Position = UDim2.new(0, 12, 0, 12); MemNum.Size = UDim2.new(1, -24, 0, 10); MemNum.Font = Theme.FontBold; MemNum.Text = "0"; MemNum.TextColor3 = Theme.Text; MemNum.TextSize = 24; MemNum.TextXAlignment = Enum.TextXAlignment.Left
 
+	-- [TIME CARD]
 	local TimeCard = CreateCard(parentFrame, UDim2.new(1, 0, 0, 55), 3)
 	local TimeTitle = Instance.new("TextLabel"); TimeTitle.Parent = TimeCard; TimeTitle.BackgroundTransparency = 1; TimeTitle.Position = UDim2.new(0, 15, 0, 2); TimeTitle.Size = UDim2.new(1, -30, 0, 20); TimeTitle.Font = Theme.FontBold; TimeTitle.Text = "Time Server"; TimeTitle.TextColor3 = Theme.TextDim; TimeTitle.TextSize = 12; TimeTitle.TextXAlignment = Enum.TextXAlignment.Left
 	local ClockLabel = Instance.new("TextLabel"); ClockLabel.Parent = TimeCard; ClockLabel.BackgroundTransparency = 1; ClockLabel.Position = UDim2.new(0, 15, 0, 0); ClockLabel.Size = UDim2.new(1, -30, 0, 35); ClockLabel.Font = Theme.FontBold; ClockLabel.Text = "00:00:00"; ClockLabel.TextColor3 = Theme.Text; ClockLabel.TextSize = 34; ClockLabel.TextXAlignment = Enum.TextXAlignment.Right
 	local DateLabel = Instance.new("TextLabel"); DateLabel.Parent = TimeCard; DateLabel.BackgroundTransparency = 1; DateLabel.Position = UDim2.new(0, 15, 0, 30); DateLabel.Size = UDim2.new(1, -30, 0, 20); DateLabel.Font = Theme.FontMain; DateLabel.Text = "Monday, 1 Jan 2024"; DateLabel.TextColor3 = Theme.Accent; DateLabel.TextSize = 14; DateLabel.TextXAlignment = Enum.TextXAlignment.Right
 
+	-- [SESSION CARD]
 	local SessionCard = CreateCard(parentFrame, UDim2.new(1, 0, 0, 115), 4)
 	local SessionTitle = Instance.new("TextLabel"); SessionTitle.Parent = SessionCard; SessionTitle.BackgroundTransparency = 1; SessionTitle.Position = UDim2.new(0, 15, 0, 8); SessionTitle.Size = UDim2.new(1, -30, 0, 10); SessionTitle.Font = Theme.FontBold; SessionTitle.Text = "Session Manager"; SessionTitle.TextColor3 = Theme.TextDim; SessionTitle.TextSize = 12; SessionTitle.TextXAlignment = Enum.TextXAlignment.Left
 	
@@ -569,24 +574,63 @@ local function BuildInfoTab(parentFrame)
 		if not found then btn.Text = "NO SERVERS FOUND"; task.wait(1); btn.Text = "SERVER HOP (LOW/SEPI)"; btn.AutoButtonColor = true end
 	end)
 
-	task.spawn(function()
-		local LastFPSTime = tick(); local FrameCount = 0; local FPS_Connection
-		FPS_Connection = RunService.RenderStepped:Connect(function()
-			if not parentFrame.Parent then FPS_Connection:Disconnect(); return end
+	-- [NEW: CLEAN ON-DEMAND MONITORING]
+	-- Hanya jalan jika tab sedang terbuka (Visible)
+	local MonitorLoop = nil
+	local PingTween = TweenInfo.new(0.5, Enum.EasingStyle.Sine)
+	
+	local function StartMonitoring()
+		if MonitorLoop then return end -- Sudah jalan, jangan double
+		
+		-- Setup FPS Counter
+		local LastFPSTime = tick()
+		local FrameCount = 0
+		local FPS_Conn = RunService.RenderStepped:Connect(function()
 			FrameCount = FrameCount + 1
-			if tick() - LastFPSTime >= 0.5 then local fps = math.floor(FrameCount / (tick() - LastFPSTime)); FPSNum.Text = tostring(fps); FrameCount = 0; LastFPSTime = tick() end
+			if tick() - LastFPSTime >= 0.5 then
+				local fps = math.floor(FrameCount / (tick() - LastFPSTime))
+				FPSNum.Text = tostring(fps)
+				FrameCount = 0
+				LastFPSTime = tick()
+			end
 		end)
-		local PingTween = TweenInfo.new(0.5, Enum.EasingStyle.Sine)
-		while parentFrame.Parent do
-			local rawPing = LocalPlayer:GetNetworkPing(); local ping = math.round(rawPing * 1000)
-			PingValue.Text = ping .. " ms"
-			local barSize = math.clamp(ping / 300, 0.05, 1)
-			TweenService:Create(BarFill, PingTween, {Size = UDim2.new(barSize, 0, 1, 0), BackgroundColor3 = ping < 100 and Theme.Green or ping < 200 and Color3.fromRGB(255, 200, 0) or Theme.Red}):Play()
-			MemNum.Text = tostring(math.floor(Stats:GetTotalMemoryUsageMb())); ClockLabel.Text = os.date("%H:%M:%S"); DateLabel.Text = os.date("%A, %d %B %Y")
-			task.wait(1)
+		
+		-- Setup Ping, Memory, Time (Loop 1 Detik)
+		MonitorLoop = task.spawn(function()
+			-- Cek Tab Visible + MainFrame tidak transparan (artinya tidak di-minimize)
+			local MainFrame = parentFrame.Parent.Parent.Parent -- Mengambil referensi kakeknya (MainFrame)
+			while parentFrame.Visible and MainFrame.BackgroundTransparency < 0.9 do
+				-- 1. Ping
+				local rawPing = LocalPlayer:GetNetworkPing()
+				local ping = math.round(rawPing * 1000)
+				PingValue.Text = ping .. " ms"
+				local barSize = math.clamp(ping / 300, 0.05, 1)
+				TweenService:Create(BarFill, PingTween, {Size = UDim2.new(barSize, 0, 1, 0), BackgroundColor3 = ping < 100 and Theme.Green or ping < 200 and Color3.fromRGB(255, 200, 0) or Theme.Red}):Play()
+				
+				-- 2. Memory & Time
+				MemNum.Text = tostring(math.floor(Stats:GetTotalMemoryUsageMb()))
+				ClockLabel.Text = os.date("%H:%M:%S")
+				DateLabel.Text = os.date("%A, %d %B %Y")
+				
+				task.wait(1)
+			end
+			
+			-- Cleanup saat loop berhenti (Tab ditutup)
+			if FPS_Conn then FPS_Conn:Disconnect() end
+			MonitorLoop = nil
+		end)
+	end
+
+	-- Listener: Otomatis nyala/mati saat tab dibuka/tutup
+	parentFrame:GetPropertyChangedSignal("Visible"):Connect(function()
+		if parentFrame.Visible then
+			StartMonitoring()
 		end
-		if FPS_Connection then FPS_Connection:Disconnect() end
+		-- Jika Visible false, loop 'while' di atas akan otomatis berhenti (break)
 	end)
+	
+	-- Cek status awal (siapa tau script load saat tab ini aktif)
+	if parentFrame.Visible then StartMonitoring() end
 end
 
 local function BuildMovementTab(parentFrame)
@@ -881,16 +925,10 @@ local function BuildToolsTab(parentFrame)
 	-- [3] UI BUILDER: FORCE MOVEMENT
 	local ForceSection = CreateExpandableSection(parentFrame, "Force Movement (Anti-Kick)")
 	
-	-- [INFO LABEL - ADDED HERE]
 	local InfoLbl = Instance.new("TextLabel"); InfoLbl.Parent = ForceSection
-	InfoLbl.BackgroundTransparency = 1
-	InfoLbl.Size = UDim2.new(1, 0, 0, 20)
-	InfoLbl.Font = Theme.FontMain
-	InfoLbl.Text = "*Note: Use this if the map restricts WalkSpeed or JumpPower."
-	InfoLbl.TextColor3 = Color3.fromRGB(150, 150, 150) -- Sedikit lebih gelap dari text biasa
-	InfoLbl.TextSize = 10
-	InfoLbl.TextXAlignment = Enum.TextXAlignment.Left
-	InfoLbl.TextWrapped = true
+	InfoLbl.BackgroundTransparency = 1; InfoLbl.Size = UDim2.new(1, 0, 0, 20); InfoLbl.Font = Theme.FontMain
+	InfoLbl.Text = "*Note: Use this if the map restricts WalkSpeed or JumpPower."; InfoLbl.TextColor3 = Color3.fromRGB(150, 150, 150)
+	InfoLbl.TextSize = 10; InfoLbl.TextXAlignment = Enum.TextXAlignment.Left; InfoLbl.TextWrapped = true
 
 	-- DASHBOARD MONITOR
 	local DashCard = CreateCard(ForceSection, UDim2.new(1, 0, 0, 50))
@@ -941,7 +979,7 @@ local function BuildToolsTab(parentFrame)
 	PCBtn.MouseButton1Click:Connect(function() ToolsConfig.Jump.Mode = "PC"; UpdateModeVisuals(); if ToolsConfig.Jump.Active then UpdateJumpState() end end)
 
 	-- [4] UI BUILDER: ESP & X-RAY (VISUAL ASSIST)
-	local ESP_Section = CreateExpandableSection(parentFrame, "Visual Assistance")
+	local ESP_Section = CreateExpandableSection(parentFrame, "ESP & X-RAY System")
 	local HL_Conn, Name_Conn, HP_Conn = {}, {}, {}
 
 	local function ToggleESP(isActive, storageTable, onAdd, onRemove)
@@ -955,15 +993,14 @@ local function BuildToolsTab(parentFrame)
 	local C1 = CreateFeatureCard(ESP_Section, "Visual Chams (Highlight)", 32)
 	AttachSwitch(C1, false, function(a) ToggleESP(a, HL_Conn, function(c) if c:FindFirstChild("NeeR_HL") then c.NeeR_HL:Destroy() end; local h=Instance.new("Highlight",c); h.Name="NeeR_HL"; h.FillColor=Theme.Red; h.OutlineColor=Color3.new(1,1,1); h.FillTransparency=0.5 end, function(c) if c:FindFirstChild("NeeR_HL") then c.NeeR_HL:Destroy() end end) end)
 	
-	-- 2. PLAYER NAMES (FIXED OFFSET)
+	-- 2. PLAYER NAMES
 	local C2 = CreateFeatureCard(ESP_Section, "Player Names", 32)
 	AttachSwitch(C2, false, function(a) ToggleESP(a, Name_Conn, function(c,p) 
 		if not c:FindFirstChild("Head") then return end
 		if c:FindFirstChild("NeeR_Nm") then c.NeeR_Nm:Destroy() end
 		local b=Instance.new("BillboardGui",c); b.Name="NeeR_Nm"; b.Adornee=c.Head
 		b.Size=UDim2.new(0,100,0,20); b.AlwaysOnTop=true
-		-- [FIX] Naikkan offset ke 6.0 agar tidak menimpa Healthbar
-		b.StudsOffset=Vector3.new(0, 6.0, 0) 
+		b.StudsOffset=Vector3.new(0, 6.0, 0) -- Fixed Offset
 		local t=Instance.new("TextLabel",b); t.Size=UDim2.new(1,0,1,0); t.BackgroundTransparency=1; t.Text=p.DisplayName; t.TextColor3=Color3.new(1,1,1); t.Font=Theme.FontBold; t.TextSize=12; t.TextStrokeTransparency=0 
 	end, function(c) if c:FindFirstChild("NeeR_Nm") then c.NeeR_Nm:Destroy() end end) end)
 	
@@ -974,7 +1011,6 @@ local function BuildToolsTab(parentFrame)
 		if c:FindFirstChild("NeeR_HP") then c.NeeR_HP:Destroy() end
 		local b=Instance.new("BillboardGui",c); b.Name="NeeR_HP"; b.Adornee=c.Head
 		b.Size=UDim2.new(0,40,0,4); b.AlwaysOnTop=true
-		-- Offset standar Healthbar
 		b.StudsOffset=Vector3.new(0, 3.5, 0) 
 		local f=Instance.new("Frame",b); f.Size=UDim2.new(1,0,1,0); f.BackgroundColor3=Color3.new(0,0,0); local fill=Instance.new("Frame",f); fill.Size=UDim2.new(1,0,1,0); fill.BackgroundColor3=Theme.Green; local h=c:FindFirstChild("Humanoid"); if h then local function U() local p=math.clamp(h.Health/h.MaxHealth,0,1); TweenService:Create(fill,TweenInfo.new(0.2),{Size=UDim2.new(p,0,1,0)}):Play(); fill.BackgroundColor3=p<0.3 and Theme.Red or Theme.Green end; U(); h.HealthChanged:Connect(U) end 
 	end, function(c) if c:FindFirstChild("NeeR_HP") then c.NeeR_HP:Destroy() end end) end)
@@ -988,61 +1024,48 @@ local function BuildToolsTab(parentFrame)
 		else if xr_conn then xr_conn:Disconnect() end; for p,t in pairs(xr_cache) do if p.Parent then p.Transparency=t end end; table.clear(xr_cache) end
 	end, 0.1, 0.9, 0.5, function(v) xr_op=v; if next(xr_cache) then for p,_ in pairs(xr_cache) do if p.Parent then p.Transparency=xr_op end end end end, "")
 
-	-- ENGINE MONITOR
-	local ToolLoop
-	local function StartToolEngine()
-		if ToolLoop then return end
+	-- [ENGINE 1: PHYSICS EXECUTION] (Standby, Idle jika mati)
+	RunService.RenderStepped:Connect(function()
+		local c = LocalPlayer.Character
+		local h = c and c:FindFirstChild("Humanoid")
+		local r = c and c:FindFirstChild("HumanoidRootPart")
 		
-		local LastUIUpdate = 0 -- Timer untuk membatasi update teks
-		
-		ToolLoop = RunService.RenderStepped:Connect(function()
-			local char = LocalPlayer.Character
-			local hum = char and char:FindFirstChild("Humanoid")
-			local root = char and char:FindFirstChild("HumanoidRootPart")
-			
-			if hum and root then
-				-- [A] LOGIKA FISIK (Wajib setiap frame agar kuat menahan override server)
-				if ToolsConfig.Speed.Active and not ToolsConfig.TPWalk.Active and hum.WalkSpeed ~= ToolsConfig.Speed.Value then 
-					hum.WalkSpeed = ToolsConfig.Speed.Value 
-				end
-				
-				if ToolsConfig.TPWalk.Active and hum.MoveDirection.Magnitude > 0 then 
-					root.CFrame = root.CFrame + (hum.MoveDirection * (ToolsConfig.TPWalk.Value * 0.2)) 
-				end
-				
-				if ToolsConfig.Jump.Active then 
-					if hum.JumpPower ~= ToolsConfig.Jump.Value then hum.JumpPower = ToolsConfig.Jump.Value end 
-					if not hum.UseJumpPower then hum.UseJumpPower = true end 
-					if ToolsConfig.Jump.Mode == "Mobile" then SetNativeJumpVisible(false) end
-				end
-				
-				if ToolsConfig.StateForce.Active then 
-					hum:SetStateEnabled(Enum.HumanoidStateType.Jumping, true) 
-				end
+		if not h or not r then return end
+		if not (ToolsConfig.Speed.Active or ToolsConfig.TPWalk.Active or ToolsConfig.Jump.Active or ToolsConfig.StateForce.Active) then return end
 
-				-- [B] LOGIKA UI (Dibatasi/Throttled 0.1 detik)
-				-- Hanya update teks jika sudah 0.1 detik berlalu
-				if tick() - LastUIUpdate >= 0.1 then
-					LastUIUpdate = tick()
-					
-					-- Update Angka
-					SpeedVal.Text = tostring(math.floor(hum.WalkSpeed))
-					JumpVal.Text = tostring(math.floor(hum.JumpPower))
-					
-					-- Update Status Jump
-					local isJumpEnabled = hum:GetStateEnabled(Enum.HumanoidStateType.Jumping)
-					if isJumpEnabled then 
-						SV.Text = "ACTIVE"; SV.TextColor3 = Theme.Green
-						StateBox.AutoButtonColor = false; ToolsConfig.StateForce.Active = false 
-					else 
-						SV.Text = "DISABLED (FIX)"; SV.TextColor3 = Theme.Red
-						StateBox.AutoButtonColor = true 
-					end
+		if ToolsConfig.Speed.Active and not ToolsConfig.TPWalk.Active and h.WalkSpeed ~= ToolsConfig.Speed.Value then h.WalkSpeed = ToolsConfig.Speed.Value end
+		if ToolsConfig.TPWalk.Active and h.MoveDirection.Magnitude > 0 then r.CFrame = r.CFrame + (h.MoveDirection * (ToolsConfig.TPWalk.Value * 0.2)) end
+		if ToolsConfig.Jump.Active then if h.JumpPower ~= ToolsConfig.Jump.Value then h.JumpPower = ToolsConfig.Jump.Value end; if not h.UseJumpPower then h.UseJumpPower = true end; if ToolsConfig.Jump.Mode == "Mobile" then SetNativeJumpVisible(false) end end
+		if ToolsConfig.StateForce.Active then h:SetStateEnabled(Enum.HumanoidStateType.Jumping, true) end
+	end)
+
+	-- [ENGINE 2: CLEAN UI MONITORING] (Hanya jalan saat dilihat + Tidak Minimize)
+	local MonitorLoop = nil
+	local function StartMonitoring()
+		if MonitorLoop then return end
+		
+		-- Referensi ke MainFrame (Kakek buyut dari parentFrame)
+		local MF = parentFrame.Parent and parentFrame.Parent.Parent and parentFrame.Parent.Parent.Parent
+		
+		MonitorLoop = task.spawn(function()
+			while parentFrame.Visible and parentFrame.Parent and (MF and MF.BackgroundTransparency < 0.9) do
+				local c = LocalPlayer.Character
+				local h = c and c:FindFirstChild("Humanoid")
+				if h then
+					SpeedVal.Text = tostring(math.floor(h.WalkSpeed))
+					JumpVal.Text = tostring(math.floor(h.JumpPower))
+					local isJumpEnabled = h:GetStateEnabled(Enum.HumanoidStateType.Jumping)
+					if isJumpEnabled then SV.Text = "ACTIVE"; SV.TextColor3 = Theme.Green; StateBox.AutoButtonColor = false; ToolsConfig.StateForce.Active = false 
+					else SV.Text = "DISABLED (FIX)"; SV.TextColor3 = Theme.Red; StateBox.AutoButtonColor = true end
 				end
+				task.wait(0.2)
 			end
+			MonitorLoop = nil
 		end)
 	end
-	StartToolEngine()
+
+	parentFrame:GetPropertyChangedSignal("Visible"):Connect(function() if parentFrame.Visible then StartMonitoring() end end)
+	if parentFrame.Visible then StartMonitoring() end
 end
 
 local function BuildVisualsTab(parentFrame)
