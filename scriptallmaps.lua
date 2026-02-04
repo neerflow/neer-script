@@ -374,16 +374,100 @@ local function AttachSlider(parentCard, min, max, default, callback, valueSuffix
 	local BG = Instance.new("TextButton"); BG.Parent = parentCard
 	BG.BackgroundColor3 = Theme.Sidebar; BG.Size = UDim2.new(1, -24, 0, 6); BG.Position = UDim2.new(0, 12, 0, 38)
 	BG.Text = ""; BG.AutoButtonColor = false; Instance.new("UICorner", BG).CornerRadius = UDim.new(1, 0)
+	
 	local Fill = Instance.new("Frame"); Fill.Parent = BG
 	Fill.BackgroundColor3 = Theme.Accent; Fill.Size = UDim2.new(0, 0, 1, 0); Instance.new("UICorner", Fill).CornerRadius = UDim.new(1, 0)
+	
 	local Knob = Instance.new("Frame"); Knob.Parent = BG
 	Knob.BackgroundColor3 = Theme.Main; Knob.Size = UDim2.new(0, 34, 0, 16); Knob.AnchorPoint = Vector2.new(0, 0.5); Knob.Position = UDim2.new(0, 0, 0.5, 0); Instance.new("UICorner", Knob).CornerRadius = UDim.new(0, 4)
+	
 	local KS = Instance.new("UIStroke"); KS.Parent = Knob; KS.Color = Theme.Accent; KS.Thickness = 1.5; KS.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	
 	local ValLbl = Instance.new("TextLabel"); ValLbl.Parent = Knob
-	ValLbl.BackgroundTransparency = 1; ValLbl.Size = UDim2.new(1, 0, 1, 0); ValLbl.Font = Theme.FontBold; ValLbl.TextColor3 = Theme.Accent; ValLbl.TextSize = 9; ValLbl.TextXAlignment = Enum.TextXAlignment.Center; ValLbl.TextYAlignment = Enum.TextYAlignment.Center
-	local startPercent = math.clamp((default - min) / (max - min), 0, 1)
-	Fill.Size = UDim2.new(startPercent, 0, 1, 0); Knob.Position = UDim2.new(startPercent * 0.9, 0, 0.5, 0); ValLbl.Text = tostring(default) .. (valueSuffix or "")
-	BG.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then ActiveSlider = {BG = BG, Knob = Knob, Fill = Fill, Label = ValLbl, Min = min, Max = max, Callback = callback, Suffix = valueSuffix}; UpdateSliderValue(input) end end)
+	ValLbl.BackgroundTransparency = 1; ValLbl.Size = UDim2.new(1, 0, 1, 0); ValLbl.Font = Theme.FontBold; ValLbl.TextColor3 = Theme.Accent; ValLbl.TextSize = 9
+	ValLbl.TextXAlignment = Enum.TextXAlignment.Center; ValLbl.TextYAlignment = Enum.TextYAlignment.Center
+
+	-- [LOGIC BARU: SetValue Internal]
+	-- Fungsi ini menghitung posisi berdasarkan Nilai Angka -> Posisi Scale
+	local function SetValue(val)
+		val = math.clamp(val, min, max)
+		local percent = (val - min) / (max - min)
+		
+		-- Ambil ukuran real saat ini
+		local barWidth = BG.AbsoluteSize.X
+		local knobWidth = Knob.AbsoluteSize.X
+		
+		-- Jika GUI belum tampil (size 0), jangan hitung dulu
+		if barWidth <= 0 then return end
+		
+		local slideableWidth = barWidth - knobWidth
+		local scaleFactor = slideableWidth / barWidth -- Rasio area gerak
+		
+		local finalPos = percent * scaleFactor
+		
+		Knob.Position = UDim2.new(finalPos, 0, 0.5, 0)
+		Fill.Size = UDim2.new(finalPos, 0, 1, 0)
+		ValLbl.Text = tostring(val) .. (valueSuffix or "")
+	end
+
+	-- Input Listener (Global System)
+	BG.InputBegan:Connect(function(input) 
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then 
+			ActiveSlider = {BG = BG, Knob = Knob, Fill = Fill, Label = ValLbl, Min = min, Max = max, Callback = callback, Suffix = valueSuffix}
+			UpdateSliderValue(input) 
+		end 
+	end)
+	
+	-- [DELAYED INIT]
+	-- Tunggu 0.1 detik agar GUI selesai "mengembang" (AbsoluteSize terbaca), baru set posisi
+	task.delay(0.1, function()
+		SetValue(default)
+	end)
+end
+
+local function CreatePerfectMiniSlider(parent, name, cb)
+	local Box = Instance.new("Frame"); Box.Parent = parent; Box.BackgroundColor3 = Theme.Main; Box.BackgroundTransparency = 0.6; Instance.new("UICorner", Box).CornerRadius = UDim.new(0, 6)
+	local T = Instance.new("TextLabel"); T.Parent = Box; T.Text = name; T.Position = UDim2.new(0, 8, 0, 6); T.Size = UDim2.new(1, -16, 0, 15); T.BackgroundTransparency = 1; T.TextColor3 = Theme.TextDim; T.Font = Theme.FontMain; T.TextSize = 10; T.TextXAlignment = Enum.TextXAlignment.Center
+	
+	local BG = Instance.new("TextButton"); BG.Parent = Box; BG.BackgroundColor3 = Theme.Sidebar; BG.Size = UDim2.new(1, -16, 0, 6); BG.Position = UDim2.new(0, 8, 0, 32); BG.Text = ""; BG.AutoButtonColor = false; Instance.new("UICorner", BG).CornerRadius = UDim.new(1, 0)
+	
+	local Fill = Instance.new("Frame"); Fill.Parent = BG; Fill.BackgroundColor3 = Theme.Accent; Fill.Size = UDim2.new(0, 0, 1, 0); Instance.new("UICorner", Fill).CornerRadius = UDim.new(1, 0)
+	
+	local Knob = Instance.new("Frame"); Knob.Parent = BG; Knob.BackgroundColor3 = Theme.Main; Knob.Size = UDim2.new(0, 30, 0, 14); Knob.AnchorPoint = Vector2.new(0, 0.5); Knob.Position = UDim2.new(0, 0, 0.5, 0); Instance.new("UICorner", Knob).CornerRadius = UDim.new(0, 4); local KS = Instance.new("UIStroke"); KS.Parent = Knob; KS.Color = Theme.Accent; KS.Thickness = 1.5
+	
+	local V = Instance.new("TextLabel"); V.Parent = Knob; V.Text = "0"; V.Size = UDim2.new(1, 0, 1, 0); V.BackgroundTransparency = 1; V.TextColor3 = Theme.Accent; V.Font = Theme.FontBold; V.TextSize = 9
+	
+	-- [LOGIC BARU: SetValue Internal untuk Mini Slider]
+	local function SetValue(val)
+		-- Range Mini Slider fix di -4 sampai 4 (sesuai request sebelumnya)
+		local min, max = -4, 4
+		val = math.clamp(val, min, max)
+		local percent = (val - min) / (max - min)
+		
+		local barWidth = BG.AbsoluteSize.X
+		local knobWidth = Knob.AbsoluteSize.X
+		
+		if barWidth <= 0 then return end
+		
+		local scaleFactor = (barWidth - knobWidth) / barWidth
+		local finalPos = percent * scaleFactor
+		
+		Knob.Position = UDim2.new(finalPos, 0, 0.5, 0)
+		Fill.Size = UDim2.new(finalPos, 0, 1, 0)
+		V.Text = tostring(val)
+	end
+
+	BG.InputBegan:Connect(function(input) 
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then 
+			ActiveSlider = {BG = BG, Knob = Knob, Fill = Fill, Label = V, Min = -4, Max = 4, Callback = cb, Suffix = ""}
+			UpdateSliderValue(input) 
+		end 
+	end)
+	
+	-- [DELAYED INIT] Default 0
+	task.delay(0.1, function()
+		SetValue(0)
+	end)
 end
 
 local function CreateStepperCard(parent, title, defaultVal, min, max, step, onToggle, onValChange)
@@ -433,17 +517,6 @@ end
 local function SetButtonStyle(Btn, Stroke, IsActive, ActiveText, DefaultText)
 	if IsActive then Btn.BackgroundColor3 = Theme.Accent; Btn.TextColor3 = Theme.Main; Btn.Text = ActiveText or DefaultText; Stroke.Transparency = 1
 	else Btn.BackgroundColor3 = Theme.Main; Btn.TextColor3 = Theme.Accent; Btn.Text = DefaultText; Stroke.Transparency = 0.4 end
-end
-
-local function CreatePerfectMiniSlider(parent, name, cb)
-	local Box = Instance.new("Frame"); Box.Parent = parent; Box.BackgroundColor3 = Theme.Main; Box.BackgroundTransparency = 0.6; Instance.new("UICorner", Box).CornerRadius = UDim.new(0, 6)
-	local T = Instance.new("TextLabel"); T.Parent = Box; T.Text = name; T.Position = UDim2.new(0, 8, 0, 6); T.Size = UDim2.new(1, -16, 0, 15); T.BackgroundTransparency = 1; T.TextColor3 = Theme.TextDim; T.Font = Theme.FontMain; T.TextSize = 10; T.TextXAlignment = Enum.TextXAlignment.Center
-	local BG = Instance.new("TextButton"); BG.Parent = Box; BG.BackgroundColor3 = Theme.Sidebar; BG.Size = UDim2.new(1, -16, 0, 6); BG.Position = UDim2.new(0, 8, 0, 32); BG.Text = ""; BG.AutoButtonColor = false; Instance.new("UICorner", BG).CornerRadius = UDim.new(1, 0)
-	local Fill = Instance.new("Frame"); Fill.Parent = BG; Fill.BackgroundColor3 = Theme.Accent; Fill.Size = UDim2.new(0.5, 0, 1, 0); Instance.new("UICorner", Fill).CornerRadius = UDim.new(1, 0)
-	local Knob = Instance.new("Frame"); Knob.Parent = BG; Knob.BackgroundColor3 = Theme.Main; Knob.Size = UDim2.new(0, 30, 0, 14); Knob.AnchorPoint = Vector2.new(0, 0.5); Knob.Position = UDim2.new(0.5, 0, 0.5, 0); Instance.new("UICorner", Knob).CornerRadius = UDim.new(0, 4); local KS = Instance.new("UIStroke"); KS.Parent = Knob; KS.Color = Theme.Accent; KS.Thickness = 1.5
-	local V = Instance.new("TextLabel"); V.Parent = Knob; V.Text = "0"; V.Size = UDim2.new(1, 0, 1, 0); V.BackgroundTransparency = 1; V.TextColor3 = Theme.Accent; V.Font = Theme.FontBold; V.TextSize = 9
-	-- [UNIFIED GLOBAL LOGIC]
-	BG.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then ActiveSlider = {BG = BG, Knob = Knob, Fill = Fill, Label = V, Min = -4, Max = 4, Callback = cb, Suffix = ""}; UpdateSliderValue(input) end end)
 end
 
 --// [6] TABS & FEATURES
