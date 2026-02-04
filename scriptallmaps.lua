@@ -1046,7 +1046,7 @@ local function BuildSettingsTab(parentFrame)
 	local Bench_Sec = CreateExpandableSection(parentFrame, "FPS Benchmark Tool")
 	Bench_Sec.Parent.LayoutOrder = 2 -- POSISI DI BAWAH DPI
 	
-	local BenchCard = CreateCard(Bench_Sec, UDim2.new(1, 0, 0, 85)) 
+	local BenchCard = CreateCard(Bench_Sec, UDim2.new(1, 0, 0, 95)) 
 	local B_Layout = Instance.new("UIListLayout"); B_Layout.Parent = BenchCard; B_Layout.SortOrder = Enum.SortOrder.LayoutOrder; B_Layout.Padding = UDim.new(0, 8); B_Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 	local B_Pad = Instance.new("UIPadding"); B_Pad.Parent = BenchCard; B_Pad.PaddingTop = UDim.new(0, 10); B_Pad.PaddingBottom = UDim.new(0, 10); B_Pad.PaddingLeft = UDim.new(0, 10); B_Pad.PaddingRight = UDim.new(0, 10)
 
