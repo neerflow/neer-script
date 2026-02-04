@@ -333,20 +333,40 @@ local ActiveSlider = nil
 local function UpdateSliderValue(input)
 	if not ActiveSlider then return end
 	local d = ActiveSlider 
+	
+	-- 1. Ambil data ukuran absolut (Pixel Real)
 	local mouseRel = input.Position.X - d.BG.AbsolutePosition.X
 	local knobWidth = d.Knob.AbsoluteSize.X
 	local barWidth = d.BG.AbsoluteSize.X
+	
+	-- 2. Hitung area gerak yang valid (Pixel)
 	local slideableWidth = barWidth - knobWidth
-	local targetPos = mouseRel - (knobWidth / 2)
+	local targetPos = mouseRel - (knobWidth / 2) -- Center knob ke mouse
+	
+	-- 3. Dapatkan posisi pixel yang sudah dibatasi (Clamped)
 	local clampedPos = math.clamp(targetPos, 0, slideableWidth)
+	
+	-- 4. Hitung Persentase (0.0 sampai 1.0)
 	local percent = clampedPos / slideableWidth
-	d.Knob.Position = UDim2.new(0, clampedPos, 0.5, 0)
-	d.Fill.Size = UDim2.new(0, clampedPos, 1, 0)
+	
+	-- [FIX UTAMA DI SINI]
+	-- Jangan pakai Offset (clampedPos) untuk set posisi UI, karena akan kena scaling ulang.
+	-- Gunakan Scale (Persentase relatif terhadap lebar Bar).
+	-- Rumus: Posisi Pixel / Lebar Total Bar = Posisi Scale
+	
+	local posScale = clampedPos / barWidth
+	
+	d.Knob.Position = UDim2.new(posScale, 0, 0.5, 0)
+	d.Fill.Size = UDim2.new(posScale, 0, 1, 0)
+	
+	-- 5. Hitung & Kirim Value
 	local val = math.floor((d.Min + ((d.Max - d.Min) * percent)) * 10) / 10
 	if math.abs(d.Max - d.Min) > 100 then val = math.floor(val) end
+	
 	d.Label.Text = tostring(val) .. (d.Suffix or "")
 	d.Callback(val)
 end
+
 UserInputService.InputChanged:Connect(function(input) if ActiveSlider and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then UpdateSliderValue(input) end end)
 UserInputService.InputEnded:Connect(function(input) if ActiveSlider and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then ActiveSlider = nil end end)
 
