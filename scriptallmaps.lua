@@ -978,7 +978,7 @@ local function BuildToolsTab(parentFrame)
 	MobBtn.MouseButton1Click:Connect(function() ToolsConfig.Jump.Mode = "Mobile"; UpdateModeVisuals(); if ToolsConfig.Jump.Active then UpdateJumpState() end end)
 	PCBtn.MouseButton1Click:Connect(function() ToolsConfig.Jump.Mode = "PC"; UpdateModeVisuals(); if ToolsConfig.Jump.Active then UpdateJumpState() end end)
 
-	-- [4] UI BUILDER: ESP & X-RAY (VISUAL ASSIST)
+	-- [4] UI BUILDER: ESP & X-RAY 
 	local ESP_Section = CreateExpandableSection(parentFrame, "ESP & X-RAY System")
 	local HL_Conn, Name_Conn, HP_Conn = {}, {}, {}
 
@@ -1024,6 +1024,62 @@ local function BuildToolsTab(parentFrame)
 		else if xr_conn then xr_conn:Disconnect() end; for p,t in pairs(xr_cache) do if p.Parent then p.Transparency=t end end; table.clear(xr_cache) end
 	end, 0.1, 0.9, 0.5, function(v) xr_op=v; if next(xr_cache) then for p,_ in pairs(xr_cache) do if p.Parent then p.Transparency=xr_op end end end end, "")
 
+	-- [5] TROLL & FUN SECTION (FLY UI DESIGN + EXPONENTIAL)
+	local TrollSection = CreateExpandableSection(parentFrame, "Troll & Fun (Physics)")
+	
+	-- Variabel State
+	local SpinState = { 
+		Active = false, 
+		Level = 1 
+	}
+	
+	-- Fungsi Update Fisika
+	local function UpdateSpin()
+		local char = LocalPlayer.Character
+		local root = char and char:FindFirstChild("HumanoidRootPart")
+		
+		-- 1. CLEANUP (Hapus motor lama)
+		if root then
+			local old = root:FindFirstChild("NeeR_SpinBAV")
+			if old then old:Destroy() end
+		end
+		
+		-- 2. Cek Aktif
+		if not SpinState.Active or not root then return end
+		
+		local realSpeed = math.pow(2, SpinState.Level - 1)
+		
+		-- 4. PASANG MOTOR (Logic Stabil)
+		local bav = Instance.new("BodyAngularVelocity")
+		bav.Name = "NeeR_SpinBAV"
+		bav.Parent = root
+		
+		bav.MaxTorque = Vector3.new(0, math.huge, 0)
+		bav.P = math.huge -- Tenaga Instan (Langsung Ngebut)
+		bav.AngularVelocity = Vector3.new(0, realSpeed, 0)
+	end
+	
+	CreateStepperCard(TrollSection, "Spin Power", SpinState.Level, 1, 15, 1, function(active)
+		-- [1] Callback Switch ON/OFF
+		SpinState.Active = active
+		UpdateSpin()
+		
+	end, function(val)
+		-- [2] Callback Ubah Angka (+/-)
+		SpinState.Level = val
+		
+		-- Jika sedang ON, langsung update speed real-time
+		if SpinState.Active then 
+			UpdateSpin() 
+		end
+	end)
+	
+	-- Auto-Cleanup saat mati
+	LocalPlayer.CharacterAdded:Connect(function() 
+		SpinState.Active = false
+		-- Catatan: Fisika otomatis hilang saat karakter reset
+	end)
+
 	-- [ENGINE 1: PHYSICS EXECUTION] (Standby, Idle jika mati)
 	RunService.RenderStepped:Connect(function()
 		local c = LocalPlayer.Character
@@ -1066,6 +1122,7 @@ local function BuildToolsTab(parentFrame)
 
 	parentFrame:GetPropertyChangedSignal("Visible"):Connect(function() if parentFrame.Visible then StartMonitoring() end end)
 	if parentFrame.Visible then StartMonitoring() end
+	
 end
 
 local function BuildVisualsTab(parentFrame)
