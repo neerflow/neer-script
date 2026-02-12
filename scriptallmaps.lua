@@ -134,9 +134,22 @@ local Session = {
 	OverrideJump = false
 }
 
---// [4] GUI SETUP
-local ViewportSize = workspace.CurrentCamera.ViewportSize
-local IsMobile = ViewportSize.X < 1080
+--// [4] GUI SETUP (SMART DEVICE DETECTION)
+local function GetDeviceType()
+	-- Jika punya Keyboard DAN Mouse, anggap PC/Laptop
+	if UserInputService.KeyboardEnabled and UserInputService.MouseEnabled then
+		return "PC"
+	end
+	-- Selain itu (Layar sentuh tanpa mouse/keyboard), anggap Mobile/Tablet
+	return "Mobile"
+end
+
+local DeviceType = GetDeviceType()
+local IsMobile = (DeviceType == "Mobile") -- True jika HP, False jika Laptop
+
+-- Logika Scaling:
+-- Jika Mobile: Kecilkan UI jadi 75% (0.75) agar tidak memenuhi layar HP
+-- Jika PC: Ukuran normal 100% (1)
 local CurrentScale = IsMobile and 0.75 or 1
 local FinalSize = UDim2.new(0, 580, 0, 380)
 
@@ -669,6 +682,7 @@ local function BuildMovementTab(parentFrame)
 			flyAO = Instance.new("AlignOrientation", root); flyAO.Attachment0 = flyAtt; flyAO.Mode = Enum.OrientationAlignmentMode.OneAttachment; flyAO.MaxTorque = math.huge; flyAO.Responsiveness = 200; flyAO.CFrame = root.CFrame
 			
 			hum.PlatformStand = true
+			hum:ChangeState(Enum.HumanoidStateType.PlatformStanding)
 			
 			flyLoop = RunService.Heartbeat:Connect(function()
 				if not Config.Fly.Active or not root.Parent then UpdateFly() return end
@@ -1114,50 +1128,161 @@ local function BuildToolsTab(parentFrame)
 	PCBtn.MouseButton1Click:Connect(function() ToolsConfig.Jump.Mode = "PC"; UpdateModeVisuals(); if ToolsConfig.Jump.Active then UpdateJumpState() end end)
 
 	-- [4] UI BUILDER: ESP & X-RAY 
-	local ESP_Section = CreateExpandableSection(parentFrame, "ESP & X-RAY System")
-	local HL_Conn, Name_Conn, HP_Conn = {}, {}, {}
+    local ESP_Section = CreateExpandableSection(parentFrame, "ESP & X-RAY System")
+    local HL_Conn, Name_Conn, HP_Conn = {}, {}, {}
 
-	local function ToggleESP(isActive, storageTable, onAdd, onRemove)
-		if isActive then
-			local function Setup(plr) if plr == LocalPlayer then return end; if plr.Character then onAdd(plr.Character, plr) end; local c = plr.CharacterAdded:Connect(function(ch) ch:WaitForChild("HumanoidRootPart", 5); onAdd(ch, plr) end); table.insert(storageTable, c) end
-			for _, p in pairs(Players:GetPlayers()) do Setup(p) end; table.insert(storageTable, Players.PlayerAdded:Connect(Setup))
-		else for _, c in pairs(storageTable) do c:Disconnect() end; table.clear(storageTable); for _, p in pairs(Players:GetPlayers()) do if p.Character then onRemove(p.Character) end end end
-	end
+    -- [CORE LOGIC] ESP HANDLER (Optimized)
+    -- Fungsi ini menangani Player Join (PlayerAdded) dan Respawn (CharacterAdded) secara otomatis
+    local function ToggleESP(isActive, storageTable, onAdd, onRemove)
+        if isActive then
+            local function Setup(plr)
+                if plr == LocalPlayer then return end
+                
+                -- Fungsi Internal untuk eksekusi aman
+                local function TryAdd(char)
+                    -- Gunakan task.spawn agar jika satu error/waiting, yang lain tidak macet
+                    task.spawn(function()
+                        if not char then return end
+                        -- Tunggu RootPart untuk memastikan karakter valid
+                        local root = char:WaitForChild("HumanoidRootPart", 10)
+                        if root then onAdd(char, plr) end
+                    end)
+                end
 
-	-- 1. CHAMS
-	local C1 = CreateFeatureCard(ESP_Section, "Visual Chams (Highlight)", 32)
-	AttachSwitch(C1, false, function(a) ToggleESP(a, HL_Conn, function(c) if c:FindFirstChild("NeeR_HL") then c.NeeR_HL:Destroy() end; local h=Instance.new("Highlight",c); h.Name="NeeR_HL"; h.FillColor=Theme.Red; h.OutlineColor=Color3.new(1,1,1); h.FillTransparency=0.5 end, function(c) if c:FindFirstChild("NeeR_HL") then c.NeeR_HL:Destroy() end end) end)
-	
-	-- 2. PLAYER NAMES
-	local C2 = CreateFeatureCard(ESP_Section, "Player Names", 32)
-	AttachSwitch(C2, false, function(a) ToggleESP(a, Name_Conn, function(c,p) 
-		if not c:FindFirstChild("Head") then return end
-		if c:FindFirstChild("NeeR_Nm") then c.NeeR_Nm:Destroy() end
-		local b=Instance.new("BillboardGui",c); b.Name="NeeR_Nm"; b.Adornee=c.Head
-		b.Size=UDim2.new(0,100,0,20); b.AlwaysOnTop=true
-		b.StudsOffset=Vector3.new(0, 6.0, 0) -- Fixed Offset
-		local t=Instance.new("TextLabel",b); t.Size=UDim2.new(1,0,1,0); t.BackgroundTransparency=1; t.Text=p.DisplayName; t.TextColor3=Color3.new(1,1,1); t.Font=Theme.FontBold; t.TextSize=12; t.TextStrokeTransparency=0 
-	end, function(c) if c:FindFirstChild("NeeR_Nm") then c.NeeR_Nm:Destroy() end end) end)
-	
-	-- 3. HEALTH BAR
-	local C3 = CreateFeatureCard(ESP_Section, "Health Bar", 32)
-	AttachSwitch(C3, false, function(a) ToggleESP(a, HP_Conn, function(c) 
-		if not c:FindFirstChild("Head") then return end
-		if c:FindFirstChild("NeeR_HP") then c.NeeR_HP:Destroy() end
-		local b=Instance.new("BillboardGui",c); b.Name="NeeR_HP"; b.Adornee=c.Head
-		b.Size=UDim2.new(0,40,0,4); b.AlwaysOnTop=true
-		b.StudsOffset=Vector3.new(0, 3.5, 0) 
-		local f=Instance.new("Frame",b); f.Size=UDim2.new(1,0,1,0); f.BackgroundColor3=Color3.new(0,0,0); local fill=Instance.new("Frame",f); fill.Size=UDim2.new(1,0,1,0); fill.BackgroundColor3=Theme.Green; local h=c:FindFirstChild("Humanoid"); if h then local function U() local p=math.clamp(h.Health/h.MaxHealth,0,1); TweenService:Create(fill,TweenInfo.new(0.2),{Size=UDim2.new(p,0,1,0)}):Play(); fill.BackgroundColor3=p<0.3 and Theme.Red or Theme.Green end; U(); h.HealthChanged:Connect(U) end 
-	end, function(c) if c:FindFirstChild("NeeR_HP") then c.NeeR_HP:Destroy() end end) end)
+                -- 1. Jika player sudah punya karakter saat diaktifkan
+                if plr.Character then TryAdd(plr.Character) end
+                
+                -- 2. Deteksi saat player respawn (Mati -> Hidup lagi)
+                local c = plr.CharacterAdded:Connect(TryAdd)
+                table.insert(storageTable, c)
+            end
 
-	-- 4. X-RAY
-	local xr_op, xr_cache, xr_conn = 0.5, {}, nil
-	local function DoXR(v) if v:IsA("BasePart") and not v:IsA("Terrain") then local h=v.Parent:FindFirstChild("Humanoid") or v.Parent.Parent:FindFirstChild("Humanoid"); if not h and v.Transparency<0.9 then if not xr_cache[v] then xr_cache[v]=v.Transparency end; v.Transparency=xr_op end end end
-	
-	CreateHybridCard(ESP_Section, "Wall X-Ray (Auto Detect)", function(active)
-		if active then for _,v in pairs(workspace:GetDescendants()) do DoXR(v) end; xr_conn=workspace.DescendantAdded:Connect(DoXR)
-		else if xr_conn then xr_conn:Disconnect() end; for p,t in pairs(xr_cache) do if p.Parent then p.Transparency=t end end; table.clear(xr_cache) end
-	end, 0.1, 0.9, 0.5, function(v) xr_op=v; if next(xr_cache) then for p,_ in pairs(xr_cache) do if p.Parent then p.Transparency=xr_op end end end end, "")
+            -- Loop player yang sudah ada
+            for _, p in pairs(Players:GetPlayers()) do Setup(p) end
+            -- Deteksi player baru join server
+            table.insert(storageTable, Players.PlayerAdded:Connect(Setup))
+        else
+            -- Cleanup saat dimatikan
+            for _, c in pairs(storageTable) do c:Disconnect() end
+            table.clear(storageTable)
+            for _, p in pairs(Players:GetPlayers()) do
+                if p.Character then onRemove(p.Character) end
+            end
+        end
+    end
+
+    -- 1. CHAMS (Highlight)
+    local C1 = CreateFeatureCard(ESP_Section, "Visual Chams (Highlight)", 32)
+    AttachSwitch(C1, false, function(a) 
+        ToggleESP(a, HL_Conn, 
+        function(c, p) -- On Add
+            if c:FindFirstChild("NeeR_HL") then c.NeeR_HL:Destroy() end
+            local h = Instance.new("Highlight", c)
+            h.Name = "NeeR_HL"
+            h.FillColor = Theme.Red
+            h.OutlineColor = Color3.new(1, 1, 1)
+            h.FillTransparency = 0.5
+        end, 
+        function(c) -- On Remove
+            if c:FindFirstChild("NeeR_HL") then c.NeeR_HL:Destroy() end
+        end) 
+    end)
+    
+    -- 2. PLAYER NAMES (Auto Update & Wait)
+    local C2 = CreateFeatureCard(ESP_Section, "Player Names", 32)
+    AttachSwitch(C2, false, function(a) 
+        ToggleESP(a, Name_Conn, 
+        function(c, p) 
+            -- [FIX] Tunggu Head max 5 detik. Jika tidak ada, batalkan (cegah error)
+            local head = c:WaitForChild("Head", 5)
+            if not head then return end
+            
+            if c:FindFirstChild("NeeR_Nm") then c.NeeR_Nm:Destroy() end
+            
+            local b = Instance.new("BillboardGui", c); b.Name = "NeeR_Nm"; b.Adornee = head
+            b.Size = UDim2.new(0, 100, 0, 20); b.AlwaysOnTop = true
+            b.StudsOffset = Vector3.new(0, 4.5, 0) -- Jarak di atas kepala
+            
+            local t = Instance.new("TextLabel", b); t.Size = UDim2.new(1, 0, 1, 0)
+            t.BackgroundTransparency = 1; t.Text = p.DisplayName; t.TextColor3 = Color3.new(1, 1, 1)
+            t.Font = Theme.FontBold; t.TextSize = 12; t.TextStrokeTransparency = 0 
+        end, 
+        function(c) 
+            if c:FindFirstChild("NeeR_Nm") then c.NeeR_Nm:Destroy() end 
+        end) 
+    end)
+    
+    -- 3. HEALTH BAR (Efficient & Smooth)
+    local C3 = CreateFeatureCard(ESP_Section, "Health Bar", 32)
+    AttachSwitch(C3, false, function(a) 
+        ToggleESP(a, HP_Conn, 
+        function(c) 
+            -- [FIX] Tunggu Head & Humanoid load sempurna
+            local head = c:WaitForChild("Head", 5)
+            local hum = c:WaitForChild("Humanoid", 5)
+            if not head or not hum then return end
+            
+            if c:FindFirstChild("NeeR_HP") then c.NeeR_HP:Destroy() end
+            
+            local b = Instance.new("BillboardGui", c); b.Name = "NeeR_HP"; b.Adornee = head
+            b.Size = UDim2.new(0, 40, 0, 4); b.AlwaysOnTop = true
+            b.StudsOffset = Vector3.new(0, 3.5, 0) 
+            
+            local bg = Instance.new("Frame", b); bg.Size = UDim2.new(1, 0, 1, 0)
+            bg.BackgroundColor3 = Color3.new(0, 0, 0); bg.BorderSizePixel = 0
+            
+            local fill = Instance.new("Frame", bg); fill.Size = UDim2.new(1, 0, 1, 0)
+            fill.BackgroundColor3 = Theme.Green; fill.BorderSizePixel = 0
+            
+            -- Logic Update Darah
+            local function UpdateHP()
+                if not hum then return end
+                local percent = math.clamp(hum.Health / hum.MaxHealth, 0, 1)
+                -- Animasi Tween agar halus
+                TweenService:Create(fill, TweenInfo.new(0.2), {Size = UDim2.new(percent, 0, 1, 0)}):Play()
+                fill.BackgroundColor3 = percent < 0.3 and Theme.Red or Theme.Green
+            end
+            
+            UpdateHP()
+            -- Koneksi event HealthChanged (Otomatis putus jika Humanoid/GUI hancur)
+            local conn = hum.HealthChanged:Connect(UpdateHP)
+            
+            -- Cleanup manual listener jika billboard dihapus (Anti Memory Leak)
+            b.Destroying:Connect(function() conn:Disconnect() end)
+        end, 
+        function(c) 
+            if c:FindFirstChild("NeeR_HP") then c.NeeR_HP:Destroy() end 
+        end) 
+    end)
+
+    -- 4. X-RAY (Optimized Cache)
+    local xr_op, xr_cache, xr_conn = 0.5, {}, nil
+    local function DoXR(v) 
+        if v:IsA("BasePart") and not v:IsA("Terrain") then 
+            -- Cek apakah part milik karakter (agar diri sendiri/musuh tidak transparan)
+            local h = v.Parent:FindFirstChild("Humanoid") or v.Parent.Parent:FindFirstChild("Humanoid")
+            if not h and v.Transparency < 0.9 then 
+                if not xr_cache[v] then xr_cache[v] = v.Transparency end
+                v.Transparency = xr_op 
+            end 
+        end 
+    end
+    
+    CreateHybridCard(ESP_Section, "Wall X-Ray (Auto Detect)", function(active)
+        if active then 
+            for _, v in pairs(workspace:GetDescendants()) do DoXR(v) end
+            xr_conn = workspace.DescendantAdded:Connect(DoXR)
+        else 
+            if xr_conn then xr_conn:Disconnect() end
+            for p, t in pairs(xr_cache) do if p.Parent then p.Transparency = t end end
+            table.clear(xr_cache) 
+        end
+    end, 0.1, 0.9, 0.5, function(v) 
+        xr_op = v
+        if next(xr_cache) then 
+            for p, _ in pairs(xr_cache) do if p.Parent then p.Transparency = xr_op end end 
+        end 
+    end, "")
 
 	-- [5] TROLL & FUN SECTION (ZIG ZAG MODE FINAL)
 	local TrollSection = CreateExpandableSection(parentFrame, "Troll & Fun (Physics)")
