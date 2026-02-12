@@ -1483,8 +1483,8 @@ local function BuildToolsTab(parentFrame)
 		if TrollState.Jitter.Active then UpdateJitter() end
 	end)
 
-	-- [ENGINE 1: PHYSICS EXECUTION] (Standby, Idle jika mati)
-	RunService.RenderStepped:Connect(function()
+	-- [ENGINE 1: PHYSICS EXECUTION]
+	RunService.Heartbeat:Connect(function()
 		local c = LocalPlayer.Character
 		local h = c and c:FindFirstChild("Humanoid")
 		local r = c and c:FindFirstChild("HumanoidRootPart")
