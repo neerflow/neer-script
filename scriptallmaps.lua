@@ -1057,7 +1057,7 @@ local function BuildToolsTab(parentFrame)
 	local hum = char:WaitForChild("Humanoid")
 	local ToolsConfig = { Speed = { Active = false, Value = hum.WalkSpeed }, TPWalk = { Active = false, Value = 0.5 }, Jump = { Active = false, Value = 50, Mode = "Mobile" }, StateForce = { Active = false } }
 	
-	-- Cinema State Manager (Agar akses global di tab ini)
+	-- Cinema State Manager
 	local CinemaState = { Active = false, Conn = nil }
 
 	-- [2] HANDLER JUMP
@@ -1079,7 +1079,7 @@ local function BuildToolsTab(parentFrame)
 	-- =====================================================================================
 	local FCSection = CreateExpandableSection(parentFrame, "Freecam / Drone Mode")
 	
-	-- A. Info Text (Rapi & Sejajar)
+-- A. Info Text (Rapi & Sejajar)
 	local InfoFrame = Instance.new("Frame"); InfoFrame.Parent = FCSection; InfoFrame.BackgroundTransparency = 1; InfoFrame.Size = UDim2.new(1, 0, 0, 30)
 	local InfoTxt = Instance.new("TextLabel"); InfoTxt.Parent = InfoFrame; InfoTxt.Size = UDim2.new(1, 0, 0.7, 0); InfoTxt.BackgroundTransparency = 1; InfoTxt.TextColor3 = Theme.TextDim; InfoTxt.TextSize = 10; InfoTxt.Font = Theme.FontMain; InfoTxt.TextXAlignment = Enum.TextXAlignment.Left; InfoTxt.RichText = true
 	InfoTxt.Text = [[	<font color="#89cff0"><b>[Alt + C]</b></font> Toggle Freecam			<font color="#89cff0"><b>[WASD]</b></font> Move Camera			<font color="#89cff0"><b>[Q / E]</b></font> Up / Down
@@ -1088,157 +1088,144 @@ local function BuildToolsTab(parentFrame)
 	-- B. CORE LOGIC FREECAM
 	local FC_InputSpeed = 1
 	local FC_ToggleFunc = nil
-	local FC_UpdateVisualSwitch = nil 
+	local FC_UpdateVisualSwitch = nil
+	local FC_SetOverlayState = nil -- Bridge function untuk switch overlay
+	local FC_Overlay = nil 
 
 	do 
 		local CAS = game:GetService("ContextActionService"); local UIS = game:GetService("UserInputService"); local Camera = workspace.CurrentCamera
 		workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function() local newCam = workspace.CurrentCamera; if newCam then Camera = newCam end end)
 		local NAV_GAIN = Vector3.new(1, 1, 1) * 64; local PAN_GAIN = Vector2.new(0.75, 1) * 8; local FOV_GAIN = 300; local PITCH_LIMIT = math.rad(90); local JOYSTICK_DIST = 150; local SPRING_PARAMS = {Vel = 2.0, Pan = 2.0, Fov = 4.0} 
 		local pi, exp, clamp, sqrt, tan, rad = math.pi, math.exp, math.clamp, math.sqrt, math.tan, math.rad; local V3, V2 = Vector3.new, Vector2.new
-		
 		local Spring = {}; Spring.__index = Spring
 		function Spring.new(freq, pos) return setmetatable({f=freq, p=pos, v=pos*0}, Spring) end
 		function Spring:Update(dt, goal) local f = self.f * 2 * pi; local offset = goal - self.p; local decay = exp(-f * dt); local p1 = goal + (self.v * dt - offset * (f * dt + 1)) * decay; self.v = (f * dt * (offset * f - self.v) + self.v) * decay; self.p = p1; return p1 end
 		function Spring:Reset(pos) self.p = pos; self.v = pos*0 end
-		
 		local Input = { keys = {W=0, A=0, S=0, D=0, E=0, Q=0, Up=0, Down=0}, mouse = {Delta = V2(), Wheel = 0}, mobile = {Move = V3(), Look = V2()}, touch = {ID = nil, Start = V2()} }
 		
 		function Input.GetVel(dt)
-			-- [FIX] Logic Speed: Arrow Keys memodifikasi FC_InputSpeed (Variable GUI), bukan variable internal
 			local arrowChange = (Input.keys.Up - Input.keys.Down) * dt * 2.0
-			if arrowChange ~= 0 then
-				FC_InputSpeed = clamp(FC_InputSpeed + arrowChange, 0.1, 20)
-			end
-			
+			if arrowChange ~= 0 then FC_InputSpeed = clamp(FC_InputSpeed + arrowChange, 0.1, 20) end
 			local kKb = V3(Input.keys.D - Input.keys.A, Input.keys.E - Input.keys.Q, Input.keys.S - Input.keys.W)
 			local kMb = Input.mobile.Move
 			local isSlow = UIS:IsKeyDown(Enum.KeyCode.LeftAlt)
-			
-			-- Gunakan FC_InputSpeed sebagai kecepatan utama
 			return (kKb + kMb) * (FC_InputSpeed * (isSlow and 0.25 or 1)) 
 		end
 
 		function Input.GetPan(dt) local kMs = Input.mouse.Delta * (pi/64); local kMb = Input.mobile.Look * (pi/64) * 0.5; Input.mouse.Delta = V2(); Input.mobile.Look = V2(); return kMs + kMb end
 		function Input.GetFov(dt) local kMs = Input.mouse.Wheel; Input.mouse.Wheel = 0; return kMs end
-		
 		local function KeyState(action, state, input) Input.keys[input.KeyCode.Name] = (state == Enum.UserInputState.Begin) and 1 or 0; return Enum.ContextActionResult.Sink end
 		local function MouseUpdate(action, state, input) if input.UserInputType == Enum.UserInputType.MouseMovement then if UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then Input.mouse.Delta = V2(-input.Delta.y, -input.Delta.x) end elseif input.UserInputType == Enum.UserInputType.MouseWheel then Input.mouse.Wheel = -input.Position.z end return Enum.ContextActionResult.Sink end
 		local function TouchUpdate(input, gp) if input.UserInputType ~= Enum.UserInputType.Touch then return end; if input.UserInputState == Enum.UserInputState.Begin then local pos = V2(input.Position.X, input.Position.Y); if pos.X < Camera.ViewportSize.X/2 and not Input.touch.ID then Input.touch.ID = input; Input.touch.Start = pos end elseif input.UserInputState == Enum.UserInputState.Change then if input == Input.touch.ID then local diff = V2(input.Position.X, input.Position.Y) - Input.touch.Start; if diff.Magnitude > JOYSTICK_DIST then diff = diff.Unit * JOYSTICK_DIST end; local norm = diff / JOYSTICK_DIST; Input.mobile.Move = V3(norm.X, 0, norm.Y) else local delta = V2(-input.Delta.Y, -input.Delta.X); Input.mobile.Look = Input.mobile.Look + delta end elseif input.UserInputState == Enum.UserInputState.End and input == Input.touch.ID then Input.touch.ID = nil; Input.mobile.Move = V3() end end
-		
 		local state = { velSpring = Spring.new(SPRING_PARAMS.Vel, V3()), panSpring = Spring.new(SPRING_PARAMS.Pan, V2()), fovSpring = Spring.new(SPRING_PARAMS.Fov, 0), camPos = V3(), camRot = V2(), camFov = 0, originalFov = 70, saved = {}, isEnabled = false, connections = {} }
-		
-		local function Step(dt) 
-			if UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then UIS.MouseBehavior = Enum.MouseBehavior.LockCenter; UIS.MouseIconEnabled = false else UIS.MouseBehavior = Enum.MouseBehavior.Default; UIS.MouseIconEnabled = true end
-			local vel = state.velSpring:Update(dt, Input.GetVel(dt)); local pan = state.panSpring:Update(dt, Input.GetPan(dt)); local fov = state.fovSpring:Update(dt, Input.GetFov(dt))
-			local zoom = sqrt(tan(rad(70/2)) / tan(rad(state.camFov/2)))
-			state.camFov = clamp(state.camFov + fov * FOV_GAIN * (dt/zoom), 1, 120)
-			state.camRot = state.camRot + pan * PAN_GAIN * (dt/zoom); state.camRot = V2(clamp(state.camRot.x, -PITCH_LIMIT, PITCH_LIMIT), state.camRot.y % (2*pi))
-			local cf = CFrame.new(state.camPos) * CFrame.fromOrientation(state.camRot.x, state.camRot.y, 0) * CFrame.new(vel * NAV_GAIN * dt)
-			state.camPos = cf.p; Camera.CFrame = cf; Camera.Focus = cf; Camera.FieldOfView = state.camFov 
-		end
-		
+		local function Step(dt) if UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then UIS.MouseBehavior = Enum.MouseBehavior.LockCenter; UIS.MouseIconEnabled = false else UIS.MouseBehavior = Enum.MouseBehavior.Default; UIS.MouseIconEnabled = true end; local vel = state.velSpring:Update(dt, Input.GetVel(dt)); local pan = state.panSpring:Update(dt, Input.GetPan(dt)); local fov = state.fovSpring:Update(dt, Input.GetFov(dt)); local zoom = sqrt(tan(rad(70/2)) / tan(rad(state.camFov/2))); state.camFov = clamp(state.camFov + fov * FOV_GAIN * (dt/zoom), 1, 120); state.camRot = state.camRot + pan * PAN_GAIN * (dt/zoom); state.camRot = V2(clamp(state.camRot.x, -PITCH_LIMIT, PITCH_LIMIT), state.camRot.y % (2*pi)); local cf = CFrame.new(state.camPos) * CFrame.fromOrientation(state.camRot.x, state.camRot.y, 0) * CFrame.new(vel * NAV_GAIN * dt); state.camPos = cf.p; Camera.CFrame = cf; Camera.Focus = cf; Camera.FieldOfView = state.camFov end
 		local function SetControls(enable) local pg = LocalPlayer:FindFirstChild("PlayerGui"); if not pg then return end; local touchGui = pg:FindFirstChild("TouchGui"); if touchGui then touchGui.Enabled = enable end; if not enable then state.saved.jumpBtns = {}; for _, gui in pairs(pg:GetChildren()) do if gui:IsA("ScreenGui") and gui.Name ~= "NeeR_Unified" then local jb = gui:FindFirstChild("JumpButton", true); if jb and jb.Visible then table.insert(state.saved.jumpBtns, jb); jb.Visible = false end end end else if state.saved.jumpBtns then for _, btn in pairs(state.saved.jumpBtns) do if btn and btn.Parent then btn.Visible = true end end; state.saved.jumpBtns = nil end end; if enable then LocalPlayer.DevTouchMovementMode = Enum.DevTouchMovementMode.UserChoice else LocalPlayer.DevTouchMovementMode = Enum.DevTouchMovementMode.Scriptable end end
 		
+		-- [OVERLAY LOGIC]
+		local FC_ShowOverlay = false -- Internal flag
+		local function CreateOverlay()
+			if FC_Overlay then FC_Overlay:Destroy() end
+			FC_Overlay = Instance.new("Frame")
+			FC_Overlay.Name = "FC_Overlay"
+			FC_Overlay.Parent = ScreenGui 
+			FC_Overlay.Size = UDim2.new(0, 40, 0, 180)
+			-- [POSITION] Right Center (15px padding from right)
+			FC_Overlay.AnchorPoint = Vector2.new(1, 0.5)
+			FC_Overlay.Position = UDim2.new(1, -15, 0.5, 0) 
+			FC_Overlay.BackgroundTransparency = 1
+			
+			-- 1. Up Button (E)
+			local UpBtn = Instance.new("ImageButton", FC_Overlay)
+			UpBtn.Size = UDim2.new(1, 0, 0, 40); UpBtn.Position = UDim2.new(0, 0, 0, 0)
+			UpBtn.BackgroundColor3 = Color3.fromRGB(0,0,0); UpBtn.BackgroundTransparency = 0.6
+			UpBtn.Image = "rbxassetid://6813293876"; UpBtn.ImageColor3 = Color3.new(1,1,1); UpBtn.ImageTransparency = 0.2
+			Instance.new("UICorner", UpBtn).CornerRadius = UDim.new(0, 8)
+			
+			-- 2. Down Button (Q)
+			local DownBtn = Instance.new("ImageButton", FC_Overlay)
+			DownBtn.Size = UDim2.new(1, 0, 0, 40); DownBtn.Position = UDim2.new(0, 0, 1, -40)
+			DownBtn.BackgroundColor3 = Color3.fromRGB(0,0,0); DownBtn.BackgroundTransparency = 0.6
+			DownBtn.Image = "rbxassetid://6813293876"; DownBtn.Rotation = 180; DownBtn.ImageColor3 = Color3.new(1,1,1); DownBtn.ImageTransparency = 0.2
+			Instance.new("UICorner", DownBtn).CornerRadius = UDim.new(0, 8)
+			
+			-- Input Events
+			UpBtn.MouseButton1Down:Connect(function() Input.keys.E = 1; UpBtn.BackgroundTransparency = 0.3 end)
+			UpBtn.MouseButton1Up:Connect(function() Input.keys.E = 0; UpBtn.BackgroundTransparency = 0.6 end)
+			UpBtn.MouseLeave:Connect(function() Input.keys.E = 0; UpBtn.BackgroundTransparency = 0.6 end)
+			DownBtn.MouseButton1Down:Connect(function() Input.keys.Q = 1; DownBtn.BackgroundTransparency = 0.3 end)
+			DownBtn.MouseButton1Up:Connect(function() Input.keys.Q = 0; DownBtn.BackgroundTransparency = 0.6 end)
+			DownBtn.MouseLeave:Connect(function() Input.keys.Q = 0; DownBtn.BackgroundTransparency = 0.6 end)
+			
+			-- 3. FOV Slider
+			local SliderBG = Instance.new("Frame", FC_Overlay)
+			SliderBG.Size = UDim2.new(0, 6, 1, -90); SliderBG.Position = UDim2.new(0.5, -3, 0, 45)
+			SliderBG.BackgroundColor3 = Color3.fromRGB(0,0,0); SliderBG.BackgroundTransparency = 0.6
+			Instance.new("UICorner", SliderBG).CornerRadius = UDim.new(1, 0)
+			
+			local Knob = Instance.new("Frame", SliderBG)
+			Knob.Size = UDim2.new(0, 16, 0, 16); Knob.AnchorPoint = Vector2.new(0.5, 0.5)
+			Knob.BackgroundColor3 = Theme.Accent; Instance.new("UICorner", Knob).CornerRadius = UDim.new(1, 0)
+			
+			local Dragging = false
+			local function UpdateSlider()
+				local percent = clamp((state.camFov - 10) / (120 - 10), 0, 1)
+				Knob.Position = UDim2.new(0.5, 0, percent, 0)
+			end
+			local SliderTrig = Instance.new("TextButton", SliderBG)
+			SliderTrig.BackgroundTransparency = 1; SliderTrig.Size = UDim2.new(3, 0, 1, 0); SliderTrig.Position = UDim2.new(-1, 0, 0, 0); SliderTrig.Text = ""
+			SliderTrig.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then Dragging = true end end)
+			UIS.InputChanged:Connect(function(i) if Dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
+				local relativeY = i.Position.Y - SliderBG.AbsolutePosition.Y
+				local percent = clamp(relativeY / SliderBG.AbsoluteSize.Y, 0, 1)
+				state.camFov = 10 + (percent * 110); UpdateSlider()
+			end end)
+			UIS.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then Dragging = false end end)
+			RunService.Heartbeat:Connect(function() if not Dragging and state.isEnabled then UpdateSlider() end end)
+		end
+
+		-- Exposed Function untuk UI
+		FC_SetOverlayState = function(active)
+			FC_ShowOverlay = active
+			if state.isEnabled then
+				if active then CreateOverlay() else if FC_Overlay then FC_Overlay:Destroy(); FC_Overlay = nil end end
+			end
+		end
+
 		FC_ToggleFunc = function(forceState) if forceState ~= nil then state.isEnabled = forceState else state.isEnabled = not state.isEnabled end; if FC_UpdateVisualSwitch then FC_UpdateVisualSwitch(state.isEnabled, true) end
 			if state.isEnabled then local cf = Camera.CFrame; state.camPos, state.camRot = cf.Position, V2(cf:toEulerAnglesYXZ()); state.originalFov = Camera.FieldOfView; state.camFov = state.originalFov; state.velSpring:Reset(V3()); state.panSpring:Reset(V2()); SetControls(false); if LocalPlayer.Character and LocalPlayer.Character.PrimaryPart then LocalPlayer.Character.PrimaryPart.Anchored = true end; local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid"); if hum then state.connections["Death"] = hum.Died:Connect(function() if state.isEnabled then FC_ToggleFunc(false) end end) end; Camera.CameraType = Enum.CameraType.Scriptable; CAS:BindActionAtPriority("FC_Keys", KeyState, false, 2000, Enum.KeyCode.W, Enum.KeyCode.A, Enum.KeyCode.S, Enum.KeyCode.D, Enum.KeyCode.E, Enum.KeyCode.Q, Enum.KeyCode.Up, Enum.KeyCode.Down); CAS:BindActionAtPriority("FC_Mouse", MouseUpdate, false, 2000, Enum.UserInputType.MouseMovement, Enum.UserInputType.MouseWheel); state.connections["Touch1"] = UIS.InputBegan:Connect(TouchUpdate); state.connections["Touch2"] = UIS.InputChanged:Connect(TouchUpdate); state.connections["Touch3"] = UIS.InputEnded:Connect(TouchUpdate); RunService:BindToRenderStep("FreecamClean", Enum.RenderPriority.Camera.Value, Step)
+				if FC_ShowOverlay then CreateOverlay() end
 			else RunService:UnbindFromRenderStep("FreecamClean"); CAS:UnbindAction("FC_Keys"); CAS:UnbindAction("FC_Mouse"); for _, conn in pairs(state.connections) do conn:Disconnect() end; state.connections = {}; SetControls(true); UIS.MouseIconEnabled = true; UIS.MouseBehavior = Enum.MouseBehavior.Default; Camera.FieldOfView = state.originalFov; Camera.CameraType = Enum.CameraType.Custom; if LocalPlayer.Character and LocalPlayer.Character.PrimaryPart then LocalPlayer.Character.PrimaryPart.Anchored = false end; for k in pairs(Input.keys) do Input.keys[k] = 0 end; Input.mouse.Delta = V2(); Input.mobile.Move = V3(); Input.touch.ID = nil end
+				if FC_Overlay then FC_Overlay:Destroy(); FC_Overlay = nil end
 		end
-	end
+	end 
 
-	-- C. UI CONTROLS (MERGED CARD & CLEAN SCREEN)
+	-- C. UI CONTROLS
 	
-	-- 1. Freecam Mode (Switch + Speed Control)
+	-- 1. Freecam Mode (Switch + Speed)
 	local FreecamCard = CreateFeatureCard(FCSection, "Freecam Mode (Speed)", 36)
-	
-	-- Switch Logic
-	FC_UpdateVisualSwitch = AttachSwitch(FreecamCard, false, function(active)
-		pcall(function() FC_ToggleFunc(active) end)
-	end)
-
-	-- Speed Controls
+	FC_UpdateVisualSwitch = AttachSwitch(FreecamCard, false, function(active) pcall(function() FC_ToggleFunc(active) end) end)
 	local Ctrl = Instance.new("Frame"); Ctrl.Parent = FreecamCard; Ctrl.BackgroundTransparency = 1; Ctrl.Position = UDim2.new(1, -155, 0, 0); Ctrl.Size = UDim2.new(0, 110, 1, 0)
 	local MinBtn = Instance.new("TextButton"); MinBtn.Parent = Ctrl; MinBtn.BackgroundColor3 = Theme.Sidebar; MinBtn.Position = UDim2.new(0, 0, 0.5, -10); MinBtn.Size = UDim2.new(0, 20, 0, 20); MinBtn.Font = Theme.FontBold; MinBtn.Text = "-"; MinBtn.TextColor3 = Theme.Red; Instance.new("UICorner", MinBtn).CornerRadius = UDim.new(0, 4)
 	local ValLbl = Instance.new("TextLabel"); ValLbl.Parent = Ctrl; ValLbl.BackgroundTransparency = 1; ValLbl.Position = UDim2.new(0, 22, 0, 0); ValLbl.Size = UDim2.new(0, 36, 1, 0); ValLbl.Font = Theme.FontBold; ValLbl.Text = "1.0"; ValLbl.TextColor3 = Theme.Text; ValLbl.TextSize = 11
 	local PlsBtn = Instance.new("TextButton"); PlsBtn.Parent = Ctrl; PlsBtn.BackgroundColor3 = Theme.Sidebar; PlsBtn.Position = UDim2.new(0, 60, 0.5, -10); PlsBtn.Size = UDim2.new(0, 20, 0, 20); PlsBtn.Font = Theme.FontBold; PlsBtn.Text = "+"; PlsBtn.TextColor3 = Theme.Green; Instance.new("UICorner", PlsBtn).CornerRadius = UDim.new(0, 4)
-
-	-- Speed Controls Logic (Improved)
 	local function UpdateSpeedUI() ValLbl.Text = string.format("%.1f", FC_InputSpeed) end
-	
-	-- Helper untuk Rapid Fire Click
-	local function AutoClick(btn, change)
-		local holding = false
-		btn.MouseButton1Down:Connect(function()
-			holding = true
-			FC_InputSpeed = math.clamp(FC_InputSpeed + change, 0.1, 20)
-			UpdateSpeedUI()
-			task.wait(0.3) -- Delay sebelum rapid fire
-			while holding do
-				FC_InputSpeed = math.clamp(FC_InputSpeed + change, 0.1, 20)
-				UpdateSpeedUI()
-				task.wait(0.05) -- Kecepatan rapid
-			end
-		end)
-		btn.MouseButton1Up:Connect(function() holding = false end)
-		btn.MouseLeave:Connect(function() holding = false end)
-	end
+	local function AutoClick(btn, change) local holding = false; btn.MouseButton1Down:Connect(function() holding = true; FC_InputSpeed = math.clamp(FC_InputSpeed + change, 0.1, 20); UpdateSpeedUI(); task.wait(0.3); while holding do FC_InputSpeed = math.clamp(FC_InputSpeed + change, 0.1, 20); UpdateSpeedUI(); task.wait(0.05) end end); btn.MouseButton1Up:Connect(function() holding = false end); btn.MouseLeave:Connect(function() holding = false end) end
+	AutoClick(MinBtn, -0.1); AutoClick(PlsBtn, 0.1); RunService.Heartbeat:Connect(function() if parentFrame.Visible and math.abs(tonumber(ValLbl.Text) - FC_InputSpeed) > 0.05 then UpdateSpeedUI() end end)
 
-	AutoClick(MinBtn, -0.1) -- Turun 0.1 per klik
-	AutoClick(PlsBtn, 0.1)  -- Naik 0.1 per klik
-	
-	-- Sync Live (Agar kalau Arrow ditekan, GUI ikut berubah)
-	RunService.Heartbeat:Connect(function() 
-		if parentFrame.Visible and math.abs(tonumber(ValLbl.Text) - FC_InputSpeed) > 0.05 then 
-			UpdateSpeedUI() 
-		end 
+	-- 2. Overlay Switch (NEW CARD)
+	local OverlayCard = CreateFeatureCard(FCSection, "Mobile Overlay (UI Controls)", 32)
+	AttachSwitch(OverlayCard, false, function(active)
+		if FC_SetOverlayState then FC_SetOverlayState(active) end
 	end)
 
-	-- 2. CINEMA MODE (Clean Screen - Improved)
+	-- 3. Cinema Mode
 	local CleanCard = CreateFeatureCard(FCSection, "Cinema Mode (Hide All UI)", 32)
-	
-	-- Helper untuk update visual sesuai state
-	local function UpdateCinemaVisuals()
-		-- Toggle CoreGUI
-		pcall(function() game:GetService("StarterGui"):SetCoreGuiEnabled(Enum.CoreGuiType.All, not CinemaState.Active) end)
-		-- Toggle PlayerGui (Iterate Current Children)
-		local pg = LocalPlayer:FindFirstChild("PlayerGui")
-		if pg then
-			for _, gui in pairs(pg:GetChildren()) do
-				if gui:IsA("ScreenGui") and gui.Name ~= "NeeR_Unified" then
-					gui.Enabled = not CinemaState.Active
-				end
-			end
-		end
-	end
-
-	AttachSwitch(CleanCard, false, function(active)
-		CinemaState.Active = active
-		UpdateCinemaVisuals()
-		
-		-- Auto-hide Listener (Persistent)
-		if active then
-			local pg = LocalPlayer:FindFirstChild("PlayerGui")
-			if pg then
-				if CinemaState.Conn then CinemaState.Conn:Disconnect() end
-				CinemaState.Conn = pg.ChildAdded:Connect(function(child)
-					if child:IsA("ScreenGui") and child.Name ~= "NeeR_Unified" then
-						task.wait() -- Tunggu load properti
-						if CinemaState.Active then child.Enabled = false end
-					end
-				end)
-			end
-		else
-			if CinemaState.Conn then CinemaState.Conn:Disconnect(); CinemaState.Conn = nil end
-		end
-	end)
+	local function UpdateCinemaVisuals() pcall(function() game:GetService("StarterGui"):SetCoreGuiEnabled(Enum.CoreGuiType.All, not CinemaState.Active) end); local pg = LocalPlayer:FindFirstChild("PlayerGui"); if pg then for _, gui in pairs(pg:GetChildren()) do if gui:IsA("ScreenGui") and gui.Name ~= "NeeR_Unified" then gui.Enabled = not CinemaState.Active end end end end
+	AttachSwitch(CleanCard, false, function(active) CinemaState.Active = active; UpdateCinemaVisuals(); if active then local pg = LocalPlayer:FindFirstChild("PlayerGui"); if pg then if CinemaState.Conn then CinemaState.Conn:Disconnect() end; CinemaState.Conn = pg.ChildAdded:Connect(function(child) if child:IsA("ScreenGui") and child.Name ~= "NeeR_Unified" then task.wait(); if CinemaState.Active then child.Enabled = false end end end) end else if CinemaState.Conn then CinemaState.Conn:Disconnect(); CinemaState.Conn = nil end end end)
 
 	-- KEYBIND FREECAM
 	local UIS = game:GetService("UserInputService")
-	UIS.InputBegan:Connect(function(input, gp)
-		if gp then return end
-		if input.KeyCode == Enum.KeyCode.C and UIS:IsKeyDown(Enum.KeyCode.LeftAlt) then
-			if FC_ToggleFunc then FC_ToggleFunc() end 
-		end
-	end)
+	UIS.InputBegan:Connect(function(input, gp) if gp then return end; if input.KeyCode == Enum.KeyCode.C and UIS:IsKeyDown(Enum.KeyCode.LeftAlt) then if FC_ToggleFunc then FC_ToggleFunc() end end end)
 
 	-- =====================================================================================
 	-- [SUB TAB 2] FORCE MOVEMENT (FITUR LAMA)
