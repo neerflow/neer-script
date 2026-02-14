@@ -1056,8 +1056,11 @@ local function BuildToolsTab(parentFrame)
 	local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 	local hum = char:WaitForChild("Humanoid")
 	local ToolsConfig = { Speed = { Active = false, Value = hum.WalkSpeed }, TPWalk = { Active = false, Value = 0.5 }, Jump = { Active = false, Value = 50, Mode = "Mobile" }, StateForce = { Active = false } }
+	
+	-- Cinema State Manager (Agar akses global di tab ini)
+	local CinemaState = { Active = false, Conn = nil }
 
-	-- [2] HANDLER JUMP (Logic Tetap)
+	-- [2] HANDLER JUMP
 	local JumpButtonGUI, PCJumpConn, IsHoldingJump = nil, nil, false
 	local function SetNativeJumpVisible(visible) pcall(function() LocalPlayer.PlayerGui.TouchGui.TouchControlFrame.JumpButton.Visible = visible end) end
 	local function SetMobileMode(active)
@@ -1071,448 +1074,204 @@ local function BuildToolsTab(parentFrame)
 	local function SetPCMode(active) if active then if PCJumpConn then PCJumpConn:Disconnect() end; PCJumpConn=UserInputService.InputBegan:Connect(function(i,g) if not g and i.KeyCode==Enum.KeyCode.Space then local c=LocalPlayer.Character; local r=c and c:FindFirstChild("HumanoidRootPart"); local h=c and c:FindFirstChild("Humanoid"); if r and h then local hit=workspace:Raycast(r.Position,Vector3.new(0,-3.5,0),RaycastParams.new{FilterDescendantsInstances={c}}); if hit then r.AssemblyLinearVelocity=Vector3.new(r.AssemblyLinearVelocity.X, ToolsConfig.Jump.Value, r.AssemblyLinearVelocity.Z); h:ChangeState(Enum.HumanoidStateType.Jumping) end end end end) else if PCJumpConn then PCJumpConn:Disconnect() end end end
 	local function UpdateJumpState() SetMobileMode(false); SetPCMode(false); if ToolsConfig.Jump.Active then if ToolsConfig.Jump.Mode=="Mobile" then SetMobileMode(true) else SetPCMode(true) end else local h=LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid"); if h then h.JumpPower=DefaultStats.JumpPower; h.UseJumpPower=true; if DefaultStats.JumpPower>0 then SetNativeJumpVisible(true) end end end end
 
-	-- [3] UI BUILDER: FORCE MOVEMENT
-	local ForceSection = CreateExpandableSection(parentFrame, "Force Movement (Anti-Kick)")
+	-- =====================================================================================
+	-- [SUB TAB 1] FREECAM / DRONE / CINEMA
+	-- =====================================================================================
+	local FCSection = CreateExpandableSection(parentFrame, "Freecam / Drone Mode")
 	
-	local InfoLbl = Instance.new("TextLabel"); InfoLbl.Parent = ForceSection
-	InfoLbl.BackgroundTransparency = 1; InfoLbl.Size = UDim2.new(1, 0, 0, 20); InfoLbl.Font = Theme.FontMain
-	InfoLbl.Text = "*Note: Use this if the map restricts WalkSpeed or JumpPower."; InfoLbl.TextColor3 = Color3.fromRGB(150, 150, 150)
-	InfoLbl.TextSize = 10; InfoLbl.TextXAlignment = Enum.TextXAlignment.Left; InfoLbl.TextWrapped = true
+	-- A. Info Text (Rapi & Sejajar)
+	local InfoFrame = Instance.new("Frame"); InfoFrame.Parent = FCSection; InfoFrame.BackgroundTransparency = 1; InfoFrame.Size = UDim2.new(1, 0, 0, 45)
+	local InfoTxt = Instance.new("TextLabel"); InfoTxt.Parent = InfoFrame; InfoTxt.Size = UDim2.new(1, 0, 1, 0); InfoTxt.BackgroundTransparency = 1; InfoTxt.TextColor3 = Theme.TextDim; InfoTxt.TextSize = 10; InfoTxt.Font = Theme.FontMain; InfoTxt.TextXAlignment = Enum.TextXAlignment.Left; InfoTxt.RichText = true
+	InfoTxt.Text = [[	<font color="#89cff0"><b>[Alt + C]</b></font> Toggle Freecam			<font color="#89cff0"><b>[WASD]</b></font> Move Camera			<font color="#89cff0"><b>[Q / E]</b></font> Up / Down
+	<font color="#89cff0"><b>[Left Alt]</b></font> Slow Mode					  <font color="#89cff0"><b>[Arrows]</b></font> Adjust Speed]]
 
-	-- DASHBOARD MONITOR
-	local DashCard = CreateCard(ForceSection, UDim2.new(1, 0, 0, 50))
-	local DashLayout = Instance.new("UIListLayout"); DashLayout.Parent = DashCard; DashLayout.FillDirection = Enum.FillDirection.Horizontal; DashLayout.Padding = UDim.new(0, 5); DashLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center; DashLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+	-- B. CORE LOGIC FREECAM
+	local FC_InputSpeed = 1
+	local FC_ToggleFunc = nil
+	local FC_UpdateVisualSwitch = nil 
+
+	do 
+		local CAS = game:GetService("ContextActionService"); local UIS = game:GetService("UserInputService"); local Camera = workspace.CurrentCamera
+		workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function() local newCam = workspace.CurrentCamera; if newCam then Camera = newCam end end)
+		local NAV_GAIN = Vector3.new(1, 1, 1) * 64; local PAN_GAIN = Vector2.new(0.75, 1) * 8; local FOV_GAIN = 300; local PITCH_LIMIT = math.rad(90); local JOYSTICK_DIST = 150; local SPRING_PARAMS = {Vel = 2.0, Pan = 2.0, Fov = 4.0} 
+		local pi, exp, clamp, sqrt, tan, rad = math.pi, math.exp, math.clamp, math.sqrt, math.tan, math.rad; local V3, V2 = Vector3.new, Vector2.new
+		local Spring = {}; Spring.__index = Spring
+		function Spring.new(freq, pos) return setmetatable({f=freq, p=pos, v=pos*0}, Spring) end
+		function Spring:Update(dt, goal) local f = self.f * 2 * pi; local offset = goal - self.p; local decay = exp(-f * dt); local p1 = goal + (self.v * dt - offset * (f * dt + 1)) * decay; self.v = (f * dt * (offset * f - self.v) + self.v) * decay; self.p = p1; return p1 end
+		function Spring:Reset(pos) self.p = pos; self.v = pos*0 end
+		local Input = { navSpeed = 1, keys = {W=0, A=0, S=0, D=0, E=0, Q=0, Up=0, Down=0}, mouse = {Delta = V2(), Wheel = 0}, mobile = {Move = V3(), Look = V2()}, touch = {ID = nil, Start = V2()} }
+		function Input.GetVel(dt) Input.navSpeed = clamp(Input.navSpeed + dt * (Input.keys.Up - Input.keys.Down) * 2.0, 0.1, 20); FC_InputSpeed = Input.navSpeed; local kKb = V3(Input.keys.D - Input.keys.A, Input.keys.E - Input.keys.Q, Input.keys.S - Input.keys.W); local kMb = Input.mobile.Move; local isSlow = UIS:IsKeyDown(Enum.KeyCode.LeftAlt); return (kKb + kMb) * (Input.navSpeed * (isSlow and 0.25 or 1)) end
+		function Input.GetPan(dt) local kMs = Input.mouse.Delta * (pi/64); local kMb = Input.mobile.Look * (pi/64) * 0.5; Input.mouse.Delta = V2(); Input.mobile.Look = V2(); return kMs + kMb end
+		function Input.GetFov(dt) local kMs = Input.mouse.Wheel; Input.mouse.Wheel = 0; return kMs end
+		local function KeyState(action, state, input) Input.keys[input.KeyCode.Name] = (state == Enum.UserInputState.Begin) and 1 or 0; return Enum.ContextActionResult.Sink end
+		local function MouseUpdate(action, state, input) if input.UserInputType == Enum.UserInputType.MouseMovement then if UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then Input.mouse.Delta = V2(-input.Delta.y, -input.Delta.x) end elseif input.UserInputType == Enum.UserInputType.MouseWheel then Input.mouse.Wheel = -input.Position.z end return Enum.ContextActionResult.Sink end
+		local function TouchUpdate(input, gp) if input.UserInputType ~= Enum.UserInputType.Touch then return end; if input.UserInputState == Enum.UserInputState.Begin then local pos = V2(input.Position.X, input.Position.Y); if pos.X < Camera.ViewportSize.X/2 and not Input.touch.ID then Input.touch.ID = input; Input.touch.Start = pos end elseif input.UserInputState == Enum.UserInputState.Change then if input == Input.touch.ID then local diff = V2(input.Position.X, input.Position.Y) - Input.touch.Start; if diff.Magnitude > JOYSTICK_DIST then diff = diff.Unit * JOYSTICK_DIST end; local norm = diff / JOYSTICK_DIST; Input.mobile.Move = V3(norm.X, 0, norm.Y) else local delta = V2(-input.Delta.Y, -input.Delta.X); Input.mobile.Look = Input.mobile.Look + delta end elseif input.UserInputState == Enum.UserInputState.End and input == Input.touch.ID then Input.touch.ID = nil; Input.mobile.Move = V3() end end
+		local state = { velSpring = Spring.new(SPRING_PARAMS.Vel, V3()), panSpring = Spring.new(SPRING_PARAMS.Pan, V2()), fovSpring = Spring.new(SPRING_PARAMS.Fov, 0), camPos = V3(), camRot = V2(), camFov = 0, originalFov = 70, saved = {}, isEnabled = false, connections = {} }
+		local function Step(dt) if UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then UIS.MouseBehavior = Enum.MouseBehavior.LockCenter; UIS.MouseIconEnabled = false else UIS.MouseBehavior = Enum.MouseBehavior.Default; UIS.MouseIconEnabled = true end; local vel = state.velSpring:Update(dt, Input.GetVel(dt)); local pan = state.panSpring:Update(dt, Input.GetPan(dt)); local fov = state.fovSpring:Update(dt, Input.GetFov(dt)); local zoom = sqrt(tan(rad(70/2)) / tan(rad(state.camFov/2))); state.camFov = clamp(state.camFov + fov * FOV_GAIN * (dt/zoom), 1, 120); state.camRot = state.camRot + pan * PAN_GAIN * (dt/zoom); state.camRot = V2(clamp(state.camRot.x, -PITCH_LIMIT, PITCH_LIMIT), state.camRot.y % (2*pi)); local cf = CFrame.new(state.camPos) * CFrame.fromOrientation(state.camRot.x, state.camRot.y, 0) * CFrame.new(vel * NAV_GAIN * dt); state.camPos = cf.p; Camera.CFrame = cf; Camera.Focus = cf; Camera.FieldOfView = state.camFov end
+		local function SetControls(enable) local pg = LocalPlayer:FindFirstChild("PlayerGui"); if not pg then return end; local touchGui = pg:FindFirstChild("TouchGui"); if touchGui then touchGui.Enabled = enable end; if not enable then state.saved.jumpBtns = {}; for _, gui in pairs(pg:GetChildren()) do if gui:IsA("ScreenGui") and gui.Name ~= "NeeR_Unified" then local jb = gui:FindFirstChild("JumpButton", true); if jb and jb.Visible then table.insert(state.saved.jumpBtns, jb); jb.Visible = false end end end else if state.saved.jumpBtns then for _, btn in pairs(state.saved.jumpBtns) do if btn and btn.Parent then btn.Visible = true end end; state.saved.jumpBtns = nil end end; if enable then LocalPlayer.DevTouchMovementMode = Enum.DevTouchMovementMode.UserChoice else LocalPlayer.DevTouchMovementMode = Enum.DevTouchMovementMode.Scriptable end end
+		FC_ToggleFunc = function(forceState) if forceState ~= nil then state.isEnabled = forceState else state.isEnabled = not state.isEnabled end; if FC_UpdateVisualSwitch then FC_UpdateVisualSwitch(state.isEnabled, true) end
+			if state.isEnabled then local cf = Camera.CFrame; state.camPos, state.camRot = cf.Position, V2(cf:toEulerAnglesYXZ()); state.originalFov = Camera.FieldOfView; state.camFov = state.originalFov; state.velSpring:Reset(V3()); state.panSpring:Reset(V2()); Input.navSpeed = FC_InputSpeed; SetControls(false); if LocalPlayer.Character and LocalPlayer.Character.PrimaryPart then LocalPlayer.Character.PrimaryPart.Anchored = true end; local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid"); if hum then state.connections["Death"] = hum.Died:Connect(function() if state.isEnabled then FC_ToggleFunc(false) end end) end; Camera.CameraType = Enum.CameraType.Scriptable; CAS:BindActionAtPriority("FC_Keys", KeyState, false, 2000, Enum.KeyCode.W, Enum.KeyCode.A, Enum.KeyCode.S, Enum.KeyCode.D, Enum.KeyCode.E, Enum.KeyCode.Q, Enum.KeyCode.Up, Enum.KeyCode.Down); CAS:BindActionAtPriority("FC_Mouse", MouseUpdate, false, 2000, Enum.UserInputType.MouseMovement, Enum.UserInputType.MouseWheel); state.connections["Touch1"] = UIS.InputBegan:Connect(TouchUpdate); state.connections["Touch2"] = UIS.InputChanged:Connect(TouchUpdate); state.connections["Touch3"] = UIS.InputEnded:Connect(TouchUpdate); RunService:BindToRenderStep("FreecamClean", Enum.RenderPriority.Camera.Value, Step)
+			else RunService:UnbindFromRenderStep("FreecamClean"); CAS:UnbindAction("FC_Keys"); CAS:UnbindAction("FC_Mouse"); for _, conn in pairs(state.connections) do conn:Disconnect() end; state.connections = {}; SetControls(true); UIS.MouseIconEnabled = true; UIS.MouseBehavior = Enum.MouseBehavior.Default; Camera.FieldOfView = state.originalFov; Camera.CameraType = Enum.CameraType.Custom; if LocalPlayer.Character and LocalPlayer.Character.PrimaryPart then LocalPlayer.Character.PrimaryPart.Anchored = false end; for k in pairs(Input.keys) do Input.keys[k] = 0 end; Input.mouse.Delta = V2(); Input.mobile.Move = V3(); Input.touch.ID = nil end
+		end
+		RunService.Heartbeat:Connect(function() if state.isEnabled then Input.navSpeed = FC_InputSpeed end end)
+	end 
+
+	-- C. UI CONTROLS (MERGED CARD & CLEAN SCREEN)
 	
-	local function CreateStatBox(label, defaultVal)
-		local Box = Instance.new("Frame"); Box.Parent = DashCard; Box.BackgroundColor3 = Theme.Sidebar; Box.BackgroundTransparency = 0; Box.Size = UDim2.new(0.3, 0, 0.8, 0); Instance.new("UICorner", Box).CornerRadius = UDim.new(0, 6)
-		local T = Instance.new("TextLabel"); T.Parent = Box; T.Text = label; T.Size = UDim2.new(1, 0, 0.4, 0); T.BackgroundTransparency = 1; T.TextColor3 = Theme.TextDim; T.Font = Theme.FontMain; T.TextSize = 9
-		local V = Instance.new("TextLabel"); V.Parent = Box; V.Text = defaultVal; V.Size = UDim2.new(1, 0, 0.6, 0); V.Position = UDim2.new(0, 0, 0.4, 0); V.BackgroundTransparency = 1; V.TextColor3 = Theme.Accent; V.Font = Theme.FontBold; V.TextSize = 12
-		return V, Box
+	-- 1. Freecam Mode (Switch + Speed Control)
+	local FreecamCard = CreateFeatureCard(FCSection, "Freecam Mode (Speed)", 36)
+	
+	-- Switch Logic
+	FC_UpdateVisualSwitch = AttachSwitch(FreecamCard, false, function(active)
+		pcall(function() FC_ToggleFunc(active) end)
+	end)
+
+	-- Speed Controls
+	local Ctrl = Instance.new("Frame"); Ctrl.Parent = FreecamCard; Ctrl.BackgroundTransparency = 1; Ctrl.Position = UDim2.new(1, -155, 0, 0); Ctrl.Size = UDim2.new(0, 110, 1, 0)
+	local MinBtn = Instance.new("TextButton"); MinBtn.Parent = Ctrl; MinBtn.BackgroundColor3 = Theme.Sidebar; MinBtn.Position = UDim2.new(0, 0, 0.5, -10); MinBtn.Size = UDim2.new(0, 20, 0, 20); MinBtn.Font = Theme.FontBold; MinBtn.Text = "-"; MinBtn.TextColor3 = Theme.Red; Instance.new("UICorner", MinBtn).CornerRadius = UDim.new(0, 4)
+	local ValLbl = Instance.new("TextLabel"); ValLbl.Parent = Ctrl; ValLbl.BackgroundTransparency = 1; ValLbl.Position = UDim2.new(0, 22, 0, 0); ValLbl.Size = UDim2.new(0, 36, 1, 0); ValLbl.Font = Theme.FontBold; ValLbl.Text = "1.0"; ValLbl.TextColor3 = Theme.Text; ValLbl.TextSize = 11
+	local PlsBtn = Instance.new("TextButton"); PlsBtn.Parent = Ctrl; PlsBtn.BackgroundColor3 = Theme.Sidebar; PlsBtn.Position = UDim2.new(0, 60, 0.5, -10); PlsBtn.Size = UDim2.new(0, 20, 0, 20); PlsBtn.Font = Theme.FontBold; PlsBtn.Text = "+"; PlsBtn.TextColor3 = Theme.Green; Instance.new("UICorner", PlsBtn).CornerRadius = UDim.new(0, 4)
+
+	local function UpdateSpeedUI() ValLbl.Text = string.format("%.1f", FC_InputSpeed) end
+	MinBtn.MouseButton1Click:Connect(function() FC_InputSpeed = math.max(0.1, FC_InputSpeed - 0.5); UpdateSpeedUI() end)
+	PlsBtn.MouseButton1Click:Connect(function() FC_InputSpeed = math.min(20, FC_InputSpeed + 0.5); UpdateSpeedUI() end)
+	RunService.Heartbeat:Connect(function() if parentFrame.Visible and math.abs(tonumber(ValLbl.Text) - FC_InputSpeed) > 0.1 then UpdateSpeedUI() end end)
+
+	-- 2. CINEMA MODE (Clean Screen - Improved)
+	local CleanCard = CreateFeatureCard(FCSection, "Cinema Mode (Hide All UI)", 32)
+	
+	-- Helper untuk update visual sesuai state
+	local function UpdateCinemaVisuals()
+		-- Toggle CoreGUI
+		pcall(function() game:GetService("StarterGui"):SetCoreGuiEnabled(Enum.CoreGuiType.All, not CinemaState.Active) end)
+		-- Toggle PlayerGui (Iterate Current Children)
+		local pg = LocalPlayer:FindFirstChild("PlayerGui")
+		if pg then
+			for _, gui in pairs(pg:GetChildren()) do
+				if gui:IsA("ScreenGui") and gui.Name ~= "NeeR_Unified" then
+					gui.Enabled = not CinemaState.Active
+				end
+			end
+		end
 	end
-	local SpeedVal, SpeedBox = CreateStatBox("REAL SPEED", "0")
-	local JumpVal, JumpBox = CreateStatBox("REAL JUMP", "0")
-	local StateBox = Instance.new("TextButton"); StateBox.Parent = DashCard; StateBox.BackgroundColor3 = Theme.Sidebar; StateBox.Size = UDim2.new(0.3, 0, 0.8, 0); StateBox.Text = ""; StateBox.AutoButtonColor = false
-	Instance.new("UICorner", StateBox).CornerRadius = UDim.new(0, 6)
-	local ST = Instance.new("TextLabel"); ST.Parent = StateBox; ST.Text = "JUMP STATE"; ST.Size = UDim2.new(1, 0, 0.4, 0); ST.BackgroundTransparency = 1; ST.TextColor3 = Theme.TextDim; ST.Font = Theme.FontMain; ST.TextSize = 9
-	local SV = Instance.new("TextLabel"); SV.Parent = StateBox; SV.Text = "ACTIVE"; SV.Size = UDim2.new(1, 0, 0.6, 0); SV.Position = UDim2.new(0, 0, 0.4, 0); SV.BackgroundTransparency = 1; SV.TextColor3 = Theme.Green; SV.Font = Theme.FontBold; SV.TextSize = 12
+
+	AttachSwitch(CleanCard, false, function(active)
+		CinemaState.Active = active
+		UpdateCinemaVisuals()
+		
+		-- Auto-hide Listener (Persistent)
+		if active then
+			local pg = LocalPlayer:FindFirstChild("PlayerGui")
+			if pg then
+				if CinemaState.Conn then CinemaState.Conn:Disconnect() end
+				CinemaState.Conn = pg.ChildAdded:Connect(function(child)
+					if child:IsA("ScreenGui") and child.Name ~= "NeeR_Unified" then
+						task.wait() -- Tunggu load properti
+						if CinemaState.Active then child.Enabled = false end
+					end
+				end)
+			end
+		else
+			if CinemaState.Conn then CinemaState.Conn:Disconnect(); CinemaState.Conn = nil end
+		end
+	end)
+
+	-- KEYBIND FREECAM
+	local UIS = game:GetService("UserInputService")
+	UIS.InputBegan:Connect(function(input, gp)
+		if gp then return end
+		if input.KeyCode == Enum.KeyCode.C and UIS:IsKeyDown(Enum.KeyCode.LeftAlt) then
+			if FC_ToggleFunc then FC_ToggleFunc() end 
+		end
+	end)
+
+	-- =====================================================================================
+	-- [SUB TAB 2] FORCE MOVEMENT (FITUR LAMA)
+	-- =====================================================================================
+	local ForceSection = CreateExpandableSection(parentFrame, "Force Movement (Anti-Kick)")
+	local InfoLbl2 = Instance.new("TextLabel"); InfoLbl2.Parent = ForceSection; InfoLbl2.BackgroundTransparency = 1; InfoLbl2.Size = UDim2.new(1, 0, 0, 20); InfoLbl2.Font = Theme.FontMain; InfoLbl2.Text = "*Note: Use this if the map restricts WalkSpeed or JumpPower."; InfoLbl2.TextColor3 = Color3.fromRGB(150, 150, 150); InfoLbl2.TextSize = 10; InfoLbl2.TextXAlignment = Enum.TextXAlignment.Left; InfoLbl2.TextWrapped = true
+
+	-- DASHBOARD
+	local DashCard = CreateCard(ForceSection, UDim2.new(1, 0, 0, 50)); local DashLayout = Instance.new("UIListLayout"); DashLayout.Parent = DashCard; DashLayout.FillDirection = Enum.FillDirection.Horizontal; DashLayout.Padding = UDim.new(0, 5); DashLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center; DashLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+	local function CreateStatBox(label, defaultVal) local Box = Instance.new("Frame"); Box.Parent = DashCard; Box.BackgroundColor3 = Theme.Sidebar; Box.BackgroundTransparency = 0; Box.Size = UDim2.new(0.3, 0, 0.8, 0); Instance.new("UICorner", Box).CornerRadius = UDim.new(0, 6); local T = Instance.new("TextLabel"); T.Parent = Box; T.Text = label; T.Size = UDim2.new(1, 0, 0.4, 0); T.BackgroundTransparency = 1; T.TextColor3 = Theme.TextDim; T.Font = Theme.FontMain; T.TextSize = 9; local V = Instance.new("TextLabel"); V.Parent = Box; V.Text = defaultVal; V.Size = UDim2.new(1, 0, 0.6, 0); V.Position = UDim2.new(0, 0, 0.4, 0); V.BackgroundTransparency = 1; V.TextColor3 = Theme.Accent; V.Font = Theme.FontBold; V.TextSize = 12; return V, Box end
+	local SpeedVal, SpeedBox = CreateStatBox("REAL SPEED", "0"); local JumpVal, JumpBox = CreateStatBox("REAL JUMP", "0")
+	local StateBox = Instance.new("TextButton"); StateBox.Parent = DashCard; StateBox.BackgroundColor3 = Theme.Sidebar; StateBox.Size = UDim2.new(0.3, 0, 0.8, 0); StateBox.Text = ""; StateBox.AutoButtonColor = false; Instance.new("UICorner", StateBox).CornerRadius = UDim.new(0, 6); local ST = Instance.new("TextLabel"); ST.Parent = StateBox; ST.Text = "JUMP STATE"; ST.Size = UDim2.new(1, 0, 0.4, 0); ST.BackgroundTransparency = 1; ST.TextColor3 = Theme.TextDim; ST.Font = Theme.FontMain; ST.TextSize = 9; local SV = Instance.new("TextLabel"); SV.Parent = StateBox; SV.Text = "ACTIVE"; SV.Size = UDim2.new(1, 0, 0.6, 0); SV.Position = UDim2.new(0, 0, 0.4, 0); SV.BackgroundTransparency = 1; SV.TextColor3 = Theme.Green; SV.Font = Theme.FontBold; SV.TextSize = 12
 	StateBox.MouseButton1Click:Connect(function() if SV.Text == "DISABLED (FIX)" then ToolsConfig.StateForce.Active = true; SV.Text = "FIXING..."; task.wait(0.5) end end)
 
 	local ForceSpeedCtrl, TPWalkCtrl
-	
-	ForceSpeedCtrl = CreateStepperCard(ForceSection, "Force Speed", ToolsConfig.Speed.Value, 1, 500, 5, function(active)
-		ToolsConfig.Speed.Active = active
-		Session.OverrideSpeed = active 
-		if active and TPWalkCtrl then TPWalkCtrl.Reset() end
-		if not active then local h = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid"); if h then h.WalkSpeed = DefaultStats.WalkSpeed end end
-	end, function(val) ToolsConfig.Speed.Value = val end)
-	
-	TPWalkCtrl = CreateStepperCard(ForceSection, "TP Walk (Bypass)", 0.5, 0.1, 5.0, 0.1, function(active)
-		ToolsConfig.TPWalk.Active = active
-		if active and ForceSpeedCtrl then ForceSpeedCtrl.Reset() end
-	end, function(val) ToolsConfig.TPWalk.Value = val end)
-	
-	CreateStepperCard(ForceSection, "Force Jump", ToolsConfig.Jump.Value, 0, 500, 10, function(active)
-		ToolsConfig.Jump.Active = active
-		Session.OverrideJump = active
-		UpdateJumpState()
-	end, function(val) ToolsConfig.Jump.Value = val end)
+	ForceSpeedCtrl = CreateStepperCard(ForceSection, "Force Speed", ToolsConfig.Speed.Value, 1, 500, 5, function(active) ToolsConfig.Speed.Active = active; Session.OverrideSpeed = active; if active and TPWalkCtrl then TPWalkCtrl.Reset() end; if not active then local h = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid"); if h then h.WalkSpeed = DefaultStats.WalkSpeed end end end, function(val) ToolsConfig.Speed.Value = val end)
+	TPWalkCtrl = CreateStepperCard(ForceSection, "TP Walk (Bypass)", 0.5, 0.1, 5.0, 0.1, function(active) ToolsConfig.TPWalk.Active = active; if active and ForceSpeedCtrl then ForceSpeedCtrl.Reset() end end, function(val) ToolsConfig.TPWalk.Value = val end)
+	CreateStepperCard(ForceSection, "Force Jump", ToolsConfig.Jump.Value, 0, 500, 10, function(active) ToolsConfig.Jump.Active = active; Session.OverrideJump = active; UpdateJumpState() end, function(val) ToolsConfig.Jump.Value = val end)
 
 	local ModeCard = CreateFeatureCard(ForceSection, "Jump Mode Selector", 32)
 	local MobBtn = Instance.new("TextButton"); MobBtn.Parent = ModeCard; MobBtn.BackgroundColor3 = Theme.Accent; MobBtn.Position = UDim2.new(1, -155, 0.5, -9); MobBtn.Size = UDim2.new(0, 70, 0, 18); MobBtn.Text = "MOBILE"; MobBtn.Font = Theme.FontBold; MobBtn.TextColor3 = Theme.Main; MobBtn.TextSize = 8; Instance.new("UICorner", MobBtn).CornerRadius = UDim.new(0, 4)
 	local PCBtn = Instance.new("TextButton"); PCBtn.Parent = ModeCard; PCBtn.BackgroundColor3 = Theme.Sidebar; PCBtn.Position = UDim2.new(1, -80, 0.5, -9); PCBtn.Size = UDim2.new(0, 70, 0, 18); PCBtn.Text = "PC/KEY"; PCBtn.Font = Theme.FontBold; PCBtn.TextColor3 = Theme.TextDim; PCBtn.TextSize = 8; Instance.new("UICorner", PCBtn).CornerRadius = UDim.new(0, 4)
-	local function UpdateModeVisuals()
-		if ToolsConfig.Jump.Mode == "Mobile" then MobBtn.BackgroundColor3 = Theme.Accent; MobBtn.TextColor3 = Theme.Main; PCBtn.BackgroundColor3 = Theme.Sidebar; PCBtn.TextColor3 = Theme.TextDim
-		else MobBtn.BackgroundColor3 = Theme.Sidebar; MobBtn.TextColor3 = Theme.TextDim; PCBtn.BackgroundColor3 = Theme.Accent; PCBtn.TextColor3 = Theme.Main end
-	end
-	MobBtn.MouseButton1Click:Connect(function() ToolsConfig.Jump.Mode = "Mobile"; UpdateModeVisuals(); if ToolsConfig.Jump.Active then UpdateJumpState() end end)
-	PCBtn.MouseButton1Click:Connect(function() ToolsConfig.Jump.Mode = "PC"; UpdateModeVisuals(); if ToolsConfig.Jump.Active then UpdateJumpState() end end)
+	local function UpdateModeVisuals() if ToolsConfig.Jump.Mode == "Mobile" then MobBtn.BackgroundColor3 = Theme.Accent; MobBtn.TextColor3 = Theme.Main; PCBtn.BackgroundColor3 = Theme.Sidebar; PCBtn.TextColor3 = Theme.TextDim else MobBtn.BackgroundColor3 = Theme.Sidebar; MobBtn.TextColor3 = Theme.TextDim; PCBtn.BackgroundColor3 = Theme.Accent; PCBtn.TextColor3 = Theme.Main end end
+	MobBtn.MouseButton1Click:Connect(function() ToolsConfig.Jump.Mode = "Mobile"; UpdateModeVisuals(); if ToolsConfig.Jump.Active then UpdateJumpState() end end); PCBtn.MouseButton1Click:Connect(function() ToolsConfig.Jump.Mode = "PC"; UpdateModeVisuals(); if ToolsConfig.Jump.Active then UpdateJumpState() end end)
 
 	-- [4] UI BUILDER: ESP & X-RAY 
-    local ESP_Section = CreateExpandableSection(parentFrame, "ESP & X-RAY System")
-    local HL_Conn, Name_Conn, HP_Conn = {}, {}, {}
+	local ESP_Section = CreateExpandableSection(parentFrame, "ESP & X-RAY System"); local HL_Conn, Name_Conn, HP_Conn = {}, {}, {}
+	local function ToggleESP(isActive, storageTable, onAdd, onRemove) if isActive then local function Setup(plr) if plr == LocalPlayer then return end; local function TryAdd(char) task.spawn(function() if not char then return end; local root = char:WaitForChild("HumanoidRootPart", 10); if root then onAdd(char, plr) end end) end; if plr.Character then TryAdd(plr.Character) end; local c = plr.CharacterAdded:Connect(TryAdd); table.insert(storageTable, c) end; for _, p in pairs(Players:GetPlayers()) do Setup(p) end; table.insert(storageTable, Players.PlayerAdded:Connect(Setup)) else for _, c in pairs(storageTable) do c:Disconnect() end; table.clear(storageTable); for _, p in pairs(Players:GetPlayers()) do if p.Character then onRemove(p.Character) end end end end
+	local C1 = CreateFeatureCard(ESP_Section, "Visual Chams (Highlight)", 32); AttachSwitch(C1, false, function(a) ToggleESP(a, HL_Conn, function(c, p) if c:FindFirstChild("NeeR_HL") then c.NeeR_HL:Destroy() end; local h = Instance.new("Highlight", c); h.Name = "NeeR_HL"; h.FillColor = Theme.Red; h.OutlineColor = Color3.new(1, 1, 1); h.FillTransparency = 0.5 end, function(c) if c:FindFirstChild("NeeR_HL") then c.NeeR_HL:Destroy() end end) end)
+	local C2 = CreateFeatureCard(ESP_Section, "Player Names", 32); AttachSwitch(C2, false, function(a) ToggleESP(a, Name_Conn, function(c, p) local head = c:WaitForChild("Head", 5); if not head then return end; if c:FindFirstChild("NeeR_Nm") then c.NeeR_Nm:Destroy() end; local b = Instance.new("BillboardGui", c); b.Name = "NeeR_Nm"; b.Adornee = head; b.Size = UDim2.new(0, 100, 0, 20); b.AlwaysOnTop = true; b.StudsOffset = Vector3.new(0, 4.5, 0); local t = Instance.new("TextLabel", b); t.Size = UDim2.new(1, 0, 1, 0); t.BackgroundTransparency = 1; t.Text = p.DisplayName; t.TextColor3 = Color3.new(1, 1, 1); t.Font = Theme.FontBold; t.TextSize = 12; t.TextStrokeTransparency = 0 end, function(c) if c:FindFirstChild("NeeR_Nm") then c.NeeR_Nm:Destroy() end end) end)
+	local C3 = CreateFeatureCard(ESP_Section, "Health Bar", 32); AttachSwitch(C3, false, function(a) ToggleESP(a, HP_Conn, function(c) local head = c:WaitForChild("Head", 5); local hum = c:WaitForChild("Humanoid", 5); if not head or not hum then return end; if c:FindFirstChild("NeeR_HP") then c.NeeR_HP:Destroy() end; local b = Instance.new("BillboardGui", c); b.Name = "NeeR_HP"; b.Adornee = head; b.Size = UDim2.new(0, 40, 0, 4); b.AlwaysOnTop = true; b.StudsOffset = Vector3.new(0, 3.5, 0); local bg = Instance.new("Frame", b); bg.Size = UDim2.new(1, 0, 1, 0); bg.BackgroundColor3 = Color3.new(0, 0, 0); bg.BorderSizePixel = 0; local fill = Instance.new("Frame", bg); fill.Size = UDim2.new(1, 0, 1, 0); fill.BackgroundColor3 = Theme.Green; fill.BorderSizePixel = 0; local function UpdateHP() if not hum then return end; local percent = math.clamp(hum.Health / hum.MaxHealth, 0, 1); TweenService:Create(fill, TweenInfo.new(0.2), {Size = UDim2.new(percent, 0, 1, 0)}):Play(); fill.BackgroundColor3 = percent < 0.3 and Theme.Red or Theme.Green end; UpdateHP(); local conn = hum.HealthChanged:Connect(UpdateHP); b.Destroying:Connect(function() conn:Disconnect() end) end, function(c) if c:FindFirstChild("NeeR_HP") then c.NeeR_HP:Destroy() end end) end)
+	local xr_op, xr_cache, xr_conn = 0.5, {}, nil; local function DoXR(v) if v:IsA("BasePart") and not v:IsA("Terrain") then local h = v.Parent:FindFirstChild("Humanoid") or v.Parent.Parent:FindFirstChild("Humanoid"); if not h and v.Transparency < 0.9 then if not xr_cache[v] then xr_cache[v] = v.Transparency end; v.Transparency = xr_op end end end
+	CreateHybridCard(ESP_Section, "Wall X-Ray (Auto Detect)", function(active) if active then for _, v in pairs(workspace:GetDescendants()) do DoXR(v) end; xr_conn = workspace.DescendantAdded:Connect(DoXR) else if xr_conn then xr_conn:Disconnect() end; for p, t in pairs(xr_cache) do if p.Parent then p.Transparency = t end end; table.clear(xr_cache) end end, 0.1, 0.9, 0.5, function(v) xr_op = v; if next(xr_cache) then for p, _ in pairs(xr_cache) do if p.Parent then p.Transparency = xr_op end end end end, "")
 
-    -- [CORE LOGIC] ESP HANDLER (Optimized)
-    -- Fungsi ini menangani Player Join (PlayerAdded) dan Respawn (CharacterAdded) secara otomatis
-    local function ToggleESP(isActive, storageTable, onAdd, onRemove)
-        if isActive then
-            local function Setup(plr)
-                if plr == LocalPlayer then return end
-                
-                -- Fungsi Internal untuk eksekusi aman
-                local function TryAdd(char)
-                    -- Gunakan task.spawn agar jika satu error/waiting, yang lain tidak macet
-                    task.spawn(function()
-                        if not char then return end
-                        -- Tunggu RootPart untuk memastikan karakter valid
-                        local root = char:WaitForChild("HumanoidRootPart", 10)
-                        if root then onAdd(char, plr) end
-                    end)
-                end
-
-                -- 1. Jika player sudah punya karakter saat diaktifkan
-                if plr.Character then TryAdd(plr.Character) end
-                
-                -- 2. Deteksi saat player respawn (Mati -> Hidup lagi)
-                local c = plr.CharacterAdded:Connect(TryAdd)
-                table.insert(storageTable, c)
-            end
-
-            -- Loop player yang sudah ada
-            for _, p in pairs(Players:GetPlayers()) do Setup(p) end
-            -- Deteksi player baru join server
-            table.insert(storageTable, Players.PlayerAdded:Connect(Setup))
-        else
-            -- Cleanup saat dimatikan
-            for _, c in pairs(storageTable) do c:Disconnect() end
-            table.clear(storageTable)
-            for _, p in pairs(Players:GetPlayers()) do
-                if p.Character then onRemove(p.Character) end
-            end
-        end
-    end
-
-    -- 1. CHAMS (Highlight)
-    local C1 = CreateFeatureCard(ESP_Section, "Visual Chams (Highlight)", 32)
-    AttachSwitch(C1, false, function(a) 
-        ToggleESP(a, HL_Conn, 
-        function(c, p) -- On Add
-            if c:FindFirstChild("NeeR_HL") then c.NeeR_HL:Destroy() end
-            local h = Instance.new("Highlight", c)
-            h.Name = "NeeR_HL"
-            h.FillColor = Theme.Red
-            h.OutlineColor = Color3.new(1, 1, 1)
-            h.FillTransparency = 0.5
-        end, 
-        function(c) -- On Remove
-            if c:FindFirstChild("NeeR_HL") then c.NeeR_HL:Destroy() end
-        end) 
-    end)
-    
-    -- 2. PLAYER NAMES (Auto Update & Wait)
-    local C2 = CreateFeatureCard(ESP_Section, "Player Names", 32)
-    AttachSwitch(C2, false, function(a) 
-        ToggleESP(a, Name_Conn, 
-        function(c, p) 
-            -- [FIX] Tunggu Head max 5 detik. Jika tidak ada, batalkan (cegah error)
-            local head = c:WaitForChild("Head", 5)
-            if not head then return end
-            
-            if c:FindFirstChild("NeeR_Nm") then c.NeeR_Nm:Destroy() end
-            
-            local b = Instance.new("BillboardGui", c); b.Name = "NeeR_Nm"; b.Adornee = head
-            b.Size = UDim2.new(0, 100, 0, 20); b.AlwaysOnTop = true
-            b.StudsOffset = Vector3.new(0, 4.5, 0) -- Jarak di atas kepala
-            
-            local t = Instance.new("TextLabel", b); t.Size = UDim2.new(1, 0, 1, 0)
-            t.BackgroundTransparency = 1; t.Text = p.DisplayName; t.TextColor3 = Color3.new(1, 1, 1)
-            t.Font = Theme.FontBold; t.TextSize = 12; t.TextStrokeTransparency = 0 
-        end, 
-        function(c) 
-            if c:FindFirstChild("NeeR_Nm") then c.NeeR_Nm:Destroy() end 
-        end) 
-    end)
-    
-    -- 3. HEALTH BAR (Efficient & Smooth)
-    local C3 = CreateFeatureCard(ESP_Section, "Health Bar", 32)
-    AttachSwitch(C3, false, function(a) 
-        ToggleESP(a, HP_Conn, 
-        function(c) 
-            -- [FIX] Tunggu Head & Humanoid load sempurna
-            local head = c:WaitForChild("Head", 5)
-            local hum = c:WaitForChild("Humanoid", 5)
-            if not head or not hum then return end
-            
-            if c:FindFirstChild("NeeR_HP") then c.NeeR_HP:Destroy() end
-            
-            local b = Instance.new("BillboardGui", c); b.Name = "NeeR_HP"; b.Adornee = head
-            b.Size = UDim2.new(0, 40, 0, 4); b.AlwaysOnTop = true
-            b.StudsOffset = Vector3.new(0, 3.5, 0) 
-            
-            local bg = Instance.new("Frame", b); bg.Size = UDim2.new(1, 0, 1, 0)
-            bg.BackgroundColor3 = Color3.new(0, 0, 0); bg.BorderSizePixel = 0
-            
-            local fill = Instance.new("Frame", bg); fill.Size = UDim2.new(1, 0, 1, 0)
-            fill.BackgroundColor3 = Theme.Green; fill.BorderSizePixel = 0
-            
-            -- Logic Update Darah
-            local function UpdateHP()
-                if not hum then return end
-                local percent = math.clamp(hum.Health / hum.MaxHealth, 0, 1)
-                -- Animasi Tween agar halus
-                TweenService:Create(fill, TweenInfo.new(0.2), {Size = UDim2.new(percent, 0, 1, 0)}):Play()
-                fill.BackgroundColor3 = percent < 0.3 and Theme.Red or Theme.Green
-            end
-            
-            UpdateHP()
-            -- Koneksi event HealthChanged (Otomatis putus jika Humanoid/GUI hancur)
-            local conn = hum.HealthChanged:Connect(UpdateHP)
-            
-            -- Cleanup manual listener jika billboard dihapus (Anti Memory Leak)
-            b.Destroying:Connect(function() conn:Disconnect() end)
-        end, 
-        function(c) 
-            if c:FindFirstChild("NeeR_HP") then c.NeeR_HP:Destroy() end 
-        end) 
-    end)
-
-    -- 4. X-RAY (Optimized Cache)
-    local xr_op, xr_cache, xr_conn = 0.5, {}, nil
-    local function DoXR(v) 
-        if v:IsA("BasePart") and not v:IsA("Terrain") then 
-            -- Cek apakah part milik karakter (agar diri sendiri/musuh tidak transparan)
-            local h = v.Parent:FindFirstChild("Humanoid") or v.Parent.Parent:FindFirstChild("Humanoid")
-            if not h and v.Transparency < 0.9 then 
-                if not xr_cache[v] then xr_cache[v] = v.Transparency end
-                v.Transparency = xr_op 
-            end 
-        end 
-    end
-    
-    CreateHybridCard(ESP_Section, "Wall X-Ray (Auto Detect)", function(active)
-        if active then 
-            for _, v in pairs(workspace:GetDescendants()) do DoXR(v) end
-            xr_conn = workspace.DescendantAdded:Connect(DoXR)
-        else 
-            if xr_conn then xr_conn:Disconnect() end
-            for p, t in pairs(xr_cache) do if p.Parent then p.Transparency = t end end
-            table.clear(xr_cache) 
-        end
-    end, 0.1, 0.9, 0.5, function(v) 
-        xr_op = v
-        if next(xr_cache) then 
-            for p, _ in pairs(xr_cache) do if p.Parent then p.Transparency = xr_op end end 
-        end 
-    end, "")
-
-	-- [5] TROLL & FUN SECTION (ZIG ZAG MODE FINAL)
+	-- [5] TROLL SECTION (ZIG ZAG)
 	local TrollSection = CreateExpandableSection(parentFrame, "Troll & Fun (Physics)")
-	
-	-- [STATE MANAGER]
-	local TrollState = {
-		Spin = { Active = false, Level = 1 },
-		Warp = { Active = false, Level = 1 },
-		Jitter = { 
-			Active = false, 
-			Dist = 2, 
-			Speed = 15, 
-			Mode = nil 
-		}
-	}
-	
-	-- Backup Stat Asli
-	local OriginalGravity = workspace.Gravity
-	local OriginalJump = 50
-	
-	local function RefreshStats(char)
-		local hum = char and char:FindFirstChild("Humanoid")
-		if hum and hum.JumpPower > 0 then OriginalJump = hum.JumpPower end
-	end
+	local TrollState = { Spin = { Active = false, Level = 1 }, Warp = { Active = false, Level = 1 }, Jitter = { Active = false, Dist = 2, Speed = 15, Mode = nil } }
+	local OriginalGravity = workspace.Gravity; local OriginalJump = 50
+	local function RefreshStats(char) local hum = char and char:FindFirstChild("Humanoid"); if hum and hum.JumpPower > 0 then OriginalJump = hum.JumpPower end end
 	if LocalPlayer.Character then RefreshStats(LocalPlayer.Character) end
-
-	-- =================================================================
-	-- [CORE LOGIC] FUNGSI FISIKA
-	-- =================================================================
-	
-	-- 1. SPINBOT
-	local function UpdateSpin()
-		local char = LocalPlayer.Character
-		local root = char and char:FindFirstChild("HumanoidRootPart")
-		if root and root:FindFirstChild("SpinForce") then root.SpinForce:Destroy() end
-		
-		if TrollState.Spin.Active and root then
-			local spd = math.pow(2, TrollState.Spin.Level - 1)
-			local bav = Instance.new("BodyAngularVelocity")
-			bav.Name = "SpinForce"; bav.Parent = root
-			bav.MaxTorque = Vector3.new(0, math.huge, 0); bav.P = math.huge
-			bav.AngularVelocity = Vector3.new(0, spd, 0)
-		end
-	end
-
-	-- 2. SLOWMO
-	local warpLoop
-	local function UpdateSlowmo()
-		if warpLoop then warpLoop:Disconnect(); warpLoop = nil end
-		
-		if not TrollState.Warp.Active then
-			workspace.Gravity = OriginalGravity
-			local char = LocalPlayer.Character
-			local hum = char and char:FindFirstChild("Humanoid")
-			if hum then 
-				hum.WalkSpeed = 16; hum.JumpPower = OriginalJump
-				for _, t in pairs(hum:GetPlayingAnimationTracks()) do t:AdjustSpeed(1) end
-			end
-			return
-		end
-		
-		warpLoop = RunService.Heartbeat:Connect(function()
-			local char = LocalPlayer.Character
-			local hum = char and char:FindFirstChild("Humanoid")
-			if not hum then return end
-			
-			local targetSpeed = math.pow(2, TrollState.Warp.Level - 1)
-			local scale = targetSpeed / 16
-			
-			hum.WalkSpeed = targetSpeed
-			hum.JumpPower = OriginalJump * math.sqrt(scale)
-			workspace.Gravity = OriginalGravity * scale
-			for _, t in pairs(hum:GetPlayingAnimationTracks()) do t:AdjustSpeed(scale) end
-		end)
-	end
-
-	-- 3. ZIG ZAG (Jitter)
-	local jitterLoop
-	local function UpdateJitter()
-		if jitterLoop then jitterLoop:Disconnect(); jitterLoop = nil end
-		
-		if not TrollState.Jitter.Active or not TrollState.Jitter.Mode then return end
-		
-		jitterLoop = RunService.Heartbeat:Connect(function()
-			local char = LocalPlayer.Character
-			local root = char and char:FindFirstChild("HumanoidRootPart")
-			local cam = workspace.CurrentCamera
-			if not root then return end
-			
-			local s = TrollState.Jitter
-			local tickTime = tick() * s.Speed
-			local offset = Vector3.new()
-			
-			if s.Mode == "LR" then
-				offset = cam.CFrame.RightVector * (math.sin(tickTime) * s.Dist)
-			elseif s.Mode == "FB" then
-				offset = cam.CFrame.LookVector * (math.sin(tickTime) * s.Dist)
-			end
-			
-			root.CFrame = root.CFrame + offset
-		end)
-	end
-
-	-- =================================================================
-	-- [UI BUILDER]
-	-- =================================================================
-	
-	-- A. SPIN CARD
-	local SpinCard = CreateStepperCard(TrollSection, "Spin Power", TrollState.Spin.Level, 1, 15, 1, function(a)
-		TrollState.Spin.Active = a; UpdateSpin()
-	end, function(v)
-		TrollState.Spin.Level = v; if TrollState.Spin.Active then UpdateSpin() end
-	end)
-	
-	-- B. SLOWMO CARD
-	local WarpCard = CreateStepperCard(TrollSection, "Slowmo Matrix", TrollState.Warp.Level, 1, 5, 1, function(a)
-		TrollState.Warp.Active = a; UpdateSlowmo()
-	end, function(v)
-		TrollState.Warp.Level = v; if TrollState.Warp.Active then UpdateSlowmo() end
-	end)
-
-	-- C. ZIG ZAG CARD (Custom Layout)
-	local JCard = CreateCard(TrollSection, UDim2.new(1, 0, 0, 115)) -- Tinggi disesuaikan
-	local JList = Instance.new("UIListLayout"); JList.Parent = JCard; JList.SortOrder = Enum.SortOrder.LayoutOrder; JList.Padding = UDim.new(0, 5)
-	local JPad = Instance.new("UIPadding"); JPad.Parent = JCard; JPad.PaddingTop = UDim.new(0, 10); JPad.PaddingLeft = UDim.new(0, 10); JPad.PaddingRight = UDim.new(0, 10); JPad.PaddingBottom = UDim.new(0, 10)
-	
-	-- 1. JUDUL UTAMA (ZIG ZAG MODE)
-	local MainTitle = Instance.new("TextLabel"); MainTitle.Parent = JCard
-	MainTitle.Size = UDim2.new(1, 0, 0, 15); MainTitle.BackgroundTransparency = 1
-	MainTitle.Text = "Zig Zag Mode"; MainTitle.Font = Theme.FontBold; MainTitle.TextSize = 12
-	MainTitle.TextColor3 = Theme.Text -- Warna highlight agar menonjol
-	MainTitle.TextXAlignment = Enum.TextXAlignment.Left -- Rata Kiri
-
-	-- 2. JUDUL KOLOM (Distance | Speed)
+	local function UpdateSpin() local char = LocalPlayer.Character; local root = char and char:FindFirstChild("HumanoidRootPart"); if root and root:FindFirstChild("SpinForce") then root.SpinForce:Destroy() end; if TrollState.Spin.Active and root then local spd = math.pow(2, TrollState.Spin.Level - 1); local bav = Instance.new("BodyAngularVelocity"); bav.Name = "SpinForce"; bav.Parent = root; bav.MaxTorque = Vector3.new(0, math.huge, 0); bav.P = math.huge; bav.AngularVelocity = Vector3.new(0, spd, 0) end end
+	local warpLoop; local function UpdateSlowmo() if warpLoop then warpLoop:Disconnect(); warpLoop = nil end; if not TrollState.Warp.Active then workspace.Gravity = OriginalGravity; local char = LocalPlayer.Character; local hum = char and char:FindFirstChild("Humanoid"); if hum then hum.WalkSpeed = 16; hum.JumpPower = OriginalJump; for _, t in pairs(hum:GetPlayingAnimationTracks()) do t:AdjustSpeed(1) end end; return end; warpLoop = RunService.Heartbeat:Connect(function() local char = LocalPlayer.Character; local hum = char and char:FindFirstChild("Humanoid"); if not hum then return end; local targetSpeed = math.pow(2, TrollState.Warp.Level - 1); local scale = targetSpeed / 16; hum.WalkSpeed = targetSpeed; hum.JumpPower = OriginalJump * math.sqrt(scale); workspace.Gravity = OriginalGravity * scale; for _, t in pairs(hum:GetPlayingAnimationTracks()) do t:AdjustSpeed(scale) end end) end
+	local jitterLoop; local function UpdateJitter() if jitterLoop then jitterLoop:Disconnect(); jitterLoop = nil end; if not TrollState.Jitter.Active or not TrollState.Jitter.Mode then return end; jitterLoop = RunService.Heartbeat:Connect(function() local char = LocalPlayer.Character; local root = char and char:FindFirstChild("HumanoidRootPart"); local cam = workspace.CurrentCamera; if not root then return end; local s = TrollState.Jitter; local tickTime = tick() * s.Speed; local offset = Vector3.new(); if s.Mode == "LR" then offset = cam.CFrame.RightVector * (math.sin(tickTime) * s.Dist) elseif s.Mode == "FB" then offset = cam.CFrame.LookVector * (math.sin(tickTime) * s.Dist) end; root.CFrame = root.CFrame + offset end) end
+	CreateStepperCard(TrollSection, "Spin Power", TrollState.Spin.Level, 1, 15, 1, function(a) TrollState.Spin.Active = a; UpdateSpin() end, function(v) TrollState.Spin.Level = v; if TrollState.Spin.Active then UpdateSpin() end end)
+	CreateStepperCard(TrollSection, "Slowmo Matrix", TrollState.Warp.Level, 1, 5, 1, function(a) TrollState.Warp.Active = a; UpdateSlowmo() end, function(v) TrollState.Warp.Level = v; if TrollState.Warp.Active then UpdateSlowmo() end end)
+	local JCard = CreateCard(TrollSection, UDim2.new(1, 0, 0, 115)); local JList = Instance.new("UIListLayout"); JList.Parent = JCard; JList.SortOrder = Enum.SortOrder.LayoutOrder; JList.Padding = UDim.new(0, 5); local JPad = Instance.new("UIPadding"); JPad.Parent = JCard; JPad.PaddingTop = UDim.new(0, 10); JPad.PaddingLeft = UDim.new(0, 10); JPad.PaddingRight = UDim.new(0, 10); JPad.PaddingBottom = UDim.new(0, 10)
+	local MainTitle = Instance.new("TextLabel"); MainTitle.Parent = JCard; MainTitle.Size = UDim2.new(1, 0, 0, 15); MainTitle.BackgroundTransparency = 1; MainTitle.Text = "Zig Zag Mode"; MainTitle.Font = Theme.FontBold; MainTitle.TextSize = 12; MainTitle.TextColor3 = Theme.Text; MainTitle.TextXAlignment = Enum.TextXAlignment.Left
 	local RowLabels = Instance.new("Frame"); RowLabels.Parent = JCard; RowLabels.BackgroundTransparency = 1; RowLabels.Size = UDim2.new(1, 0, 0, 15)
-	
-	local LblDist = Instance.new("TextLabel"); LblDist.Parent = RowLabels; LblDist.Size = UDim2.new(0.48, 0, 1, 0); LblDist.BackgroundTransparency = 1
-	LblDist.Text = "Distance"; LblDist.Font = Theme.FontMain; LblDist.TextSize = 10; LblDist.TextColor3 = Theme.TextDim; LblDist.TextXAlignment = Enum.TextXAlignment.Center
-	
-	local LblSpd = Instance.new("TextLabel"); LblSpd.Parent = RowLabels; LblSpd.Size = UDim2.new(0.48, 0, 1, 0); LblSpd.Position = UDim2.new(0.52, 0, 0, 0); LblSpd.BackgroundTransparency = 1
-	LblSpd.Text = "Speed"; LblSpd.Font = Theme.FontMain; LblSpd.TextSize = 10; LblSpd.TextColor3 = Theme.TextDim; LblSpd.TextXAlignment = Enum.TextXAlignment.Center
-
-	-- 3. PENGATUR (- 0 +)
+	local LblDist = Instance.new("TextLabel"); LblDist.Parent = RowLabels; LblDist.Size = UDim2.new(0.48, 0, 1, 0); LblDist.BackgroundTransparency = 1; LblDist.Text = "Distance"; LblDist.Font = Theme.FontMain; LblDist.TextSize = 10; LblDist.TextColor3 = Theme.TextDim; LblDist.TextXAlignment = Enum.TextXAlignment.Center
+	local LblSpd = Instance.new("TextLabel"); LblSpd.Parent = RowLabels; LblSpd.Size = UDim2.new(0.48, 0, 1, 0); LblSpd.Position = UDim2.new(0.52, 0, 0, 0); LblSpd.BackgroundTransparency = 1; LblSpd.Text = "Speed"; LblSpd.Font = Theme.FontMain; LblSpd.TextSize = 10; LblSpd.TextColor3 = Theme.TextDim; LblSpd.TextXAlignment = Enum.TextXAlignment.Center
 	local RowControls = Instance.new("Frame"); RowControls.Parent = JCard; RowControls.BackgroundTransparency = 1; RowControls.Size = UDim2.new(1, 0, 0, 25)
-	
-	local function CreateAdjuster(parent, xPos, key, min, max)
-		local Con = Instance.new("Frame"); Con.Parent = parent; Con.BackgroundTransparency = 1
-		Con.Size = UDim2.new(0.48, 0, 1, 0); Con.Position = UDim2.new(xPos, 0, 0, 0)
-		
-		local BMin = Instance.new("TextButton"); BMin.Parent = Con; BMin.Text = "-"; BMin.Size = UDim2.new(0.3, 0, 1, 0); BMin.BackgroundColor3 = Theme.Sidebar; BMin.TextColor3 = Theme.Text; Instance.new("UICorner", BMin).CornerRadius = UDim.new(0, 4)
-		local BPls = Instance.new("TextButton"); BPls.Parent = Con; BPls.Text = "+"; BPls.Size = UDim2.new(0.3, 0, 1, 0); BPls.Position = UDim2.new(0.7, 0, 0, 0); BPls.BackgroundColor3 = Theme.Sidebar; BPls.TextColor3 = Theme.Text; Instance.new("UICorner", BPls).CornerRadius = UDim.new(0, 4)
-		local Val = Instance.new("TextLabel"); Val.Parent = Con; Val.Size = UDim2.new(0.4, 0, 1, 0); Val.Position = UDim2.new(0.3, 0, 0, 0); Val.BackgroundTransparency = 1; Val.TextColor3 = Theme.Text; Val.Font = Theme.FontBold; Val.TextSize = 11
-		
-		local function Upd() Val.Text = tostring(TrollState.Jitter[key]) end; Upd()
-		BMin.MouseButton1Click:Connect(function() if TrollState.Jitter[key] > min then TrollState.Jitter[key] = TrollState.Jitter[key] - 1; Upd() end end)
-		BPls.MouseButton1Click:Connect(function() if TrollState.Jitter[key] < max then TrollState.Jitter[key] = TrollState.Jitter[key] + 1; Upd() end end)
-	end
-	
-	CreateAdjuster(RowControls, 0, "Dist", 1, 20)
-	CreateAdjuster(RowControls, 0.52, "Speed", 1, 50)
+	local function CreateAdjuster(parent, xPos, key, min, max) local Con = Instance.new("Frame"); Con.Parent = parent; Con.BackgroundTransparency = 1; Con.Size = UDim2.new(0.48, 0, 1, 0); Con.Position = UDim2.new(xPos, 0, 0, 0); local BMin = Instance.new("TextButton"); BMin.Parent = Con; BMin.Text = "-"; BMin.Size = UDim2.new(0.3, 0, 1, 0); BMin.BackgroundColor3 = Theme.Sidebar; BMin.TextColor3 = Theme.Text; Instance.new("UICorner", BMin).CornerRadius = UDim.new(0, 4); local BPls = Instance.new("TextButton"); BPls.Parent = Con; BPls.Text = "+"; BPls.Size = UDim2.new(0.3, 0, 1, 0); BPls.Position = UDim2.new(0.7, 0, 0, 0); BPls.BackgroundColor3 = Theme.Sidebar; BPls.TextColor3 = Theme.Text; Instance.new("UICorner", BPls).CornerRadius = UDim.new(0, 4); local Val = Instance.new("TextLabel"); Val.Parent = Con; Val.Size = UDim2.new(0.4, 0, 1, 0); Val.Position = UDim2.new(0.3, 0, 0, 0); Val.BackgroundTransparency = 1; Val.TextColor3 = Theme.Text; Val.Font = Theme.FontBold; Val.TextSize = 11; local function Upd() Val.Text = tostring(TrollState.Jitter[key]) end; Upd(); BMin.MouseButton1Click:Connect(function() if TrollState.Jitter[key] > min then TrollState.Jitter[key] = TrollState.Jitter[key] - 1; Upd() end end); BPls.MouseButton1Click:Connect(function() if TrollState.Jitter[key] < max then TrollState.Jitter[key] = TrollState.Jitter[key] + 1; Upd() end end) end
+	CreateAdjuster(RowControls, 0, "Dist", 1, 20); CreateAdjuster(RowControls, 0.52, "Speed", 1, 50)
+	local RowModes = Instance.new("Frame"); RowModes.Parent = JCard; RowModes.BackgroundTransparency = 1; RowModes.Size = UDim2.new(1, 0, 0, 25); local BtnLR = Instance.new("TextButton"); BtnLR.Parent = RowModes; BtnLR.Size = UDim2.new(0.48, 0, 1, 0); BtnLR.Font = Theme.FontBold; BtnLR.TextSize = 9; Instance.new("UICorner", BtnLR).CornerRadius = UDim.new(0, 4); BtnLR.Text = "LEFT - RIGHT"; local BtnFB = Instance.new("TextButton"); BtnFB.Parent = RowModes; BtnFB.Size = UDim2.new(0.48, 0, 1, 0); BtnFB.Position = UDim2.new(0.52, 0, 0, 0); BtnFB.Font = Theme.FontBold; BtnFB.TextSize = 9; Instance.new("UICorner", BtnFB).CornerRadius = UDim.new(0, 4); BtnFB.Text = "FWD - BACK"
+	local function RefreshBtns() local a, m = TrollState.Jitter.Active, TrollState.Jitter.Mode; BtnLR.BackgroundColor3 = (a and m == "LR") and Theme.Accent or Theme.Sidebar; BtnLR.TextColor3 = (a and m == "LR") and Theme.Main or Theme.TextDim; BtnFB.BackgroundColor3 = (a and m == "FB") and Theme.Accent or Theme.Sidebar; BtnFB.TextColor3 = (a and m == "FB") and Theme.Main or Theme.TextDim end
+	RefreshBtns(); local function Toggle(m) if TrollState.Jitter.Active and TrollState.Jitter.Mode == m then TrollState.Jitter.Active = false; TrollState.Jitter.Mode = nil else TrollState.Jitter.Active = true; TrollState.Jitter.Mode = m end; RefreshBtns(); UpdateJitter() end; BtnLR.MouseButton1Click:Connect(function() Toggle("LR") end); BtnFB.MouseButton1Click:Connect(function() Toggle("FB") end)
 
-	-- 4. TOMBOL MODE
-	local RowModes = Instance.new("Frame"); RowModes.Parent = JCard; RowModes.BackgroundTransparency = 1; RowModes.Size = UDim2.new(1, 0, 0, 25)
-	
-	local BtnLR = Instance.new("TextButton"); BtnLR.Parent = RowModes; BtnLR.Size = UDim2.new(0.48, 0, 1, 0); BtnLR.Font = Theme.FontBold; BtnLR.TextSize = 9; Instance.new("UICorner", BtnLR).CornerRadius = UDim.new(0, 4)
-	BtnLR.Text = "LEFT - RIGHT"
-	
-	local BtnFB = Instance.new("TextButton"); BtnFB.Parent = RowModes; BtnFB.Size = UDim2.new(0.48, 0, 1, 0); BtnFB.Position = UDim2.new(0.52, 0, 0, 0); BtnFB.Font = Theme.FontBold; BtnFB.TextSize = 9; Instance.new("UICorner", BtnFB).CornerRadius = UDim.new(0, 4)
-	BtnFB.Text = "FWD - BACK"
-	
-	local function RefreshBtns()
-		local a, m = TrollState.Jitter.Active, TrollState.Jitter.Mode
-		BtnLR.BackgroundColor3 = (a and m == "LR") and Theme.Accent or Theme.Sidebar
-		BtnLR.TextColor3 = (a and m == "LR") and Theme.Main or Theme.TextDim
-		BtnFB.BackgroundColor3 = (a and m == "FB") and Theme.Accent or Theme.Sidebar
-		BtnFB.TextColor3 = (a and m == "FB") and Theme.Main or Theme.TextDim
-	end
-	RefreshBtns()
-	
-	local function Toggle(m)
-		if TrollState.Jitter.Active and TrollState.Jitter.Mode == m then
-			TrollState.Jitter.Active = false; TrollState.Jitter.Mode = nil
-		else
-			TrollState.Jitter.Active = true; TrollState.Jitter.Mode = m
-		end
-		RefreshBtns(); UpdateJitter()
-	end
-	
-	BtnLR.MouseButton1Click:Connect(function() Toggle("LR") end)
-	BtnFB.MouseButton1Click:Connect(function() Toggle("FB") end)
-
-	-- AUTO RESTORE
 	LocalPlayer.CharacterAdded:Connect(function(c)
-		local h = c:WaitForChild("Humanoid", 10); if not h then return end
-		RefreshStats(c); task.wait(0.5)
-		if TrollState.Spin.Active then UpdateSpin() end
-		if TrollState.Warp.Active then UpdateSlowmo() end
-		if TrollState.Jitter.Active then UpdateJitter() end
+		local h = c:WaitForChild("Humanoid", 10); if not h then return end; RefreshStats(c); task.wait(0.5)
+		if TrollState.Spin.Active then UpdateSpin() end; if TrollState.Warp.Active then UpdateSlowmo() end; if TrollState.Jitter.Active then UpdateJitter() end
+		
+		-- Restore Cinema Mode if Active
+		if CinemaState.Active then task.wait(1); UpdateCinemaVisuals() end
 	end)
 
-	-- [ENGINE 1: PHYSICS EXECUTION]
+	-- [ENGINE 1: PHYSICS EXECUTION] (Updated to Heartbeat)
 	RunService.Heartbeat:Connect(function()
 		local c = LocalPlayer.Character
 		local h = c and c:FindFirstChild("Humanoid")
 		local r = c and c:FindFirstChild("HumanoidRootPart")
-		
 		if not h or not r then return end
 		if not (ToolsConfig.Speed.Active or ToolsConfig.TPWalk.Active or ToolsConfig.Jump.Active or ToolsConfig.StateForce.Active) then return end
-
 		if ToolsConfig.Speed.Active and not ToolsConfig.TPWalk.Active and h.WalkSpeed ~= ToolsConfig.Speed.Value then h.WalkSpeed = ToolsConfig.Speed.Value end
 		if ToolsConfig.TPWalk.Active and h.MoveDirection.Magnitude > 0 then r.CFrame = r.CFrame + (h.MoveDirection * (ToolsConfig.TPWalk.Value * 0.2)) end
 		if ToolsConfig.Jump.Active then if h.JumpPower ~= ToolsConfig.Jump.Value then h.JumpPower = ToolsConfig.Jump.Value end; if not h.UseJumpPower then h.UseJumpPower = true end; if ToolsConfig.Jump.Mode == "Mobile" then SetNativeJumpVisible(false) end end
 		if ToolsConfig.StateForce.Active then h:SetStateEnabled(Enum.HumanoidStateType.Jumping, true) end
 	end)
 
-	-- [ENGINE 2: CLEAN UI MONITORING] (Hanya jalan saat dilihat + Tidak Minimize)
+	-- [ENGINE 2: CLEAN UI MONITORING]
 	local MonitorLoop = nil
 	local function StartMonitoring()
 		if MonitorLoop then return end
-		
-		-- Referensi ke MainFrame (Kakek buyut dari parentFrame)
 		local MF = parentFrame.Parent and parentFrame.Parent.Parent and parentFrame.Parent.Parent.Parent
-		
 		MonitorLoop = task.spawn(function()
 			while parentFrame.Visible and parentFrame.Parent and (MF and MF.BackgroundTransparency < 0.9) do
-				local c = LocalPlayer.Character
-				local h = c and c:FindFirstChild("Humanoid")
+				local c = LocalPlayer.Character; local h = c and c:FindFirstChild("Humanoid")
 				if h then
-					SpeedVal.Text = tostring(math.floor(h.WalkSpeed))
-					JumpVal.Text = tostring(math.floor(h.JumpPower))
+					SpeedVal.Text = tostring(math.floor(h.WalkSpeed)); JumpVal.Text = tostring(math.floor(h.JumpPower))
 					local isJumpEnabled = h:GetStateEnabled(Enum.HumanoidStateType.Jumping)
 					if isJumpEnabled then SV.Text = "ACTIVE"; SV.TextColor3 = Theme.Green; StateBox.AutoButtonColor = false; ToolsConfig.StateForce.Active = false 
 					else SV.Text = "DISABLED (FIX)"; SV.TextColor3 = Theme.Red; StateBox.AutoButtonColor = true end
@@ -1522,10 +1281,8 @@ local function BuildToolsTab(parentFrame)
 			MonitorLoop = nil
 		end)
 	end
-
 	parentFrame:GetPropertyChangedSignal("Visible"):Connect(function() if parentFrame.Visible then StartMonitoring() end end)
 	if parentFrame.Visible then StartMonitoring() end
-	
 end
 
 local function BuildVisualsTab(parentFrame)
