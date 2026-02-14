@@ -1080,8 +1080,8 @@ local function BuildToolsTab(parentFrame)
 	local FCSection = CreateExpandableSection(parentFrame, "Freecam / Drone Mode")
 	
 	-- A. Info Text (Rapi & Sejajar)
-	local InfoFrame = Instance.new("Frame"); InfoFrame.Parent = FCSection; InfoFrame.BackgroundTransparency = 1; InfoFrame.Size = UDim2.new(1, 0, 0, 45)
-	local InfoTxt = Instance.new("TextLabel"); InfoTxt.Parent = InfoFrame; InfoTxt.Size = UDim2.new(1, 0, 1, 0); InfoTxt.BackgroundTransparency = 1; InfoTxt.TextColor3 = Theme.TextDim; InfoTxt.TextSize = 10; InfoTxt.Font = Theme.FontMain; InfoTxt.TextXAlignment = Enum.TextXAlignment.Left; InfoTxt.RichText = true
+	local InfoFrame = Instance.new("Frame"); InfoFrame.Parent = FCSection; InfoFrame.BackgroundTransparency = 1; InfoFrame.Size = UDim2.new(1, 0, 0, 30)
+	local InfoTxt = Instance.new("TextLabel"); InfoTxt.Parent = InfoFrame; InfoTxt.Size = UDim2.new(1, 0, 0.7, 0); InfoTxt.BackgroundTransparency = 1; InfoTxt.TextColor3 = Theme.TextDim; InfoTxt.TextSize = 10; InfoTxt.Font = Theme.FontMain; InfoTxt.TextXAlignment = Enum.TextXAlignment.Left; InfoTxt.RichText = true
 	InfoTxt.Text = [[	<font color="#89cff0"><b>[Alt + C]</b></font> Toggle Freecam			<font color="#89cff0"><b>[WASD]</b></font> Move Camera			<font color="#89cff0"><b>[Q / E]</b></font> Up / Down
 	<font color="#89cff0"><b>[Left Alt]</b></font> Slow Mode					  <font color="#89cff0"><b>[Arrows]</b></font> Adjust Speed]]
 
@@ -1095,26 +1095,55 @@ local function BuildToolsTab(parentFrame)
 		workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function() local newCam = workspace.CurrentCamera; if newCam then Camera = newCam end end)
 		local NAV_GAIN = Vector3.new(1, 1, 1) * 64; local PAN_GAIN = Vector2.new(0.75, 1) * 8; local FOV_GAIN = 300; local PITCH_LIMIT = math.rad(90); local JOYSTICK_DIST = 150; local SPRING_PARAMS = {Vel = 2.0, Pan = 2.0, Fov = 4.0} 
 		local pi, exp, clamp, sqrt, tan, rad = math.pi, math.exp, math.clamp, math.sqrt, math.tan, math.rad; local V3, V2 = Vector3.new, Vector2.new
+		
 		local Spring = {}; Spring.__index = Spring
 		function Spring.new(freq, pos) return setmetatable({f=freq, p=pos, v=pos*0}, Spring) end
 		function Spring:Update(dt, goal) local f = self.f * 2 * pi; local offset = goal - self.p; local decay = exp(-f * dt); local p1 = goal + (self.v * dt - offset * (f * dt + 1)) * decay; self.v = (f * dt * (offset * f - self.v) + self.v) * decay; self.p = p1; return p1 end
 		function Spring:Reset(pos) self.p = pos; self.v = pos*0 end
-		local Input = { navSpeed = 1, keys = {W=0, A=0, S=0, D=0, E=0, Q=0, Up=0, Down=0}, mouse = {Delta = V2(), Wheel = 0}, mobile = {Move = V3(), Look = V2()}, touch = {ID = nil, Start = V2()} }
-		function Input.GetVel(dt) Input.navSpeed = clamp(Input.navSpeed + dt * (Input.keys.Up - Input.keys.Down) * 2.0, 0.1, 20); FC_InputSpeed = Input.navSpeed; local kKb = V3(Input.keys.D - Input.keys.A, Input.keys.E - Input.keys.Q, Input.keys.S - Input.keys.W); local kMb = Input.mobile.Move; local isSlow = UIS:IsKeyDown(Enum.KeyCode.LeftAlt); return (kKb + kMb) * (Input.navSpeed * (isSlow and 0.25 or 1)) end
+		
+		local Input = { keys = {W=0, A=0, S=0, D=0, E=0, Q=0, Up=0, Down=0}, mouse = {Delta = V2(), Wheel = 0}, mobile = {Move = V3(), Look = V2()}, touch = {ID = nil, Start = V2()} }
+		
+		function Input.GetVel(dt)
+			-- [FIX] Logic Speed: Arrow Keys memodifikasi FC_InputSpeed (Variable GUI), bukan variable internal
+			local arrowChange = (Input.keys.Up - Input.keys.Down) * dt * 2.0
+			if arrowChange ~= 0 then
+				FC_InputSpeed = clamp(FC_InputSpeed + arrowChange, 0.1, 20)
+			end
+			
+			local kKb = V3(Input.keys.D - Input.keys.A, Input.keys.E - Input.keys.Q, Input.keys.S - Input.keys.W)
+			local kMb = Input.mobile.Move
+			local isSlow = UIS:IsKeyDown(Enum.KeyCode.LeftAlt)
+			
+			-- Gunakan FC_InputSpeed sebagai kecepatan utama
+			return (kKb + kMb) * (FC_InputSpeed * (isSlow and 0.25 or 1)) 
+		end
+
 		function Input.GetPan(dt) local kMs = Input.mouse.Delta * (pi/64); local kMb = Input.mobile.Look * (pi/64) * 0.5; Input.mouse.Delta = V2(); Input.mobile.Look = V2(); return kMs + kMb end
 		function Input.GetFov(dt) local kMs = Input.mouse.Wheel; Input.mouse.Wheel = 0; return kMs end
+		
 		local function KeyState(action, state, input) Input.keys[input.KeyCode.Name] = (state == Enum.UserInputState.Begin) and 1 or 0; return Enum.ContextActionResult.Sink end
 		local function MouseUpdate(action, state, input) if input.UserInputType == Enum.UserInputType.MouseMovement then if UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then Input.mouse.Delta = V2(-input.Delta.y, -input.Delta.x) end elseif input.UserInputType == Enum.UserInputType.MouseWheel then Input.mouse.Wheel = -input.Position.z end return Enum.ContextActionResult.Sink end
 		local function TouchUpdate(input, gp) if input.UserInputType ~= Enum.UserInputType.Touch then return end; if input.UserInputState == Enum.UserInputState.Begin then local pos = V2(input.Position.X, input.Position.Y); if pos.X < Camera.ViewportSize.X/2 and not Input.touch.ID then Input.touch.ID = input; Input.touch.Start = pos end elseif input.UserInputState == Enum.UserInputState.Change then if input == Input.touch.ID then local diff = V2(input.Position.X, input.Position.Y) - Input.touch.Start; if diff.Magnitude > JOYSTICK_DIST then diff = diff.Unit * JOYSTICK_DIST end; local norm = diff / JOYSTICK_DIST; Input.mobile.Move = V3(norm.X, 0, norm.Y) else local delta = V2(-input.Delta.Y, -input.Delta.X); Input.mobile.Look = Input.mobile.Look + delta end elseif input.UserInputState == Enum.UserInputState.End and input == Input.touch.ID then Input.touch.ID = nil; Input.mobile.Move = V3() end end
+		
 		local state = { velSpring = Spring.new(SPRING_PARAMS.Vel, V3()), panSpring = Spring.new(SPRING_PARAMS.Pan, V2()), fovSpring = Spring.new(SPRING_PARAMS.Fov, 0), camPos = V3(), camRot = V2(), camFov = 0, originalFov = 70, saved = {}, isEnabled = false, connections = {} }
-		local function Step(dt) if UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then UIS.MouseBehavior = Enum.MouseBehavior.LockCenter; UIS.MouseIconEnabled = false else UIS.MouseBehavior = Enum.MouseBehavior.Default; UIS.MouseIconEnabled = true end; local vel = state.velSpring:Update(dt, Input.GetVel(dt)); local pan = state.panSpring:Update(dt, Input.GetPan(dt)); local fov = state.fovSpring:Update(dt, Input.GetFov(dt)); local zoom = sqrt(tan(rad(70/2)) / tan(rad(state.camFov/2))); state.camFov = clamp(state.camFov + fov * FOV_GAIN * (dt/zoom), 1, 120); state.camRot = state.camRot + pan * PAN_GAIN * (dt/zoom); state.camRot = V2(clamp(state.camRot.x, -PITCH_LIMIT, PITCH_LIMIT), state.camRot.y % (2*pi)); local cf = CFrame.new(state.camPos) * CFrame.fromOrientation(state.camRot.x, state.camRot.y, 0) * CFrame.new(vel * NAV_GAIN * dt); state.camPos = cf.p; Camera.CFrame = cf; Camera.Focus = cf; Camera.FieldOfView = state.camFov end
+		
+		local function Step(dt) 
+			if UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then UIS.MouseBehavior = Enum.MouseBehavior.LockCenter; UIS.MouseIconEnabled = false else UIS.MouseBehavior = Enum.MouseBehavior.Default; UIS.MouseIconEnabled = true end
+			local vel = state.velSpring:Update(dt, Input.GetVel(dt)); local pan = state.panSpring:Update(dt, Input.GetPan(dt)); local fov = state.fovSpring:Update(dt, Input.GetFov(dt))
+			local zoom = sqrt(tan(rad(70/2)) / tan(rad(state.camFov/2)))
+			state.camFov = clamp(state.camFov + fov * FOV_GAIN * (dt/zoom), 1, 120)
+			state.camRot = state.camRot + pan * PAN_GAIN * (dt/zoom); state.camRot = V2(clamp(state.camRot.x, -PITCH_LIMIT, PITCH_LIMIT), state.camRot.y % (2*pi))
+			local cf = CFrame.new(state.camPos) * CFrame.fromOrientation(state.camRot.x, state.camRot.y, 0) * CFrame.new(vel * NAV_GAIN * dt)
+			state.camPos = cf.p; Camera.CFrame = cf; Camera.Focus = cf; Camera.FieldOfView = state.camFov 
+		end
+		
 		local function SetControls(enable) local pg = LocalPlayer:FindFirstChild("PlayerGui"); if not pg then return end; local touchGui = pg:FindFirstChild("TouchGui"); if touchGui then touchGui.Enabled = enable end; if not enable then state.saved.jumpBtns = {}; for _, gui in pairs(pg:GetChildren()) do if gui:IsA("ScreenGui") and gui.Name ~= "NeeR_Unified" then local jb = gui:FindFirstChild("JumpButton", true); if jb and jb.Visible then table.insert(state.saved.jumpBtns, jb); jb.Visible = false end end end else if state.saved.jumpBtns then for _, btn in pairs(state.saved.jumpBtns) do if btn and btn.Parent then btn.Visible = true end end; state.saved.jumpBtns = nil end end; if enable then LocalPlayer.DevTouchMovementMode = Enum.DevTouchMovementMode.UserChoice else LocalPlayer.DevTouchMovementMode = Enum.DevTouchMovementMode.Scriptable end end
+		
 		FC_ToggleFunc = function(forceState) if forceState ~= nil then state.isEnabled = forceState else state.isEnabled = not state.isEnabled end; if FC_UpdateVisualSwitch then FC_UpdateVisualSwitch(state.isEnabled, true) end
-			if state.isEnabled then local cf = Camera.CFrame; state.camPos, state.camRot = cf.Position, V2(cf:toEulerAnglesYXZ()); state.originalFov = Camera.FieldOfView; state.camFov = state.originalFov; state.velSpring:Reset(V3()); state.panSpring:Reset(V2()); Input.navSpeed = FC_InputSpeed; SetControls(false); if LocalPlayer.Character and LocalPlayer.Character.PrimaryPart then LocalPlayer.Character.PrimaryPart.Anchored = true end; local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid"); if hum then state.connections["Death"] = hum.Died:Connect(function() if state.isEnabled then FC_ToggleFunc(false) end end) end; Camera.CameraType = Enum.CameraType.Scriptable; CAS:BindActionAtPriority("FC_Keys", KeyState, false, 2000, Enum.KeyCode.W, Enum.KeyCode.A, Enum.KeyCode.S, Enum.KeyCode.D, Enum.KeyCode.E, Enum.KeyCode.Q, Enum.KeyCode.Up, Enum.KeyCode.Down); CAS:BindActionAtPriority("FC_Mouse", MouseUpdate, false, 2000, Enum.UserInputType.MouseMovement, Enum.UserInputType.MouseWheel); state.connections["Touch1"] = UIS.InputBegan:Connect(TouchUpdate); state.connections["Touch2"] = UIS.InputChanged:Connect(TouchUpdate); state.connections["Touch3"] = UIS.InputEnded:Connect(TouchUpdate); RunService:BindToRenderStep("FreecamClean", Enum.RenderPriority.Camera.Value, Step)
+			if state.isEnabled then local cf = Camera.CFrame; state.camPos, state.camRot = cf.Position, V2(cf:toEulerAnglesYXZ()); state.originalFov = Camera.FieldOfView; state.camFov = state.originalFov; state.velSpring:Reset(V3()); state.panSpring:Reset(V2()); SetControls(false); if LocalPlayer.Character and LocalPlayer.Character.PrimaryPart then LocalPlayer.Character.PrimaryPart.Anchored = true end; local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid"); if hum then state.connections["Death"] = hum.Died:Connect(function() if state.isEnabled then FC_ToggleFunc(false) end end) end; Camera.CameraType = Enum.CameraType.Scriptable; CAS:BindActionAtPriority("FC_Keys", KeyState, false, 2000, Enum.KeyCode.W, Enum.KeyCode.A, Enum.KeyCode.S, Enum.KeyCode.D, Enum.KeyCode.E, Enum.KeyCode.Q, Enum.KeyCode.Up, Enum.KeyCode.Down); CAS:BindActionAtPriority("FC_Mouse", MouseUpdate, false, 2000, Enum.UserInputType.MouseMovement, Enum.UserInputType.MouseWheel); state.connections["Touch1"] = UIS.InputBegan:Connect(TouchUpdate); state.connections["Touch2"] = UIS.InputChanged:Connect(TouchUpdate); state.connections["Touch3"] = UIS.InputEnded:Connect(TouchUpdate); RunService:BindToRenderStep("FreecamClean", Enum.RenderPriority.Camera.Value, Step)
 			else RunService:UnbindFromRenderStep("FreecamClean"); CAS:UnbindAction("FC_Keys"); CAS:UnbindAction("FC_Mouse"); for _, conn in pairs(state.connections) do conn:Disconnect() end; state.connections = {}; SetControls(true); UIS.MouseIconEnabled = true; UIS.MouseBehavior = Enum.MouseBehavior.Default; Camera.FieldOfView = state.originalFov; Camera.CameraType = Enum.CameraType.Custom; if LocalPlayer.Character and LocalPlayer.Character.PrimaryPart then LocalPlayer.Character.PrimaryPart.Anchored = false end; for k in pairs(Input.keys) do Input.keys[k] = 0 end; Input.mouse.Delta = V2(); Input.mobile.Move = V3(); Input.touch.ID = nil end
 		end
-		RunService.Heartbeat:Connect(function() if state.isEnabled then Input.navSpeed = FC_InputSpeed end end)
-	end 
+	end
 
 	-- C. UI CONTROLS (MERGED CARD & CLEAN SCREEN)
 	
@@ -1132,10 +1161,36 @@ local function BuildToolsTab(parentFrame)
 	local ValLbl = Instance.new("TextLabel"); ValLbl.Parent = Ctrl; ValLbl.BackgroundTransparency = 1; ValLbl.Position = UDim2.new(0, 22, 0, 0); ValLbl.Size = UDim2.new(0, 36, 1, 0); ValLbl.Font = Theme.FontBold; ValLbl.Text = "1.0"; ValLbl.TextColor3 = Theme.Text; ValLbl.TextSize = 11
 	local PlsBtn = Instance.new("TextButton"); PlsBtn.Parent = Ctrl; PlsBtn.BackgroundColor3 = Theme.Sidebar; PlsBtn.Position = UDim2.new(0, 60, 0.5, -10); PlsBtn.Size = UDim2.new(0, 20, 0, 20); PlsBtn.Font = Theme.FontBold; PlsBtn.Text = "+"; PlsBtn.TextColor3 = Theme.Green; Instance.new("UICorner", PlsBtn).CornerRadius = UDim.new(0, 4)
 
+	-- Speed Controls Logic (Improved)
 	local function UpdateSpeedUI() ValLbl.Text = string.format("%.1f", FC_InputSpeed) end
-	MinBtn.MouseButton1Click:Connect(function() FC_InputSpeed = math.max(0.1, FC_InputSpeed - 0.5); UpdateSpeedUI() end)
-	PlsBtn.MouseButton1Click:Connect(function() FC_InputSpeed = math.min(20, FC_InputSpeed + 0.5); UpdateSpeedUI() end)
-	RunService.Heartbeat:Connect(function() if parentFrame.Visible and math.abs(tonumber(ValLbl.Text) - FC_InputSpeed) > 0.1 then UpdateSpeedUI() end end)
+	
+	-- Helper untuk Rapid Fire Click
+	local function AutoClick(btn, change)
+		local holding = false
+		btn.MouseButton1Down:Connect(function()
+			holding = true
+			FC_InputSpeed = math.clamp(FC_InputSpeed + change, 0.1, 20)
+			UpdateSpeedUI()
+			task.wait(0.3) -- Delay sebelum rapid fire
+			while holding do
+				FC_InputSpeed = math.clamp(FC_InputSpeed + change, 0.1, 20)
+				UpdateSpeedUI()
+				task.wait(0.05) -- Kecepatan rapid
+			end
+		end)
+		btn.MouseButton1Up:Connect(function() holding = false end)
+		btn.MouseLeave:Connect(function() holding = false end)
+	end
+
+	AutoClick(MinBtn, -0.1) -- Turun 0.1 per klik
+	AutoClick(PlsBtn, 0.1)  -- Naik 0.1 per klik
+	
+	-- Sync Live (Agar kalau Arrow ditekan, GUI ikut berubah)
+	RunService.Heartbeat:Connect(function() 
+		if parentFrame.Visible and math.abs(tonumber(ValLbl.Text) - FC_InputSpeed) > 0.05 then 
+			UpdateSpeedUI() 
+		end 
+	end)
 
 	-- 2. CINEMA MODE (Clean Screen - Improved)
 	local CleanCard = CreateFeatureCard(FCSection, "Cinema Mode (Hide All UI)", 32)
