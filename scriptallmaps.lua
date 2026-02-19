@@ -1373,17 +1373,36 @@ local function BuildVisualsTab(parentFrame)
 
 	-- [GROUP 3] ATMOSPHERE
 	local Env_Sec = CreateExpandableSection(parentFrame, "Atmosphere & Lighting")
-	local fVal, fLoop = 10000, nil
-	CreateHybridCard(Env_Sec, "Custom Fog (Dual Engine)", function(active)
-		if active then if not fLoop then fLoop = RunService.RenderStepped:Connect(function() game.Lighting.FogStart=0; game.Lighting.FogEnd=fVal; local r=math.clamp(fVal/10000,0,1); local d=(1-r)*0.55; for _,c in pairs(game.Lighting:GetChildren()) do if c:IsA("Atmosphere") then c.Density=d; c.Offset=0; c.Haze=0 end end end) end
-		else if fLoop then fLoop:Disconnect(); fLoop=nil end end
-	end, 100, 10000, 10000, function(v) fVal = v end, "")
-	local WS4 = CreateFeatureCard(Env_Sec, "Time of Day", 60); local fb_loop; local LB = {}
-	AttachSlider(WS4, 0, 24, 14, function(v) if not fb_loop then Lighting.ClockTime = v end end, "h")
+	
+	-- 1. Custom Fog (Hanya Slider, Default ambil dari Map)
+	local defaultFog = math.clamp(Lighting.FogEnd, 100, 10000)
+	local FogCard = CreateFeatureCard(Env_Sec, "Custom Fog (Dual Engine)", 60)
+	AttachSlider(FogCard, 100, 10000, defaultFog, function(v)
+		Lighting.FogStart = 0; Lighting.FogEnd = v
+		local r = math.clamp(v/10000, 0, 1); local d = (1-r)*0.55
+		for _,c in pairs(Lighting:GetChildren()) do if c:IsA("Atmosphere") then c.Density=d; c.Offset=0; c.Haze=0 end end
+	end, "")
+
+	-- 2. Time of Day & Full Brightness (Bug Fix)
+	local defaultTime = math.floor(Lighting.ClockTime * 10) / 10 -- Ambil jam asli map
+	local WS4 = CreateFeatureCard(Env_Sec, "Time of Day", 60)
+	local fb_loop = nil; local LB = {}
+	local timeVal = defaultTime
+	
+	AttachSlider(WS4, 0, 24, defaultTime, function(v) 
+		timeVal = v
+		if not fb_loop then Lighting.ClockTime = v end 
+	end, "h")
+	
 	local WS1 = CreateFeatureCard(Env_Sec, "Full Brightness", 32)
 	AttachSwitch(WS1, false, function(active)
-		if active then LB = {B=Lighting.Brightness, C=Lighting.ClockTime, S=Lighting.GlobalShadows, O=Lighting.OutdoorAmbient}; fb_loop = RunService.RenderStepped:Connect(function() Lighting.Brightness=2; Lighting.ClockTime=14; Lighting.GlobalShadows=false; Lighting.OutdoorAmbient=Color3.fromRGB(128,128,128) end)
-		else if fb_loop then fb_loop:Disconnect() end; if LB.B then Lighting.Brightness=LB.B; Lighting.ClockTime=LB.C; Lighting.GlobalShadows=LB.S; Lighting.OutdoorAmbient=LB.O end end
+		if active then 
+			LB = {B=Lighting.Brightness, C=Lighting.ClockTime, S=Lighting.GlobalShadows, O=Lighting.OutdoorAmbient}
+			fb_loop = RunService.RenderStepped:Connect(function() Lighting.Brightness=2; Lighting.ClockTime=14; Lighting.GlobalShadows=false; Lighting.OutdoorAmbient=Color3.fromRGB(128,128,128) end)
+		else 
+			if fb_loop then fb_loop:Disconnect(); fb_loop = nil end -- FIX: Reset variabel loop ke nil
+			if LB.B then Lighting.Brightness=LB.B; Lighting.ClockTime=timeVal; Lighting.GlobalShadows=LB.S; Lighting.OutdoorAmbient=LB.O end 
+		end
 	end)
 
 	-- [GROUP 4] GRAPHICS
