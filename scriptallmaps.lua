@@ -1118,7 +1118,7 @@ local function BuildESPTab(parentFrame)
 	local Padding = Instance.new("UIPadding"); Padding.Parent = parentFrame; Padding.PaddingTop = UDim.new(0, 10); Padding.PaddingLeft = UDim.new(0, 10); Padding.PaddingRight = UDim.new(0, 10)
 
 	-- ==========================================
-	-- [1] UNIVERSAL ESP EVENT MANAGER
+	-- [1] UNIVERSAL ESP EVENT & MEMORY MANAGER
 	-- ==========================================
 	local function ManageESP(isActive, storageTable, onAdd, onRemove)
 		if isActive then
@@ -1139,46 +1139,125 @@ local function BuildESPTab(parentFrame)
 				local conn = plr.CharacterAdded:Connect(TryAdd)
 				table.insert(storageTable, conn)
 			end
-			for _, p in pairs(Players:GetPlayers()) do Setup(p) end
+			for _, p in ipairs(Players:GetPlayers()) do Setup(p) end
 			table.insert(storageTable, Players.PlayerAdded:Connect(Setup))
 		else
-			for _, c in pairs(storageTable) do c:Disconnect() end
+			for _, c in ipairs(storageTable) do c:Disconnect() end
 			table.clear(storageTable)
-			for _, p in pairs(Players:GetPlayers()) do
+			for _, p in ipairs(Players:GetPlayers()) do
 				if p.Character then onRemove(p.Character) end
 			end
 		end
 	end
 
 	-- ==========================================
-	-- [2] ENGINE: VISUAL CHAMS (DENGAN WARNA)
+	-- [2] DATA CACHES (Pusat Penyimpanan Memori)
 	-- ==========================================
-	local HL_Conn = {}
+	local ESP_State = { Name = false, Health = false, Distance = false }
+	local Card_Cache = {}
+	local Skel_Cache, Skel_Active = {}, false
+	local Tracer_Cache, Tracer_Active = {}, false
 	local currentChamsColor = Color3.fromRGB(255, 80, 80)
+	local HL_Conn, Hitbox_Conn, Skel_Conn, Tracer_Conn = {}, {}, {}, {}
 
+	-- ==========================================
+	-- [3] MASTER RENDER LOOP (Ultra-Optimized)
+	-- Menggabungkan Jarak, Skeleton, dan LoS dalam 1 siklus CPU
+	-- ==========================================
+	local rayParams = RaycastParams.new() -- Dibuat 1x saja di luar loop (Mencegah Lag)
+	rayParams.FilterType = Enum.RaycastFilterType.Exclude
+
+	RunService.RenderStepped:Connect(function()
+		local myChar = LocalPlayer.Character
+		local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+		local cam = workspace.CurrentCamera
+		if not myRoot then return end
+
+		-- Update Raycast filter hanya 1x per frame
+		if Tracer_Active then
+			rayParams.FilterDescendantsInstances = {myChar} 
+		end
+
+		-- Loop melalui semua pemain yang aktif (Lebih cepat daripada meloop Cache satu-satu)
+		for _, p in ipairs(Players:GetPlayers()) do
+			if p == LocalPlayer then continue end
+			local char = p.Character
+			if not char or not char.Parent then continue end
+
+			-- 1. UPDATE DISTANCE INFO CARD
+			if ESP_State.Distance and Card_Cache[char] and Card_Cache[char].Head.Parent then
+				Card_Cache[char].Dist.Text = math.floor((Card_Cache[char].Head.Position - myRoot.Position).Magnitude) .. "m"
+			end
+
+			-- 2. UPDATE SKELETON
+			if Skel_Active and Skel_Cache[char] then
+				for _, lineData in ipairs(Skel_Cache[char].Lines) do
+					if lineData.P1.Parent and lineData.P2.Parent then
+						local pos1, pos2 = lineData.P1.Position, lineData.P2.Position
+						local dist = (pos1 - pos2).Magnitude; local cf = CFrame.lookAt(pos1, pos2)
+						lineData.Core.Length = dist; lineData.Core.CFrame = cf
+						lineData.Glow.Length = dist; lineData.Glow.CFrame = cf
+					end
+				end
+			end
+
+			-- 3. UPDATE LINE OF SIGHT (LoS)
+			if Tracer_Active and Tracer_Cache[char] then
+				local line = Tracer_Cache[char]
+				local targetRoot = char:FindFirstChild("HumanoidRootPart")
+				if targetRoot then
+					local origin = cam.CFrame.Position
+					local dir = (targetRoot.Position - origin)
+					local rayResult = workspace:Raycast(origin, dir, rayParams)
+
+					if rayResult and rayResult.Instance:IsDescendantOf(char) then
+						line.Visible = true
+						local p1, p2 = myRoot.Position, targetRoot.Position
+						line.Length = (p1 - p2).Magnitude
+						line.CFrame = CFrame.lookAt(p1, p2)
+					else
+						line.Visible = false 
+					end
+				else
+					line.Visible = false
+				end
+			end
+		end
+	end)
+
+	-- ==========================================
+	-- [4] GARBAGE COLLECTION SECURE CLEANUP
+	-- Mencegah memory leak saat pemain disconnect/keluar
+	-- ==========================================
+	Players.PlayerRemoving:Connect(function(plr)
+		local char = plr.Character
+		if char then
+			if Card_Cache[char] then if Card_Cache[char].Card then Card_Cache[char].Card:Destroy() end; Card_Cache[char] = nil end
+			if Skel_Cache[char] then if char:FindFirstChild("NeeR_Skeleton") then char.NeeR_Skeleton:Destroy() end; Skel_Cache[char] = nil end
+			if Tracer_Cache[char] then if char:FindFirstChild("NeeR_Tracer") then char.NeeR_Tracer:Destroy() end; Tracer_Cache[char] = nil end
+		end
+	end)
+
+	-- ==========================================
+	-- [5] FEATURE BUILDERS (Engine Logika)
+	-- ==========================================
+	
+	-- CHAMS
 	local function AddChams(char)
 		if not char:FindFirstChild("NeeR_HL") then
-			local h = Instance.new("Highlight", char)
-			h.Name = "NeeR_HL"; h.FillColor = currentChamsColor; h.OutlineColor = Color3.new(1, 1, 1); h.FillTransparency = 0.5
+			local h = Instance.new("Highlight", char); h.Name = "NeeR_HL"; h.FillColor = currentChamsColor; h.OutlineColor = Color3.new(1, 1, 1); h.FillTransparency = 0.5
 		end
 	end
 	local function RemoveChams(char) if char:FindFirstChild("NeeR_HL") then char.NeeR_HL:Destroy() end end
-
 	local function UpdateChamsColor(newColor)
 		currentChamsColor = newColor
-		for _, p in pairs(Players:GetPlayers()) do
+		for _, p in ipairs(Players:GetPlayers()) do
 			if p.Character and p.Character:FindFirstChild("NeeR_HL") then p.Character.NeeR_HL.FillColor = currentChamsColor end
-			if p.Character and p.Character:FindFirstChild("NeeR_Hitbox") then
-				p.Character.NeeR_Hitbox.Color3 = currentChamsColor
-				p.Character.NeeR_Hitbox.SurfaceColor3 = currentChamsColor
-			end
+			if p.Character and p.Character:FindFirstChild("NeeR_Hitbox") then p.Character.NeeR_Hitbox.Color3 = currentChamsColor; p.Character.NeeR_Hitbox.SurfaceColor3 = currentChamsColor end
 		end
 	end
 
-	-- ==========================================
-	-- [3] ENGINE: ESP SKELETON
-	-- ==========================================
-	local Skel_Cache, Skel_Conn, Skel_Active = {}, {}, false
+	-- SKELETON & HEAD DOT
 	local R15_Bones = { {"Head","UpperTorso"}, {"UpperTorso","LowerTorso"}, {"UpperTorso","LeftUpperArm"}, {"LeftUpperArm","LeftLowerArm"}, {"LeftLowerArm","LeftHand"}, {"UpperTorso","RightUpperArm"}, {"RightUpperArm","RightLowerArm"}, {"RightLowerArm","RightHand"}, {"LowerTorso","LeftUpperLeg"}, {"LeftUpperLeg","LeftLowerLeg"}, {"LeftLowerLeg","LeftFoot"}, {"LowerTorso","RightUpperLeg"}, {"RightUpperLeg","RightLowerLeg"}, {"RightLowerLeg","RightFoot"} }
 	local R6_Bones = { {"Head","Torso"}, {"Torso","Left Arm"}, {"Torso","Right Arm"}, {"Torso","Left Leg"}, {"Torso","Right Leg"} }
 
@@ -1189,163 +1268,70 @@ local function BuildESPTab(parentFrame)
 		local boneMap = isR15 and R15_Bones or R6_Bones
 		local lines, transCache = {}, {}
 
-		for _, v in pairs(char:GetDescendants()) do
-			if v:IsA("BasePart") and v.Name ~= "HumanoidRootPart" and v.Transparency < 1 then
-				transCache[v] = v.Transparency; v.Transparency = 0.65
-			elseif v:IsA("Decal") and v.Transparency < 1 then
-				transCache[v] = v.Transparency; v.Transparency = 0.65
-			end
+		for _, v in ipairs(char:GetDescendants()) do
+			if v:IsA("BasePart") and v.Name ~= "HumanoidRootPart" and v.Transparency < 1 then transCache[v] = v.Transparency; v.Transparency = 0.65
+			elseif v:IsA("Decal") and v.Transparency < 1 then transCache[v] = v.Transparency; v.Transparency = 0.65 end
+		end
+
+		local head = char:FindFirstChild("Head")
+		if head then
+			local headCore = Instance.new("SphereHandleAdornment", folder); headCore.Radius = 0.45; headCore.Color3 = Color3.new(1, 1, 1); headCore.AlwaysOnTop = true; headCore.ZIndex = 6; headCore.Adornee = head 
+			local headBorder = Instance.new("SphereHandleAdornment", folder); headBorder.Radius = 0.52; headBorder.Color3 = Color3.fromRGB(80, 150, 255); headBorder.AlwaysOnTop = true; headBorder.ZIndex = 5; headBorder.Transparency = 0.1; headBorder.Adornee = head
 		end
 
 		for _, pair in ipairs(boneMap) do
 			local p1, p2 = char:FindFirstChild(pair[1]), char:FindFirstChild(pair[2])
 			if p1 and p2 then
-				local core = Instance.new("LineHandleAdornment", folder)
-				core.Thickness = 4; core.Color3 = Color3.new(1, 1, 1); core.AlwaysOnTop = true; core.ZIndex = 6; core.Adornee = workspace.Terrain
-				local glow = Instance.new("LineHandleAdornment", folder)
-				glow.Thickness = 8; glow.Color3 = Theme.Accent or Color3.fromRGB(137, 207, 240); glow.AlwaysOnTop = true; glow.ZIndex = 5; glow.Transparency = 0.15; glow.Adornee = workspace.Terrain
+				local core = Instance.new("LineHandleAdornment", folder); core.Thickness = 4; core.Color3 = Color3.new(1, 1, 1); core.AlwaysOnTop = true; core.ZIndex = 6; core.Adornee = workspace.Terrain
+				local glow = Instance.new("LineHandleAdornment", folder); glow.Thickness = 8; glow.Color3 = Theme.Accent or Color3.fromRGB(137, 207, 240); glow.AlwaysOnTop = true; glow.ZIndex = 5; glow.Transparency = 0.15; glow.Adornee = workspace.Terrain
 				table.insert(lines, {Core = core, Glow = glow, P1 = p1, P2 = p2})
 			end
 		end
 		Skel_Cache[char] = { Lines = lines, TransCache = transCache }
 	end
-
 	local function RemoveSkeleton(char)
-		if Skel_Cache[char] and Skel_Cache[char].TransCache then
-			for part, oldTrans in pairs(Skel_Cache[char].TransCache) do if part and part.Parent then part.Transparency = oldTrans end end
-		end
-		if char:FindFirstChild("NeeR_Skeleton") then char.NeeR_Skeleton:Destroy() end
-		Skel_Cache[char] = nil
+		if Skel_Cache[char] and Skel_Cache[char].TransCache then for part, oldTrans in pairs(Skel_Cache[char].TransCache) do if part and part.Parent then part.Transparency = oldTrans end end end
+		if char:FindFirstChild("NeeR_Skeleton") then char.NeeR_Skeleton:Destroy() end; Skel_Cache[char] = nil
 	end
 
-	RunService.RenderStepped:Connect(function()
-		if not Skel_Active then return end
-		for char, data in pairs(Skel_Cache) do
-			if char.Parent then
-				for _, lineData in ipairs(data.Lines) do
-					if lineData.P1.Parent and lineData.P2.Parent then
-						local pos1, pos2 = lineData.P1.Position, lineData.P2.Position
-						local dist = (pos1 - pos2).Magnitude; local cf = CFrame.lookAt(pos1, pos2)
-						lineData.Core.Length = dist; lineData.Core.CFrame = cf
-						lineData.Glow.Length = dist; lineData.Glow.CFrame = cf
-					end
-				end
-			else Skel_Cache[char] = nil end
-		end
-	end)
-
-	-- ==========================================
-	-- [4] ENGINE: ESP BOUNDING BOX
-	-- ==========================================
-	local Hitbox_Conn = {}
+	-- BOUNDING BOX
 	local function AddHitbox(char)
 		if char:FindFirstChild("NeeR_Hitbox") then return end
-		local box = Instance.new("SelectionBox", char)
-		box.Name = "NeeR_Hitbox"; box.Adornee = char; box.LineThickness = 0.04
-		box.Color3 = currentChamsColor; box.SurfaceTransparency = 0.85; box.SurfaceColor3 = currentChamsColor
+		local box = Instance.new("SelectionBox", char); box.Name = "NeeR_Hitbox"; box.Adornee = char; box.LineThickness = 0.04; box.Color3 = currentChamsColor; box.SurfaceTransparency = 0.85; box.SurfaceColor3 = currentChamsColor
 	end
 	local function RemoveHitbox(char) if char:FindFirstChild("NeeR_Hitbox") then char.NeeR_Hitbox:Destroy() end end
 
-	-- ==========================================
-	-- [5] ENGINE: DANGER LINE (VISIBLE WARNING)
-	-- ==========================================
-	local Tracer_Cache, Tracer_Conn, Tracer_Active = {}, {}, false
-
+	-- LINE OF SIGHT (LoS)
 	local function AddTracer(char)
 		if char:FindFirstChild("NeeR_Tracer") then return end
-		local line = Instance.new("LineHandleAdornment", char)
-		line.Name = "NeeR_Tracer"; line.Thickness = 3; line.Color3 = Color3.fromRGB(255, 13, 13)
-		line.AlwaysOnTop = true; line.ZIndex = 4; line.Adornee = workspace.Terrain
+		local line = Instance.new("LineHandleAdornment", char); line.Name = "NeeR_Tracer"; line.Thickness = 5; line.Color3 = Color3.fromRGB(255, 85, 85); line.Transparency = 0.3; line.AlwaysOnTop = true; line.ZIndex = 4; line.Adornee = workspace.Terrain
 		Tracer_Cache[char] = line
 	end
+	local function RemoveTracer(char) if char:FindFirstChild("NeeR_Tracer") then char.NeeR_Tracer:Destroy() end; Tracer_Cache[char] = nil end
 
-	local function RemoveTracer(char)
-		if char:FindFirstChild("NeeR_Tracer") then char.NeeR_Tracer:Destroy() end
-		Tracer_Cache[char] = nil
-	end
-
-	RunService.RenderStepped:Connect(function()
-		if not Tracer_Active then return end
-		local myChar = LocalPlayer.Character
-		local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
-		local cam = workspace.CurrentCamera
-		if not myRoot then return end
-
-		local rayParams = RaycastParams.new()
-		rayParams.FilterDescendantsInstances = {myChar} -- Abaikan tubuh kita sendiri
-		rayParams.FilterType = Enum.RaycastFilterType.Exclude
-
-		for char, line in pairs(Tracer_Cache) do
-			if char.Parent then
-				local targetRoot = char:FindFirstChild("HumanoidRootPart")
-				if targetRoot then
-					-- Cek Line of Sight (Garis Pandang) dari Kamera ke Musuh
-					local origin = cam.CFrame.Position
-					local dir = (targetRoot.Position - origin)
-					local rayResult = workspace:Raycast(origin, dir, rayParams)
-
-					local isVisible = false
-					-- Jika Raycast menabrak bagian tubuh musuh, berarti tidak terhalang tembok
-					if rayResult and rayResult.Instance:IsDescendantOf(char) then
-						isVisible = true
-					end
-
-					if isVisible then
-						line.Visible = true
-						-- Gambar garis peringatan dari tubuh kita ke tubuh musuh
-						local p1, p2 = myRoot.Position, targetRoot.Position
-						line.Length = (p1 - p2).Magnitude
-						line.CFrame = CFrame.lookAt(p1, p2)
-					else
-						line.Visible = false -- Sembunyikan jika terhalang
-					end
-				else
-					line.Visible = false
-				end
-			else
-				Tracer_Cache[char] = nil
-			end
-		end
-	end)
-
-	-- ==========================================
-	-- [6] ENGINE: DYNAMIC INFO (NAMA, HP, DISTANCE)
-	-- ==========================================
-	local ESP_State = { Name = false, Health = false, Distance = false }
-	local Card_Cache = {}
-
+	-- DYNAMIC INFO CARD
 	local function IsAnyCardActive() return ESP_State.Name or ESP_State.Health or ESP_State.Distance end
 	local function SyncCardVisibility(data)
-		data.Name.Visible = ESP_State.Name; data.Health.Visible = ESP_State.Health; data.Dist.Visible = ESP_State.Distance
-		data.CardFrame.Visible = (ESP_State.Name or ESP_State.Health); data.Card.Enabled = IsAnyCardActive()
-		if data.Hum and data.Hum.Parent then
-			data.Hum.DisplayDistanceType = ESP_State.Name and Enum.HumanoidDisplayDistanceType.None or data.OriginalDisplay
-		end
+		data.Name.Visible = ESP_State.Name; data.Health.Visible = ESP_State.Health; data.Dist.Visible = ESP_State.Distance; data.CardFrame.Visible = (ESP_State.Name or ESP_State.Health); data.Card.Enabled = IsAnyCardActive()
+		if data.Hum and data.Hum.Parent then data.Hum.DisplayDistanceType = ESP_State.Name and Enum.HumanoidDisplayDistanceType.None or data.OriginalDisplay end
 	end
-
 	local function CreateOrUpdateCard(char, plr, hum)
-		local head = char:FindFirstChild("Head")
-		if not head then return end
+		local head = char:FindFirstChild("Head"); if not head then return end
 		if Card_Cache[char] and Card_Cache[char].Card.Parent then SyncCardVisibility(Card_Cache[char]); return end
 		if char:FindFirstChild("NeeR_DynCard") then char.NeeR_DynCard:Destroy() end
 
-		local bg = Instance.new("BillboardGui", char)
-		bg.Name = "NeeR_DynCard"; bg.Adornee = head; bg.Size = UDim2.new(0, 200, 0, 50)
-		bg.AlwaysOnTop = true; bg.StudsOffset = Vector3.new(0, 2.0, 0); bg.ClipsDescendants = false
-
+		local bg = Instance.new("BillboardGui", char); bg.Name = "NeeR_DynCard"; bg.Adornee = head; bg.Size = UDim2.new(0, 200, 0, 50); bg.AlwaysOnTop = true; bg.StudsOffset = Vector3.new(0, 3.2, 0); bg.ClipsDescendants = false
 		local masterFrame = Instance.new("Frame", bg); masterFrame.Size = UDim2.new(1, 0, 1, 0); masterFrame.BackgroundTransparency = 1
 		local masterList = Instance.new("UIListLayout", masterFrame); masterList.FillDirection = Enum.FillDirection.Horizontal; masterList.HorizontalAlignment = Enum.HorizontalAlignment.Center; masterList.VerticalAlignment = Enum.VerticalAlignment.Center; masterList.Padding = UDim.new(0, 6)
 
-		local cardFrame = Instance.new("Frame", masterFrame); cardFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 18); cardFrame.BackgroundTransparency = 0.5; cardFrame.BorderSizePixel = 0; cardFrame.AutomaticSize = Enum.AutomaticSize.XY
-		Instance.new("UICorner", cardFrame).CornerRadius = UDim.new(0, 4)
+		local cardFrame = Instance.new("Frame", masterFrame); cardFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 18); cardFrame.BackgroundTransparency = 0.5; cardFrame.BorderSizePixel = 0; cardFrame.AutomaticSize = Enum.AutomaticSize.XY; Instance.new("UICorner", cardFrame).CornerRadius = UDim.new(0, 4)
 		local stroke = Instance.new("UIStroke", cardFrame); stroke.Color = Theme.Accent or Color3.fromRGB(137, 207, 240); stroke.Transparency = 0.6; stroke.Thickness = 1
 		local cardPad = Instance.new("UIPadding", cardFrame); cardPad.PaddingTop = UDim.new(0, 5); cardPad.PaddingBottom = UDim.new(0, 5); cardPad.PaddingLeft = UDim.new(0, 10); cardPad.PaddingRight = UDim.new(0, 10)
 		local cardList = Instance.new("UIListLayout", cardFrame); cardList.FillDirection = Enum.FillDirection.Vertical; cardList.HorizontalAlignment = Enum.HorizontalAlignment.Center; cardList.Padding = UDim.new(0, 4)
 
 		local nameLbl = Instance.new("TextLabel", cardFrame); nameLbl.BackgroundTransparency = 1; nameLbl.AutomaticSize = Enum.AutomaticSize.XY; nameLbl.Text = plr.DisplayName; nameLbl.TextColor3 = Color3.new(1, 1, 1); nameLbl.Font = Enum.Font.GothamMedium; nameLbl.TextSize = 11
-		local hpBg = Instance.new("Frame", cardFrame); hpBg.Size = UDim2.new(0, 90, 0, 2); hpBg.BackgroundColor3 = Color3.fromRGB(50, 10, 10); hpBg.BorderSizePixel = 0
+		local hpBg = Instance.new("Frame", cardFrame); hpBg.Size = UDim2.new(0, 60, 0, 2); hpBg.BackgroundColor3 = Color3.fromRGB(50, 10, 10); hpBg.BorderSizePixel = 0
 		local hpFill = Instance.new("Frame", hpBg); hpFill.Size = UDim2.new(math.clamp(hum.Health/hum.MaxHealth, 0, 1), 0, 1, 0); hpFill.BackgroundColor3 = Theme.Green or Color3.fromRGB(85, 255, 127); hpFill.BorderSizePixel = 0
-
 		local distLbl = Instance.new("TextLabel", masterFrame); distLbl.BackgroundTransparency = 1; distLbl.AutomaticSize = Enum.AutomaticSize.XY; distLbl.Text = "0m"; distLbl.TextColor3 = Color3.fromRGB(240, 240, 240); distLbl.Font = Enum.Font.GothamBold; distLbl.TextSize = 12; distLbl.TextStrokeTransparency = 0.4; distLbl.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
 
 		local data = { Card = bg, CardFrame = cardFrame, Name = nameLbl, Health = hpBg, Dist = distLbl, Head = head, Hum = hum, OriginalDisplay = hum.DisplayDistanceType }
@@ -1353,15 +1339,14 @@ local function BuildESPTab(parentFrame)
 		
 		local hpConn; hpConn = hum.HealthChanged:Connect(function()
 			if not hpFill.Parent then hpConn:Disconnect() return end
-			local pct = math.clamp(hum.Health / hum.MaxHealth, 0, 1)
-			TweenService:Create(hpFill, TweenInfo.new(0.2), {Size = UDim2.new(pct, 0, 1, 0)}):Play()
+			local pct = math.clamp(hum.Health / hum.MaxHealth, 0, 1); TweenService:Create(hpFill, TweenInfo.new(0.2), {Size = UDim2.new(pct, 0, 1, 0)}):Play()
 			hpFill.BackgroundColor3 = pct < 0.3 and (Theme.Red or Color3.fromRGB(255,80,80)) or (Theme.Green or Color3.fromRGB(85,255,127))
 		end)
 	end
 
 	local function UpdateAllCards()
 		if IsAnyCardActive() then
-			for _, p in pairs(Players:GetPlayers()) do
+			for _, p in ipairs(Players:GetPlayers()) do
 				if p ~= LocalPlayer and p.Character then 
 					local hum = p.Character:FindFirstChild("Humanoid")
 					if hum and hum.Health > 0 then CreateOrUpdateCard(p.Character, p, hum) end
@@ -1376,15 +1361,6 @@ local function BuildESPTab(parentFrame)
 		end
 	end
 
-	RunService.RenderStepped:Connect(function()
-		if not ESP_State.Distance then return end
-		local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-		if not myRoot then return end
-		for char, data in pairs(Card_Cache) do
-			if char.Parent and data.Head.Parent then data.Dist.Text = math.floor((data.Head.Position - myRoot.Position).Magnitude) .. "m" else Card_Cache[char] = nil end
-		end
-	end)
-
 	Players.PlayerAdded:Connect(function(plr)
 		plr.CharacterAdded:Connect(function(char)
 			task.wait(1); local hum = char:FindFirstChild("Humanoid")
@@ -1393,28 +1369,22 @@ local function BuildESPTab(parentFrame)
 		end)
 	end)
 
-	-- ==========================================
-	-- [7] ENGINE: WALL X-RAY
-	-- ==========================================
+	-- WALL X-RAY
 	local xr_cache, xr_conn = {}, nil
 	local function DoXR(v) 
 		if v:IsA("BasePart") and not v:IsA("Terrain") then 
 			local h = v.Parent:FindFirstChild("Humanoid") or v.Parent.Parent:FindFirstChild("Humanoid")
-			if not h and v.Transparency < 0.9 then 
-				if not xr_cache[v] then xr_cache[v] = v.Transparency end
-				v.Transparency = 0.5
-			end 
+			if not h and v.Transparency < 0.9 then if not xr_cache[v] then xr_cache[v] = v.Transparency end; v.Transparency = 0.5 end 
 		end 
 	end
 
 	-- ==========================================
-	-- [UI BUILDER] (Flat Hierarchy)
+	-- [6] UI BUILDER (Penyusunan Tampilan)
 	-- ==========================================
 	
 	local C1 = CreateFeatureCard(parentFrame, "Visual Chams", 32)
 	AttachSwitch(C1, false, function(a) ManageESP(a, HL_Conn, AddChams, RemoveChams) end)
-
-	local paletteColors = { {Name = "Red", Color = Color3.fromRGB(255, 80, 80)}, {Name = "Green", Color = Color3.fromRGB(85, 255, 127)}, {Name = "Blue", Color = Color3.fromRGB(80, 150, 255)}, {Name = "Yellow", Color = Color3.fromRGB(255, 255, 100)}, {Name = "Purple", Color = Color3.fromRGB(180, 80, 255)}, {Name = "White", Color = Color3.fromRGB(255, 255, 255)} }
+	local paletteColors = { {Name="Red",Color=Color3.fromRGB(255,80,80)}, {Name="Green",Color=Color3.fromRGB(85,255,127)}, {Name="Blue",Color=Color3.fromRGB(80,150,255)}, {Name="Yellow",Color=Color3.fromRGB(255,255,100)}, {Name="Purple",Color=Color3.fromRGB(180,80,255)}, {Name="White",Color=Color3.fromRGB(255,255,255)} }
 	AttachInlineColorPalette(C1, paletteColors, 1, function(newColor) UpdateChamsColor(newColor) end)
 
 	local C2 = CreateFeatureCard(parentFrame, "ESP Skeleton (Bones)", 32)
@@ -1437,14 +1407,8 @@ local function BuildESPTab(parentFrame)
 
 	local C8 = CreateFeatureCard(parentFrame, "Wall X-Ray (Auto Detect)", 32)
 	AttachSwitch(C8, false, function(active) 
-		if active then 
-			for _, v in pairs(workspace:GetDescendants()) do DoXR(v) end
-			xr_conn = workspace.DescendantAdded:Connect(DoXR) 
-		else 
-			if xr_conn then xr_conn:Disconnect(); xr_conn = nil end
-			for p, t in pairs(xr_cache) do if p.Parent then p.Transparency = t end end
-			table.clear(xr_cache) 
-		end 
+		if active then for _, v in pairs(workspace:GetDescendants()) do DoXR(v) end; xr_conn = workspace.DescendantAdded:Connect(DoXR) 
+		else if xr_conn then xr_conn:Disconnect(); xr_conn = nil end; for p, t in pairs(xr_cache) do if p.Parent then p.Transparency = t end end; table.clear(xr_cache) end 
 	end)
 end
 
