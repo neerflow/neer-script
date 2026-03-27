@@ -1760,8 +1760,77 @@ local function BuildVisualsTab(parentFrame)
 	local FPS_Section = CreateExpandableSection(parentFrame, "Graphics & FPS")
 	local FS1 = CreateFeatureCard(FPS_Section, "No Shadows/Effects", 32)
 	AttachSwitch(FS1, false, function(a) Lighting.GlobalShadows = not a; for _,v in pairs(Lighting:GetChildren()) do if v:IsA("PostEffect") then v.Enabled = not a end end end)
-	CreateActionCard(FPS_Section, "Potato Mode", "RUN", Theme.Accent, function() for _, v in pairs(Workspace:GetDescendants()) do if v:IsA("BasePart") then v.Material = Enum.Material.SmoothPlastic; v.Reflectance = 0 end; if v:IsA("MeshPart") then v.TextureID = "" end end end)
-	CreateActionCard(FPS_Section, "Clear Textures", "CLEAR", Theme.Accent, function() for _, v in pairs(Workspace:GetDescendants()) do if v:IsA("Decal") or v:IsA("Texture") then v:Destroy() end end end)
+
+	-- ==========================================
+	-- ENGINE: POTATO MODE (CCTV STATE MACHINE)
+	-- ==========================================
+	local potatoCCTV_Active = false
+	local potatoConn = nil
+
+	CreateActionCard(FPS_Section, "Potato Mode (Auto-Scan)", "TOGGLE", Theme.Accent, function()
+		-- Membalikkan status setiap kali tombol ditekan (ON -> OFF -> ON)
+		potatoCCTV_Active = not potatoCCTV_Active 
+
+		if potatoCCTV_Active then
+			-- [FASE 1] CCTV DIAKTIFKAN
+			-- Menangkap objek yang baru muncul di masa depan (Tanpa Lag)
+			potatoConn = Workspace.DescendantAdded:Connect(function(v)
+				task.defer(function()
+					if v:IsA("BasePart") then v.Material = Enum.Material.SmoothPlastic; v.Reflectance = 0
+					elseif v:IsA("MeshPart") then v.TextureID = "" end
+				end)
+			end)
+
+			-- [FASE 2] SAPU BERSIH OBJEK LAMA
+			task.spawn(function()
+				local count = 0
+				for _, v in ipairs(Workspace:GetDescendants()) do
+					count = count + 1
+					if count % 200 == 0 then task.wait() end -- Bernapas agar tidak freeze
+					if v:IsA("BasePart") then v.Material = Enum.Material.SmoothPlastic; v.Reflectance = 0
+					elseif v:IsA("MeshPart") then v.TextureID = "" end
+				end
+			end)
+		else
+			-- [FASE 3] CCTV DIMATIKAN
+			if potatoConn then
+				potatoConn:Disconnect()
+				potatoConn = nil
+			end
+		end
+	end)
+
+	-- ==========================================
+	-- ENGINE: CLEAR TEXTURES (CCTV STATE MACHINE)
+	-- ==========================================
+	local clearTex_Active = false
+	local clearTexConn = nil
+
+	CreateActionCard(FPS_Section, "Clear Textures (Auto-Scan)", "TOGGLE", Theme.Accent, function()
+		clearTex_Active = not clearTex_Active
+
+		if clearTex_Active then
+			clearTexConn = Workspace.DescendantAdded:Connect(function(v)
+				task.defer(function()
+					if v:IsA("Decal") or v:IsA("Texture") then v:Destroy() end
+				end)
+			end)
+
+			task.spawn(function()
+				local count = 0
+				for _, v in ipairs(Workspace:GetDescendants()) do
+					count = count + 1
+					if count % 200 == 0 then task.wait() end
+					if v:IsA("Decal") or v:IsA("Texture") then v:Destroy() end
+				end
+			end)
+		else
+			if clearTexConn then
+				clearTexConn:Disconnect()
+				clearTexConn = nil
+			end
+		end
+	end)
 end
 
 local function BuildSettingsTab(parentFrame)
