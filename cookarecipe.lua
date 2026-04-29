@@ -546,47 +546,70 @@ end)
 -- ========================
 -- AUTO EGG HIT
 -- ========================
-local function stopEggThread()
-    if eggThread then task.cancel(eggThread) eggThread = nil end
-end
+-- Deteksi egg via polling di main thread
+task.spawn(function()
+    local joined = false
+    while true do
+        task.wait(1)
+        local egg = getEggRoot()
 
-local function startEggHit()
-    stopEggThread()
+        if egg and isEggOn and not joined then
+            -- Fire langsung tanpa wrapping apapun
+            game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("ShyEggJoinEvent"):FireServer()
+            joined = true
+            task.wait(0.5)
+            game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("ShyEggJoinEvent"):FireServer()
 
-    -- JOIN LANGSUNG di sini, bukan di dalam task.spawn
-    EggJoin:FireServer()
-    task.wait(1)
-    EggJoin:FireServer()
-    task.wait(0.5)
-
-    eggThread = task.spawn(function()
-        while isEggOn do
-            local hrp = getHRP()
-            local eggRoot = getEggRoot()
-            if hrp and eggRoot then
-                if eggRoot.Position.Y < 0 then
-                    task.wait(1)
-                else
-                    hrp.CFrame = CFrame.new(eggRoot.Position + Vector3.new(3, 0, 0))
-                    task.wait(0.05)
-                    pcall(function() EggHit:FireServer() end)
-                    task.wait(0.2)
+            -- Start hit thread
+            stopEggThread()
+            eggThread = task.spawn(function()
+                while isEggOn do
+                    local hrp = getHRP()
+                    local eggRoot = getEggRoot()
+                    if hrp and eggRoot then
+                        if eggRoot.Position.Y < 0 then
+                            task.wait(1)
+                        else
+                            hrp.CFrame = CFrame.new(eggRoot.Position + Vector3.new(3, 0, 0))
+                            task.wait(0.05)
+                            game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("EggHitEvent"):FireServer()
+                            task.wait(0.2)
+                        end
+                    else
+                        task.wait(1)
+                    end
                 end
-            else
-                task.wait(1)
+            end)
+
+        elseif not egg then
+            -- Reset joined saat egg hilang (respawn level baru)
+            if joined then
+                joined = false
+                stopEggThread()
             end
         end
-    end)
-end
 
-workspace.ChildAdded:Connect(function(child)
-    if child.Name:find("ShyEgg_") and isEggOn then
-        stopEggThread()
-        task.wait(1)
-        startEggHit()
+        -- Update countdown
+        if isEggOn then
+            if egg then
+                eggCountLbl.Text = "🟢 Event aktif"
+            else
+                local t = os.date("*t")
+                local next = (t.min < 35 and (35-t.min) or (95-t.min)) * 60 - t.sec
+                eggCountLbl.Text = string.format("⏱ %d:%02d", math.floor(next/60), next%60)
+            end
+        else
+            eggCountLbl.Text = ""
+            joined = false
+        end
     end
 end)
 
-workspace.ChildRemoved:Connect(function(child)
-    if child.Name:find("ShyEgg_") then
-        sto
+eggBtn.MouseButton1Click:Connect(function()
+    isEggOn = not isEggOn
+    setBtn(eggBtn, isEggOn)
+    if not isEggOn then
+        stopEggThread()
+        eggCountLbl.Text = ""
+    end
+end)
