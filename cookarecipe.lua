@@ -645,16 +645,18 @@ makeToggle(ternakPage, "Auto Spawn Hewan", "spawnAnimal",
         cancelThread("spawnAnimal")
         threads.spawnAnimal = task.spawn(function()
             while state.spawnAnimal do
+                -- GetAnimalSpace butuh arg zone "1"
                 local ok, maxSpace = pcall(function()
-                    return R.GetAnimalSpace:InvokeServer()
+                    return R.GetAnimalSpace:InvokeServer("1")
                 end)
                 if ok and maxSpace then
                     local current = countInZone("Animals")
                     local avail = maxSpace - current
-                    for _ = 1, math.max(avail, 0) do
-                        if not state.spawnAnimal then break end
-                        pcall(function() R.SpawnAnimal:FireServer(selectedAnimal) end)
-                        task.wait(0.5)
+                    if avail > 0 then
+                        -- Spawn sekaligus dengan jumlah
+                        pcall(function()
+                            R.SpawnAnimal:FireServer(selectedAnimal, avail)
+                        end)
                     end
                 end
                 task.wait(10)
@@ -693,16 +695,18 @@ makeToggle(ternakPage, "Auto Spawn Ikan", "spawnFish",
         cancelThread("spawnFish")
         threads.spawnFish = task.spawn(function()
             while state.spawnFish do
+                -- GetFishSpace butuh arg zone "1"
                 local ok, maxSpace = pcall(function()
-                    return R.GetFishSpace:InvokeServer()
+                    return R.GetFishSpace:InvokeServer("1")
                 end)
                 if ok and maxSpace then
                     local current = countInZone("Fish")
                     local avail = maxSpace - current
-                    for _ = 1, math.max(avail, 0) do
-                        if not state.spawnFish then break end
-                        pcall(function() R.SpawnFish:FireServer(selectedFish) end)
-                        task.wait(0.5)
+                    if avail > 0 then
+                        -- Spawn sekaligus dengan jumlah
+                        pcall(function()
+                            R.SpawnFish:FireServer(selectedFish, avail)
+                        end)
                     end
                 end
                 task.wait(10)
@@ -711,7 +715,6 @@ makeToggle(ternakPage, "Auto Spawn Ikan", "spawnFish",
     end,
     function() cancelThread("spawnFish") end
 )
-
 makeDropdown(ternakPage, "🐟 Ikan", FISH, selectedFish, function(v) selectedFish = v end)
 
 -- ========================
