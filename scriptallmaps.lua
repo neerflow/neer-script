@@ -258,10 +258,25 @@ end
 
 local function CreateTabBtn(name, isActive)
 	local Btn = Instance.new("TextButton"); Btn.Parent = Sidebar
-	Btn.BackgroundColor3 = isActive and Theme.ActiveTab or Theme.Sidebar; Btn.BackgroundTransparency = isActive and 0 or 1; Btn.Size = UDim2.new(1, 0, 0, 28)
-	Btn.AutoButtonColor = false; Btn.Font = Theme.FontMain; Btn.Text = name; Btn.TextColor3 = isActive and Theme.Accent or Theme.TextDim; Btn.TextSize = 12
+	
+	-- [PERUBAHAN UTAMA 1]: Gunakan Theme.Main untuk tombol tidak aktif, dan transparansi 0 (solid) atau 0.3
+	Btn.BackgroundColor3 = isActive and Theme.ActiveTab or Theme.Main; 
+	Btn.BackgroundTransparency = isActive and 0 or 0.3; -- 0.3 memberi efek redup pada tombol mati
+	
+	Btn.Size = UDim2.new(1, 0, 0, 35)
+	Btn.AutoButtonColor = false; Btn.TextSize = 12
+	Btn.Font = isActive and Theme.FontBold or Theme.FontMain 
+	Btn.Text = name; Btn.TextColor3 = isActive and Theme.Accent or Theme.TextDim; 
+	
+	Btn.TextXAlignment = Enum.TextXAlignment.Left 
+	local Pad = Instance.new("UIPadding", Btn); Pad.PaddingLeft = UDim.new(0, 12) 
+	
 	Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 4)
-	if isActive then local s = Instance.new("UIStroke"); s.Parent = Btn; s.Color = Theme.Accent; s.Thickness = 1; s.Transparency = 0.8 end
+	
+	-- Garis pinggir (Stroke) jika aktif
+	if isActive then 
+		local s = Instance.new("UIStroke"); s.Parent = Btn; s.Color = Theme.Accent; s.Thickness = 1; s.Transparency = 0.8 
+	end
 	
 	local Page = Instance.new("ScrollingFrame"); Page.Name = name .. "Page"; Page.Parent = ContentArea
 	Page.BackgroundTransparency = 1; Page.Size = UDim2.new(1, 0, 1, 0); Page.Visible = isActive; Page.ScrollBarThickness = 2
@@ -271,8 +286,22 @@ local function CreateTabBtn(name, isActive)
 	PL:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() Page.CanvasSize = UDim2.new(0, 0, 0, (PL.AbsoluteContentSize.Y / UIScale.Scale) + 20) end)
 	
 	Btn.MouseButton1Click:Connect(function()
-		for _, child in pairs(Sidebar:GetChildren()) do if child:IsA("TextButton") then child.BackgroundColor3 = Theme.Sidebar; child.BackgroundTransparency = 1; child.TextColor3 = Theme.TextDim; if child:FindFirstChild("UIStroke") then child.UIStroke:Destroy() end end end
-		Btn.BackgroundColor3 = Theme.ActiveTab; Btn.BackgroundTransparency = 0; Btn.TextColor3 = Theme.Accent
+		for _, child in pairs(Sidebar:GetChildren()) do 
+			if child:IsA("TextButton") then 
+				-- [PERUBAHAN UTAMA 2]: Kembalikan ke Theme.Main saat tidak diklik
+				child.BackgroundColor3 = Theme.Main; 
+				child.BackgroundTransparency = 0.3; 
+				child.TextColor3 = Theme.TextDim; 
+				child.Font = Theme.FontMain; 
+				if child:FindFirstChild("UIStroke") then child.UIStroke:Destroy() end 
+			end 
+		end
+		
+		Btn.BackgroundColor3 = Theme.ActiveTab; 
+		Btn.BackgroundTransparency = 0; 
+		Btn.TextColor3 = Theme.Accent
+		Btn.Font = Theme.FontBold 
+		
 		local s = Instance.new("UIStroke"); s.Parent = Btn; s.Color = Theme.Accent; s.Thickness = 1; s.Transparency = 0.8
 		SwitchTab(name)
 	end)
@@ -1986,13 +2015,13 @@ Loader.Start()
 
 task.spawn(function()
 	Loader.Update("Initializing Modules...", 0.1); task.wait(1)
-	Loader.Update("Loading Informations...", 0.3); local TabInfo = CreateTabBtn("Informations", true); BuildInfoTab(TabInfo); task.wait(0.4)
-	Loader.Update("Loading Movement...", 0.4); local TabMovement = CreateTabBtn("Movement", false); BuildMovementTab(TabMovement); task.wait(0.4)
-	Loader.Update("Loading Teleports...", 0.5); local TabTeleports = CreateTabBtn("Teleports", false); BuildTeleportTab(TabTeleports); task.wait(0.2)
-	Loader.Update("Loading ESP...", 0.6); local TabESP = CreateTabBtn("ESP", false); BuildESPTab(TabESP); task.wait(0.2)
-	Loader.Update("Loading Tools...", 0.7); local TabTools = CreateTabBtn("Tools", false); BuildToolsTab(TabTools); task.wait(0.2)
-	Loader.Update("Loading Visuals...", 0.8); local TabVisuals = CreateTabBtn("Visuals", false); BuildVisualsTab(TabVisuals); task.wait(0.2)
-	Loader.Update("Loading Settings...", 0.9); local TabSettings = CreateTabBtn("Settings", false); BuildSettingsTab(TabSettings); task.wait(0.3)
+	Loader.Update("Loading Informations...", 0.3); local TabInfo = CreateTabBtn("ℹ️ Informations", true); BuildInfoTab(TabInfo); task.wait(0.4)
+	Loader.Update("Loading Movement...", 0.4); local TabMovement = CreateTabBtn("🏃 Movement", false); BuildMovementTab(TabMovement); task.wait(0.4)
+	Loader.Update("Loading Teleports...", 0.5); local TabTeleports = CreateTabBtn("🚀 Teleports", false); BuildTeleportTab(TabTeleports); task.wait(0.2)
+	Loader.Update("Loading ESP...", 0.6); local TabESP = CreateTabBtn("👁️ ESP", false); BuildESPTab(TabESP); task.wait(0.2)
+	Loader.Update("Loading Tools...", 0.7); local TabTools = CreateTabBtn("🛠️ Tools", false); BuildToolsTab(TabTools); task.wait(0.2)
+	Loader.Update("Loading Visuals...", 0.8); local TabVisuals = CreateTabBtn("📸 Visuals", false); BuildVisualsTab(TabVisuals); task.wait(0.2)
+	Loader.Update("Loading Settings...", 0.9); local TabSettings = CreateTabBtn("⚙️ Settings", false); BuildSettingsTab(TabSettings); task.wait(0.3)
 	
 	Loader.Finish(function()
 		MainFrame.Visible = true
