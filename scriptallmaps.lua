@@ -136,20 +136,15 @@ local Session = {
 
 --// [4] GUI SETUP (SMART DEVICE DETECTION)
 local function GetDeviceType()
-	-- Jika punya Keyboard DAN Mouse, anggap PC/Laptop
 	if UserInputService.KeyboardEnabled and UserInputService.MouseEnabled then
 		return "PC"
 	end
-	-- Selain itu (Layar sentuh tanpa mouse/keyboard), anggap Mobile/Tablet
 	return "Mobile"
 end
 
 local DeviceType = GetDeviceType()
-local IsMobile = (DeviceType == "Mobile") -- True jika HP, False jika Laptop
+local IsMobile = (DeviceType == "Mobile") 
 
--- Logika Scaling:
--- Jika Mobile: Kecilkan UI jadi 75% (0.75) agar tidak memenuhi layar HP
--- Jika PC: Ukuran normal 100% (1)
 local CurrentScale = IsMobile and 0.75 or 1
 local FinalSize = UDim2.new(0, 580, 0, 380)
 
@@ -203,15 +198,21 @@ Title.Font = Theme.FontBold; Title.TextColor3 = Theme.Text; Title.TextSize = 14
 Title.Position = UDim2.new(0, 15, 0, 0); Title.Size = UDim2.new(0, 0, 1, 0); Title.TextXAlignment = Enum.TextXAlignment.Left
 
 local ControlFrame = Instance.new("Frame"); ControlFrame.Parent = Header
-ControlFrame.BackgroundTransparency = 1; ControlFrame.Position = UDim2.new(1, -70, 0, 0); ControlFrame.Size = UDim2.new(0, 70, 1, 0)
+ControlFrame.BackgroundTransparency = 1; ControlFrame.Position = UDim2.new(1, -70, 0, 0); ControlFrame.Size = UDim2.new(0, 60, 1, 0)
 
+-- Tombol Minimize (Background Abu-abu)
 local MinBtn = Instance.new("TextButton"); MinBtn.Parent = ControlFrame
-MinBtn.BackgroundTransparency = 1; MinBtn.Position = UDim2.new(0, 0, 0, 0); MinBtn.Size = UDim2.new(0, 35, 1, 0)
-MinBtn.Font = Theme.FontBold; MinBtn.Text = "—"; MinBtn.TextColor3 = Theme.Accent; MinBtn.TextSize = 14
+MinBtn.BackgroundColor3 = Theme.Sidebar; MinBtn.BackgroundTransparency = 0 -- Background solid abu-abu/biru gelap
+MinBtn.AnchorPoint = Vector2.new(0, 0.5); MinBtn.Position = UDim2.new(0, 0, 0.5, 0); MinBtn.Size = UDim2.new(0, 24, 0, 24)
+MinBtn.Font = Theme.FontBold; MinBtn.Text = "━"; MinBtn.TextColor3 = Theme.TextDim; MinBtn.TextSize = 12
+Instance.new("UICorner", MinBtn).CornerRadius = UDim.new(0, 6)
 
+-- Tombol Close (Background Merah)
 local CloseBtn = Instance.new("TextButton"); CloseBtn.Parent = ControlFrame
-CloseBtn.BackgroundTransparency = 1; CloseBtn.Position = UDim2.new(0, 28, 0, 0); CloseBtn.Size = UDim2.new(0, 35, 1, 0)
-CloseBtn.Font = Theme.FontBold; CloseBtn.Text = "X"; CloseBtn.TextColor3 = Theme.Accent; CloseBtn.TextSize = 14
+CloseBtn.BackgroundColor3 = Theme.Red; CloseBtn.BackgroundTransparency = 0.2 -- Background merah agak transparan
+CloseBtn.AnchorPoint = Vector2.new(0, 0.5); CloseBtn.Position = UDim2.new(0, 32, 0.5, 0); CloseBtn.Size = UDim2.new(0, 24, 0, 24)
+CloseBtn.Font = Theme.FontBold; CloseBtn.Text = "Х"; CloseBtn.TextColor3 = Theme.Text; CloseBtn.TextSize = 12
+Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 6)
 
 local HeaderLine = Instance.new("Frame"); HeaderLine.Parent = Header
 HeaderLine.BackgroundColor3 = Theme.TextDim; HeaderLine.BorderSizePixel = 0
@@ -259,9 +260,8 @@ end
 local function CreateTabBtn(name, isActive)
 	local Btn = Instance.new("TextButton"); Btn.Parent = Sidebar
 	
-	-- [PERUBAHAN UTAMA 1]: Gunakan Theme.Main untuk tombol tidak aktif, dan transparansi 0 (solid) atau 0.3
 	Btn.BackgroundColor3 = isActive and Theme.ActiveTab or Theme.Main; 
-	Btn.BackgroundTransparency = isActive and 0 or 0.3; -- 0.3 memberi efek redup pada tombol mati
+	Btn.BackgroundTransparency = isActive and 0 or 0.3;
 	
 	Btn.Size = UDim2.new(1, 0, 0, 35)
 	Btn.AutoButtonColor = false; Btn.TextSize = 12
@@ -273,7 +273,6 @@ local function CreateTabBtn(name, isActive)
 	
 	Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 4)
 	
-	-- Garis pinggir (Stroke) jika aktif
 	if isActive then 
 		local s = Instance.new("UIStroke"); s.Parent = Btn; s.Color = Theme.Accent; s.Thickness = 1; s.Transparency = 0.8 
 	end
@@ -288,7 +287,6 @@ local function CreateTabBtn(name, isActive)
 	Btn.MouseButton1Click:Connect(function()
 		for _, child in pairs(Sidebar:GetChildren()) do 
 			if child:IsA("TextButton") then 
-				-- [PERUBAHAN UTAMA 2]: Kembalikan ke Theme.Main saat tidak diklik
 				child.BackgroundColor3 = Theme.Main; 
 				child.BackgroundTransparency = 0.3; 
 				child.TextColor3 = Theme.TextDim; 
@@ -382,19 +380,13 @@ local function UpdateSliderValue(input)
 	
 	-- 2. Hitung area gerak yang valid (Pixel)
 	local slideableWidth = barWidth - knobWidth
-	local targetPos = mouseRel - (knobWidth / 2) -- Center knob ke mouse
+	local targetPos = mouseRel - (knobWidth / 2)
 	
 	-- 3. Dapatkan posisi pixel yang sudah dibatasi (Clamped)
 	local clampedPos = math.clamp(targetPos, 0, slideableWidth)
 	
 	-- 4. Hitung Persentase (0.0 sampai 1.0)
 	local percent = clampedPos / slideableWidth
-	
-	-- [FIX UTAMA DI SINI]
-	-- Jangan pakai Offset (clampedPos) untuk set posisi UI, karena akan kena scaling ulang.
-	-- Gunakan Scale (Persentase relatif terhadap lebar Bar).
-	-- Rumus: Posisi Pixel / Lebar Total Bar = Posisi Scale
-	
 	local posScale = clampedPos / barWidth
 	
 	d.Knob.Position = UDim2.new(posScale, 0, 0.5, 0)
@@ -429,7 +421,6 @@ local function AttachSlider(parentCard, min, max, default, callback, valueSuffix
 	ValLbl.TextXAlignment = Enum.TextXAlignment.Center; ValLbl.TextYAlignment = Enum.TextYAlignment.Center
 
 	-- [LOGIC BARU: SetValue Internal]
-	-- Fungsi ini menghitung posisi berdasarkan Nilai Angka -> Posisi Scale
 	local function SetValue(val)
 		val = math.clamp(val, min, max)
 		local percent = (val - min) / (max - min)
@@ -459,8 +450,6 @@ local function AttachSlider(parentCard, min, max, default, callback, valueSuffix
 		end 
 	end)
 	
-	-- [DELAYED INIT]
-	-- Tunggu 0.1 detik agar GUI selesai "mengembang" (AbsoluteSize terbaca), baru set posisi
 	task.delay(0.1, function()
 		SetValue(default)
 	end)
@@ -478,9 +467,7 @@ local function CreatePerfectMiniSlider(parent, name, cb)
 	
 	local V = Instance.new("TextLabel"); V.Parent = Knob; V.Text = "0"; V.Size = UDim2.new(1, 0, 1, 0); V.BackgroundTransparency = 1; V.TextColor3 = Theme.Accent; V.Font = Theme.FontBold; V.TextSize = 9
 	
-	-- [LOGIC BARU: SetValue Internal untuk Mini Slider]
 	local function SetValue(val)
-		-- Range Mini Slider fix di -4 sampai 4 (sesuai request sebelumnya)
 		local min, max = -4, 4
 		val = math.clamp(val, min, max)
 		local percent = (val - min) / (max - min)
@@ -504,8 +491,7 @@ local function CreatePerfectMiniSlider(parent, name, cb)
 			UpdateSliderValue(input) 
 		end 
 	end)
-	
-	-- [DELAYED INIT] Default 0
+
 	task.delay(0.1, function()
 		SetValue(0)
 	end)
@@ -563,7 +549,6 @@ local function AttachInlineColorPalette(parentCard, colors, defaultIndex, callba
 	local paletteFrame = Instance.new("Frame")
 	paletteFrame.Name = "InlineColorPalette"
 	
-	-- Digeser lebih ke kanan mendekati switch (Scale X menjadi 0.68)
 	paletteFrame.AnchorPoint = Vector2.new(0.5, 0.5)
 	paletteFrame.Position = UDim2.new(0.68, 0, 0.5, 0) 
 	paletteFrame.Size = UDim2.new(0.4, 0, 1, 0)
@@ -686,42 +671,49 @@ local function BuildInfoTab(parentFrame)
 	local PingTween = TweenInfo.new(0.5, Enum.EasingStyle.Sine)
 	
 	local function StartMonitoring()
-		if MonitorLoop then return end -- Sudah jalan, jangan double
+		if MonitorLoop then return end
+		
+		local MainFrame = parentFrame.Parent.Parent.Parent 
 		
 		-- Setup FPS Counter
 		local LastFPSTime = tick()
 		local FrameCount = 0
 		local FPS_Conn = RunService.RenderStepped:Connect(function()
-			FrameCount = FrameCount + 1
-			if tick() - LastFPSTime >= 0.5 then
-				local fps = math.floor(FrameCount / (tick() - LastFPSTime))
-				FPSNum.Text = tostring(fps)
-				FrameCount = 0
+			if MainFrame and MainFrame.BackgroundTransparency < 0.9 then
+				FrameCount = FrameCount + 1
+				if tick() - LastFPSTime >= 0.5 then
+					local fps = math.floor(FrameCount / (tick() - LastFPSTime))
+					FPSNum.Text = tostring(fps)
+					FrameCount = 0
+					LastFPSTime = tick()
+				end
+			else
 				LastFPSTime = tick()
+				FrameCount = 0
 			end
 		end)
 		
-		-- Setup Ping, Memory, Time (Loop 1 Detik)
+		-- Setup Ping, Memory, Time
 		MonitorLoop = task.spawn(function()
-			-- Cek Tab Visible + MainFrame tidak transparan (artinya tidak di-minimize)
-			local MainFrame = parentFrame.Parent.Parent.Parent -- Mengambil referensi kakeknya (MainFrame)
-			while parentFrame.Visible and MainFrame.BackgroundTransparency < 0.9 do
-				-- 1. Ping
-				local rawPing = LocalPlayer:GetNetworkPing()
-				local ping = math.round(rawPing * 1000)
-				PingValue.Text = ping .. " ms"
-				local barSize = math.clamp(ping / 300, 0.05, 1)
-				TweenService:Create(BarFill, PingTween, {Size = UDim2.new(barSize, 0, 1, 0), BackgroundColor3 = ping < 100 and Theme.Green or ping < 200 and Color3.fromRGB(255, 200, 0) or Theme.Red}):Play()
-				
-				-- 2. Memory & Time
-				MemNum.Text = tostring(math.floor(Stats:GetTotalMemoryUsageMb()))
-				ClockLabel.Text = os.date("%H:%M:%S")
-				DateLabel.Text = os.date("%A, %d %B %Y")
+			-- Loop TIDAK AKAN HANCUR saat minimize, hanya berhenti update
+			while parentFrame.Visible do
+				if MainFrame and MainFrame.BackgroundTransparency < 0.9 then
+					-- 1. Ping
+					local rawPing = LocalPlayer:GetNetworkPing()
+					local ping = math.round(rawPing * 1000)
+					PingValue.Text = ping .. " ms"
+					local barSize = math.clamp(ping / 300, 0.05, 1)
+					TweenService:Create(BarFill, PingTween, {Size = UDim2.new(barSize, 0, 1, 0), BackgroundColor3 = ping < 100 and Theme.Green or ping < 200 and Color3.fromRGB(255, 200, 0) or Theme.Red}):Play()
+					
+					-- 2. Memory & Time
+					MemNum.Text = tostring(math.floor(Stats:GetTotalMemoryUsageMb()))
+					ClockLabel.Text = os.date("%H:%M:%S")
+					DateLabel.Text = os.date("%A, %d %B %Y")
+				end
 				
 				task.wait(1)
 			end
 			
-			-- Cleanup saat loop berhenti (Tab ditutup)
 			if FPS_Conn then FPS_Conn:Disconnect() end
 			MonitorLoop = nil
 		end)
@@ -946,8 +938,6 @@ local function BuildMovementTab(parentFrame)
 		FlyCard.Reset(); SpeedCard.Reset(); JumpCard.Reset(); GravCard.Reset()
 		
 		-- 3. [PERBAIKAN] Reset UI Visual (Feature Cards)
-		-- Memanggil fungsi setter dengan 'false' agar tombol jadi merah (OFF)
-		-- Ini juga otomatis akan memanggil 'UpdateNoclip' dan 'UpdateInfJump' via callback
 		SetNoclipVisual(false)
 		SetInfJumpVisual(false)
 		
@@ -1191,7 +1181,6 @@ local function BuildESPTab(parentFrame)
 
 	-- ==========================================
 	-- [3] MASTER RENDER LOOP (Ultra-Optimized)
-	-- Menggabungkan Jarak, Skeleton, dan LoS dalam 1 siklus CPU
 	-- ==========================================
 	local rayParams = RaycastParams.new() -- Dibuat 1x saja di luar loop (Mencegah Lag)
 	rayParams.FilterType = Enum.RaycastFilterType.Exclude
@@ -1256,7 +1245,6 @@ local function BuildESPTab(parentFrame)
 
 	-- ==========================================
 	-- [4] GARBAGE COLLECTION SECURE CLEANUP
-	-- Mencegah memory leak saat pemain disconnect/keluar
 	-- ==========================================
 	Players.PlayerRemoving:Connect(function(plr)
 		local char = plr.Character
@@ -1493,7 +1481,7 @@ local function BuildToolsTab(parentFrame)
 	local FC_InputSpeed = 1
 	local FC_ToggleFunc = nil
 	local FC_UpdateVisualSwitch = nil
-	local FC_SetOverlayState = nil -- Bridge function untuk switch overlay
+	local FC_SetOverlayState = nil 
 	local FC_Overlay = nil 
 
 	do 
@@ -1533,7 +1521,6 @@ local function BuildToolsTab(parentFrame)
 			FC_Overlay.Name = "FC_Overlay"
 			FC_Overlay.Parent = ScreenGui 
 			FC_Overlay.Size = UDim2.new(0, 40, 0, 180)
-			-- [POSITION] Right Center (15px padding from right)
 			FC_Overlay.AnchorPoint = Vector2.new(1, 0.5)
 			FC_Overlay.Position = UDim2.new(1, -15, 0.5, 0) 
 			FC_Overlay.BackgroundTransparency = 1
@@ -1703,13 +1690,20 @@ local function BuildToolsTab(parentFrame)
 		if MonitorLoop then return end
 		local MF = parentFrame.Parent and parentFrame.Parent.Parent and parentFrame.Parent.Parent.Parent
 		MonitorLoop = task.spawn(function()
-			while parentFrame.Visible and parentFrame.Parent and (MF and MF.BackgroundTransparency < 0.9) do
-				local c = LocalPlayer.Character; local h = c and c:FindFirstChild("Humanoid")
-				if h then
-					SpeedVal.Text = tostring(math.floor(h.WalkSpeed)); JumpVal.Text = tostring(math.floor(h.JumpPower))
-					local isJumpEnabled = h:GetStateEnabled(Enum.HumanoidStateType.Jumping)
-					if isJumpEnabled then SV.Text = "ACTIVE"; SV.TextColor3 = Theme.Green; StateBox.AutoButtonColor = false; ToolsConfig.StateForce.Active = false 
-					else SV.Text = "DISABLED (FIX)"; SV.TextColor3 = Theme.Red; StateBox.AutoButtonColor = true end
+			-- Loop TETAP HIDUP selama tab ini adalah tab aktif
+			while parentFrame.Visible and parentFrame.Parent do
+				-- UI HANYA DI-UPDATE jika layar utama tidak sedang minimize
+				if MF and MF.BackgroundTransparency < 0.9 then
+					local c = LocalPlayer.Character; local h = c and c:FindFirstChild("Humanoid")
+					if h then
+						SpeedVal.Text = tostring(math.floor(h.WalkSpeed)); JumpVal.Text = tostring(math.floor(h.JumpPower))
+						local isJumpEnabled = h:GetStateEnabled(Enum.HumanoidStateType.Jumping)
+						if isJumpEnabled then 
+							SV.Text = "ACTIVE"; SV.TextColor3 = Theme.Green; StateBox.AutoButtonColor = false; ToolsConfig.StateForce.Active = false 
+						else 
+							SV.Text = "DISABLED (FIX)"; SV.TextColor3 = Theme.Red; StateBox.AutoButtonColor = true 
+						end
+					end
 				end
 				task.wait(0.2)
 			end
@@ -1764,7 +1758,7 @@ local function BuildVisualsTab(parentFrame)
 	end, "")
 
 	-- 2. Time of Day & Full Brightness (Bug Fix)
-	local defaultTime = math.floor(Lighting.ClockTime * 10) / 10 -- Ambil jam asli map
+	local defaultTime = math.floor(Lighting.ClockTime * 10) / 10 
 	local WS4 = CreateFeatureCard(Env_Sec, "Time of Day", 60)
 	local fb_loop = nil; local LB = {}
 	local timeVal = defaultTime
@@ -1797,12 +1791,9 @@ local function BuildVisualsTab(parentFrame)
 	local potatoConn = nil
 
 	CreateActionCard(FPS_Section, "Potato Mode (Auto-Scan)", "TOGGLE", Theme.Accent, function()
-		-- Membalikkan status setiap kali tombol ditekan (ON -> OFF -> ON)
 		potatoCCTV_Active = not potatoCCTV_Active 
 
 		if potatoCCTV_Active then
-			-- [FASE 1] CCTV DIAKTIFKAN
-			-- Menangkap objek yang baru muncul di masa depan (Tanpa Lag)
 			potatoConn = Workspace.DescendantAdded:Connect(function(v)
 				task.defer(function()
 					if v:IsA("BasePart") then v.Material = Enum.Material.SmoothPlastic; v.Reflectance = 0
@@ -1810,7 +1801,6 @@ local function BuildVisualsTab(parentFrame)
 				end)
 			end)
 
-			-- [FASE 2] SAPU BERSIH OBJEK LAMA
 			task.spawn(function()
 				local count = 0
 				for _, v in ipairs(Workspace:GetDescendants()) do
@@ -1821,7 +1811,6 @@ local function BuildVisualsTab(parentFrame)
 				end
 			end)
 		else
-			-- [FASE 3] CCTV DIMATIKAN
 			if potatoConn then
 				potatoConn:Disconnect()
 				potatoConn = nil
@@ -1983,13 +1972,10 @@ local function BuildSettingsTab(parentFrame)
             if not BlackScreenGUI then
                 BlackScreenGUI = Instance.new("ScreenGui"); BlackScreenGUI.Name = "NeeR_BlackScreen"; BlackScreenGUI.Parent = CoreGui; BlackScreenGUI.IgnoreGuiInset = true
                 
-                -- [FIX] Logic Z-Index Agar GUI Tetap Muncul --
                 local MainScreenGui = parentFrame:FindFirstAncestorWhichIsA("ScreenGui")
                 if MainScreenGui then
-                    -- Kita set urutannya tepat di bawah GUI Utama (-1)
                     BlackScreenGUI.DisplayOrder = MainScreenGui.DisplayOrder - 1
                 end
-                -- [END FIX] --
                 
                 local BlackFrame = Instance.new("Frame"); BlackFrame.Parent = BlackScreenGUI; BlackFrame.BackgroundColor3 = Color3.new(0, 0, 0); BlackFrame.Size = UDim2.new(1, 0, 1, 0)
                 local Info = Instance.new("TextLabel"); Info.Parent = BlackFrame; Info.BackgroundTransparency = 1; Info.Position = UDim2.new(0, 0, 0.9, 0); Info.Size = UDim2.new(1, 0, 0, 20); Info.Font = Theme.FontMain; Info.Text = "Rendering Disabled (Battery Saver Active)"; Info.TextColor3 = Color3.fromRGB(100, 100, 100); Info.TextSize = 12
@@ -2015,13 +2001,13 @@ Loader.Start()
 
 task.spawn(function()
 	Loader.Update("Initializing Modules...", 0.1); task.wait(1)
-	Loader.Update("Loading Informations...", 0.3); local TabInfo = CreateTabBtn("ℹ️ Informations", true); BuildInfoTab(TabInfo); task.wait(0.4)
-	Loader.Update("Loading Movement...", 0.4); local TabMovement = CreateTabBtn("🏃 Movement", false); BuildMovementTab(TabMovement); task.wait(0.4)
-	Loader.Update("Loading Teleports...", 0.5); local TabTeleports = CreateTabBtn("🚀 Teleports", false); BuildTeleportTab(TabTeleports); task.wait(0.2)
-	Loader.Update("Loading ESP...", 0.6); local TabESP = CreateTabBtn("👁️ ESP", false); BuildESPTab(TabESP); task.wait(0.2)
-	Loader.Update("Loading Tools...", 0.7); local TabTools = CreateTabBtn("🛠️ Tools", false); BuildToolsTab(TabTools); task.wait(0.2)
-	Loader.Update("Loading Visuals...", 0.8); local TabVisuals = CreateTabBtn("📸 Visuals", false); BuildVisualsTab(TabVisuals); task.wait(0.2)
-	Loader.Update("Loading Settings...", 0.9); local TabSettings = CreateTabBtn("⚙️ Settings", false); BuildSettingsTab(TabSettings); task.wait(0.3)
+	Loader.Update("Loading Informations...", 0.3); local TabInfo = CreateTabBtn("ℹ️ - Informations", true); BuildInfoTab(TabInfo); task.wait(0.4)
+	Loader.Update("Loading Movement...", 0.4); local TabMovement = CreateTabBtn("🏃 - Movement", false); BuildMovementTab(TabMovement); task.wait(0.4)
+	Loader.Update("Loading Teleports...", 0.5); local TabTeleports = CreateTabBtn("🚀 - Teleports", false); BuildTeleportTab(TabTeleports); task.wait(0.2)
+	Loader.Update("Loading ESP...", 0.6); local TabESP = CreateTabBtn("👁️ - ESP", false); BuildESPTab(TabESP); task.wait(0.2)
+	Loader.Update("Loading Tools...", 0.7); local TabTools = CreateTabBtn("🛠️ - Tools", false); BuildToolsTab(TabTools); task.wait(0.2)
+	Loader.Update("Loading Visuals...", 0.8); local TabVisuals = CreateTabBtn("📸 - Visuals", false); BuildVisualsTab(TabVisuals); task.wait(0.2)
+	Loader.Update("Loading Settings...", 0.9); local TabSettings = CreateTabBtn("⚙️ - Settings", false); BuildSettingsTab(TabSettings); task.wait(0.3)
 	
 	Loader.Finish(function()
 		MainFrame.Visible = true
