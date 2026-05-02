@@ -409,14 +409,20 @@ return function(parentFrame, API)
 		if active then
 			threads.spawnAnimal = task.spawn(function()
 				while state.spawnAnimal do
-					-- Eksekusi langsung tanpa peduli zone atau slot!
-					-- Biarkan server game yang menolak jika uang kurang/slot penuh.
-					pcall(function()
-						R.SpawnAnimal:FireServer(selectedAnimal)
-					end)
 					
-					-- Delay 0.5 detik (senormal jari manusia) agar tidak kena kick anti-spam
-					task.wait(0.5)
+					-- 1. Kita ubah formatnya PERSIS seperti eksekusi manual Anda
+					local args = {
+						selectedAnimal
+					}
+					
+					-- 2. Kita print ke Console (F9) agar terlihat jelas apa yang sedang dia kirim
+					print("[NeeR DEBUG] Mencoba beli hewan:", selectedAnimal)
+					
+					-- 3. Eksekusi TANPA pcall agar jika error, huruf merahnya muncul di Console
+					R.SpawnAnimal:FireServer(unpack(args))
+					
+					-- 4. Delay 1.5 detik dulu untuk test (nanti bisa dicepatkan lagi)
+					task.wait(1.5)
 				end
 			end)
 		else
