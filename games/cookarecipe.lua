@@ -44,13 +44,15 @@ return function(parentFrame, API)
 	-- ZONE DETECTION
 	-- ========================
 	local myZoneFolder = nil
+	local myZoneId = "1" -- Default fallback
 
 	local function refreshMyZone()
 		local ok, zoneId = pcall(function()
 			return R.GetPlayerZone:InvokeServer()
 		end)
 		if ok and zoneId then
-			myZoneFolder = Zones:FindFirstChild("Zone_" .. tostring(zoneId))
+			myZoneId = tostring(zoneId) -- Simpan ID untuk argumen remote
+			myZoneFolder = Zones:FindFirstChild("Zone_" .. myZoneId)
 		end
 	end
 	refreshMyZone()
@@ -305,7 +307,7 @@ return function(parentFrame, API)
 	-- ========================
 	-- SECTION 1: AUTO FARM
 	-- ========================
-	local FarmSec = CreateExpandableSection(parentFrame, "🌾 Auto Farm")
+	local FarmSec = CreateExpandableSection(parentFrame, "🌾 Tumbuhan")
 
 	makeDropdown(FarmSec, "Seed", SEEDS, selectedSeed, function(v) selectedSeed = v end)
 
@@ -409,18 +411,33 @@ return function(parentFrame, API)
 				while state.spawnAnimal do
 					local zone = getMyZone()
 					if zone then
-						local ok, maxSpace = pcall(function() return R.GetAnimalSpace:InvokeServer() end)
+						-- 1. Cek slot maksimal menggunakan ID Zone (contoh: "1")
+						local ok, maxSpace = pcall(function() 
+							return R.GetAnimalSpace:InvokeServer(myZoneId) 
+						end)
 						maxSpace = (ok and type(maxSpace) == "number") and maxSpace or 25
+
+						-- 2. Cek jumlah hewan saat ini
 						local animals = zone:FindFirstChild("Animals")
 						local current = animals and #animals:GetChildren() or 0
 						local avail = maxSpace - current
-						for _ = 1, math.max(avail, 0) do
-							if not state.spawnAnimal then break end
-							pcall(function() R.SpawnAnimal:FireServer(selectedAnimal) end)
-							task.wait(0.5)
+
+						-- 3. Eksekusi Pembelian (Human-like Spammer)
+						if avail > 0 then
+							for _ = 1, avail do
+								if not state.spawnAnimal then break end
+								
+								pcall(function() 
+									R.SpawnAnimal:FireServer(selectedAnimal) 
+								end)
+								
+								-- Delay senormal jari manusia menekan (0.25 detik)
+								task.wait(0.25) 
+							end
 						end
 					end
-					task.wait(10)
+					-- Istirahat 3 detik sebelum mengecek lagi agar CPU tidak panas
+					task.wait(3)
 				end
 			end)
 		else
@@ -466,18 +483,26 @@ return function(parentFrame, API)
 				while state.spawnFish do
 					local zone = getMyZone()
 					if zone then
-						local ok, maxSpace = pcall(function() return R.GetFishSpace:InvokeServer() end)
+						local ok, maxSpace = pcall(function() 
+							return R.GetFishSpace:InvokeServer(myZoneId) 
+						end)
 						maxSpace = (ok and type(maxSpace) == "number") and maxSpace or 25
+
 						local fishFolder = zone:FindFirstChild("Fish")
 						local current = fishFolder and #fishFolder:GetChildren() or 0
 						local avail = maxSpace - current
-						for _ = 1, math.max(avail, 0) do
-							if not state.spawnFish then break end
-							pcall(function() R.SpawnFish:FireServer(selectedFish) end)
-							task.wait(0.5)
+
+						if avail > 0 then
+							for _ = 1, avail do
+								if not state.spawnFish then break end
+								pcall(function() 
+									R.SpawnFish:FireServer(selectedFish) 
+								end)
+								task.wait(0.25)
+							end
 						end
 					end
-					task.wait(10)
+					task.wait(3)
 				end
 			end)
 		else
