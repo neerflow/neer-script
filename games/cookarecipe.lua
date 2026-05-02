@@ -37,12 +37,10 @@ return function(parentFrame, API)
 	local selectedFish   = FISH[1]
 	local eggJoined      = false
 
-	-- Track semua dropdown yg terbuka
-	local openDropdowns  = {}
-
 	-- ========================
 	-- ZONE DETECTION
 	-- ========================
+	local myZoneId   = nil
 	local myZoneFolder = nil
 
 	local function refreshMyZone()
@@ -50,13 +48,18 @@ return function(parentFrame, API)
 			return R.GetPlayerZone:InvokeServer()
 		end)
 		if ok and zoneId then
-			myZoneFolder = Zones:FindFirstChild("Zone_" .. tostring(zoneId))
+			myZoneId = tostring(zoneId)
+			myZoneFolder = Zones:FindFirstChild("Zone_" .. myZoneId)
 		end
 	end
+
+	-- Ambil zone saat init
 	refreshMyZone()
 
 	local function getMyZone()
-		if not myZoneFolder or not myZoneFolder.Parent then refreshMyZone() end
+		if not myZoneFolder or not myZoneFolder.Parent then
+			refreshMyZone()
+		end
 		return myZoneFolder
 	end
 
@@ -107,12 +110,17 @@ return function(parentFrame, API)
 		end
 	end
 
+	-- Hanya dari zone milik player
 	local function getMyAnimals()
 		local zone = getMyZone()
 		if not zone then return {} end
 		local t = {}
-		local f = zone:FindFirstChild("Animals")
-		if f then for _, a in ipairs(f:GetChildren()) do table.insert(t, a) end end
+		local animals = zone:FindFirstChild("Animals")
+		if animals then
+			for _, a in ipairs(animals:GetChildren()) do
+				table.insert(t, a)
+			end
+		end
 		return t
 	end
 
@@ -120,8 +128,12 @@ return function(parentFrame, API)
 		local zone = getMyZone()
 		if not zone then return {} end
 		local t = {}
-		local f = zone:FindFirstChild("Fish")
-		if f then for _, fish in ipairs(f:GetChildren()) do table.insert(t, fish) end end
+		local fish = zone:FindFirstChild("Fish")
+		if fish then
+			for _, f in ipairs(fish:GetChildren()) do
+				table.insert(t, f)
+			end
+		end
 		return t
 	end
 
@@ -132,7 +144,9 @@ return function(parentFrame, API)
 		local m = zone:FindFirstChild("Unlocks") and zone.Unlocks:FindFirstChild("Mushrooms")
 		if m then
 			for _, g in ipairs(m:GetChildren()) do
-				for _, s in ipairs(g:GetChildren()) do table.insert(t, s) end
+				for _, s in ipairs(g:GetChildren()) do
+					table.insert(t, s)
+				end
 			end
 		end
 		return t
@@ -144,9 +158,18 @@ return function(parentFrame, API)
 		local t = {}
 		local trees = zone:FindFirstChild("Unlocks") and zone.Unlocks:FindFirstChild("Trees")
 		if trees then
-			for _, tree in ipairs(trees:GetChildren()) do table.insert(t, tree) end
+			for _, tree in ipairs(trees:GetChildren()) do
+				table.insert(t, tree)
+			end
 		end
 		return t
+	end
+
+	local function countInMyZone(folderName)
+		local zone = getMyZone()
+		if not zone then return 0 end
+		local f = zone:FindFirstChild(folderName)
+		return f and #f:GetChildren() or 0
 	end
 
 	local function cancelThread(key)
@@ -158,58 +181,29 @@ return function(parentFrame, API)
 		conns[key] = {}
 	end
 
-	-- Tutup semua dropdown
-	local function closeAllDropdowns()
-		for _, fn in ipairs(openDropdowns) do
-			pcall(fn)
-		end
-		openDropdowns = {}
-	end
-
 	-- ========================
 	-- DROPDOWN BUILDER
+	-- sesuai style NeeR Flow
 	-- ========================
-	local dropSg = game.CoreGui:FindFirstChild("NeerFlowDropdowns")
-	if not dropSg then
-		dropSg = Instance.new("ScreenGui")
-		dropSg.Name = "NeerFlowDropdowns"
-		dropSg.ResetOnSpawn = false
-		dropSg.DisplayOrder = 9999
-		dropSg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-		dropSg.Parent = game.CoreGui
-	end
-
-	-- Overlay transparan untuk detect klik di luar
-	local overlay = Instance.new("TextButton")
-	overlay.Size = UDim2.new(1, 0, 1, 0)
-	overlay.BackgroundTransparency = 1
-	overlay.Text = ""
-	overlay.ZIndex = 98
-	overlay.Visible = false
-	overlay.Parent = dropSg
-
-	overlay.MouseButton1Click:Connect(function()
-		closeAllDropdowns()
-		overlay.Visible = false
-	end)
-
 	local function makeDropdown(parent, label, list, default, callback)
 		local selected = default
 		local isOpen   = false
-		local dFrame   = nil
 
+		-- Row card
 		local card = CreateFeatureCard(parent, label .. ": " .. selected, 32)
 
+		-- Tombol dropdown
 		local dBtn = Instance.new("TextButton")
-		-- Lebar penuh ke kiri agar tidak keluar kotak
-		dBtn.Size = UDim2.new(0.55, 0, 0, 22)
-		dBtn.Position = UDim2.new(0.44, 0, 0.5, -11)
-		dBtn.BackgroundColor3 = Theme.Main or Color3.fromRGB(28,28,42)
+		dBtn.Size = UDim2.new(0, 80, 0, 20)
+		dBtn.Position = UDim2.new(1, -8, 0.5, 0)
+		dBtn.AnchorPoint = Vector2.new(1, 0.5)
+		dBtn.BackgroundColor3 = Theme.Main
 		dBtn.Text = "▾ " .. selected
 		dBtn.TextColor3 = Theme.Accent
 		dBtn.TextSize = 9
-		dBtn.Font = Theme.FontBold or Enum.Font.GothamBold
+		dBtn.Font = Theme.FontBold
 		dBtn.BorderSizePixel = 0
+		dBtn.ClipsDescendants = true
 		dBtn.Parent = card
 		Instance.new("UICorner", dBtn).CornerRadius = UDim.new(0, 4)
 		local dStroke = Instance.new("UIStroke", dBtn)
@@ -217,25 +211,35 @@ return function(parentFrame, API)
 		dStroke.Thickness = 1.2
 		dStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 
-		dFrame = Instance.new("Frame")
-		-- Lebar 220 agar cukup luas dan posisi ke kiri
-		dFrame.Size = UDim2.new(0, 220, 0, 140)
+		-- Dropdown list overlay
+		local sg = game.CoreGui:FindFirstChild("NeerFlowDropdowns")
+		if not sg then
+			sg = Instance.new("ScreenGui")
+			sg.Name = "NeerFlowDropdowns"
+			sg.ResetOnSpawn = false
+			sg.DisplayOrder = 9999
+			sg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+			sg.Parent = game.CoreGui
+		end
+
+		local dFrame = Instance.new("Frame")
+		dFrame.Size = UDim2.new(0, 140, 0, 130)
 		dFrame.BackgroundColor3 = Theme.Main or Color3.fromRGB(22,22,32)
 		dFrame.BorderSizePixel = 0
 		dFrame.Visible = false
 		dFrame.ZIndex = 100
-		dFrame.Parent = dropSg
-		Instance.new("UICorner", dFrame).CornerRadius = UDim.new(0, 7)
+		dFrame.Parent = sg
+		Instance.new("UICorner", dFrame).CornerRadius = UDim.new(0, 6)
 		local fStroke = Instance.new("UIStroke", dFrame)
 		fStroke.Color = Theme.Accent
 		fStroke.Thickness = 1.5
 
 		local dScroll = Instance.new("ScrollingFrame")
-		dScroll.Size = UDim2.new(1,-8,1,-8)
-		dScroll.Position = UDim2.new(0,4,0,4)
+		dScroll.Size = UDim2.new(1,-6,1,-6)
+		dScroll.Position = UDim2.new(0,3,0,3)
 		dScroll.BackgroundTransparency = 1
 		dScroll.BorderSizePixel = 0
-		dScroll.ScrollBarThickness = 3
+		dScroll.ScrollBarThickness = 2
 		dScroll.ScrollBarImageColor3 = Theme.Accent
 		dScroll.CanvasSize = UDim2.new(0,0,0,0)
 		dScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
@@ -245,70 +249,49 @@ return function(parentFrame, API)
 
 		for _, item in ipairs(list) do
 			local it = Instance.new("TextButton")
-			it.Size = UDim2.new(1,-4,0,24)
+			it.Size = UDim2.new(1,-4,0,22)
 			it.BackgroundColor3 = item == selected
 				and (Theme.Accent or Color3.fromRGB(99,102,241))
-				or Color3.fromRGB(32,32,48)
+				or (Theme.Secondary or Color3.fromRGB(30,30,45))
 			it.Text = item
 			it.TextColor3 = Color3.fromRGB(230,230,245)
-			it.TextSize = 10
+			it.TextSize = 9
 			it.Font = Theme.Font or Enum.Font.Gotham
 			it.BorderSizePixel = 0
 			it.ZIndex = 101
 			it.TextXAlignment = Enum.TextXAlignment.Left
 			it.Parent = dScroll
-			Instance.new("UICorner", it).CornerRadius = UDim.new(0, 5)
-			Instance.new("UIPadding", it).PaddingLeft = UDim.new(0, 8)
+			Instance.new("UICorner", it).CornerRadius = UDim.new(0, 4)
+			Instance.new("UIPadding", it).PaddingLeft = UDim.new(0, 7)
 
 			it.MouseButton1Click:Connect(function()
 				selected = item
 				dBtn.Text = "▾ " .. item
 				isOpen = false
 				dFrame.Visible = false
-				overlay.Visible = false
-				openDropdowns = {}
+				-- Update highlight
 				for _, c in ipairs(dScroll:GetChildren()) do
 					if c:IsA("TextButton") then
 						c.BackgroundColor3 = c.Text == selected
 							and (Theme.Accent or Color3.fromRGB(99,102,241))
-							or Color3.fromRGB(32,32,48)
+							or (Theme.Secondary or Color3.fromRGB(30,30,45))
 					end
 				end
 				callback(item)
 			end)
 		end
 
-		local function closeThis()
-			isOpen = false
-			dFrame.Visible = false
-			dBtn.Text = "▾ " .. selected
-		end
-
 		dBtn.MouseButton1Click:Connect(function()
-			-- Tutup dropdown lain dulu
-			closeAllDropdowns()
-
 			isOpen = not isOpen
 			if isOpen then
-				-- Hitung posisi: anchor ke kanan tombol, geser ke kiri agar tidak keluar
-				local abs  = dBtn.AbsolutePosition
-				local sz   = dBtn.AbsoluteSize
-				local scrW = workspace.Camera.ViewportSize.X
-
-				-- Posisi X: mulai dari tombol, geser kiri jika terlalu ke kanan
-				local posX = abs.X + sz.X - 220
-				if posX < 4 then posX = 4 end
-				if posX + 220 > scrW - 4 then posX = scrW - 224 end
-
-				dFrame.Position = UDim2.new(0, posX, 0, abs.Y + sz.Y + 4)
+				local abs = dBtn.AbsolutePosition
+				local sz  = dBtn.AbsoluteSize
+				dFrame.Position = UDim2.new(0, abs.X, 0, abs.Y + sz.Y + 2)
 				dFrame.Visible = true
 				dBtn.Text = "▴ " .. selected
-				overlay.Visible = true
-
-				table.insert(openDropdowns, closeThis)
 			else
-				closeThis()
-				overlay.Visible = false
+				dFrame.Visible = false
+				dBtn.Text = "▾ " .. selected
 			end
 		end)
 
@@ -316,11 +299,13 @@ return function(parentFrame, API)
 	end
 
 	-- ========================
-	-- SECTION 1: AUTO FARM
+	-- SECTION 1: FARM
 	-- ========================
-	local FarmSec = CreateExpandableSection(parentFrame, "🌾 Auto Farm")
+	local FarmSec = CreateExpandableSection(parentFrame, "🌾 Farm")
 
-	makeDropdown(FarmSec, "Seed", SEEDS, selectedSeed, function(v) selectedSeed = v end)
+	makeDropdown(FarmSec, "Seed", SEEDS, selectedSeed, function(v)
+		selectedSeed = v
+	end)
 
 	local HarvestCard = CreateFeatureCard(FarmSec, "Auto Harvest Tanaman", 32)
 	AttachSwitch(HarvestCard, false, function(active)
@@ -389,14 +374,18 @@ return function(parentFrame, API)
 	-- ========================
 	local AnimalSec = CreateExpandableSection(parentFrame, "🐄 Hewan")
 
-	makeDropdown(AnimalSec, "Hewan", ANIMALS, selectedAnimal, function(v) selectedAnimal = v end)
+	makeDropdown(AnimalSec, "Hewan", ANIMALS, selectedAnimal, function(v)
+		selectedAnimal = v
+	end)
 
 	local HarvestAnimalCard = CreateFeatureCard(AnimalSec, "Auto Panen Hewan", 32)
 	AttachSwitch(HarvestAnimalCard, false, function(active)
 		state.animal = active
 		if active then
 			clearConns("animal")
-			for _, animal in ipairs(getMyAnimals()) do
+			-- Hanya dari zone milik player
+			local animals = getMyAnimals()
+			for _, animal in ipairs(animals) do
 				if animal:GetAttribute("IsReady") == true then
 					pcall(function() R.HarvestAnimal:FireServer(animal) end)
 					task.wait(0.5)
@@ -414,36 +403,24 @@ return function(parentFrame, API)
 		end
 	end)
 
-	-- Auto Spawn Hewan — mirip logika Auto Plant
 	local SpawnAnimalCard = CreateFeatureCard(AnimalSec, "Auto Spawn Hewan", 32)
 	AttachSwitch(SpawnAnimalCard, false, function(active)
 		state.spawnAnimal = active
 		if active then
 			threads.spawnAnimal = task.spawn(function()
 				while state.spawnAnimal do
-					local zone = getMyZone()
-					if zone then
-						-- Ambil kapasitas max
-						local ok, maxSpace = pcall(function()
-							return R.GetAnimalSpace:InvokeServer()
-						end)
-						maxSpace = (ok and type(maxSpace) == "number") and maxSpace or 25
-
-						-- Hitung slot kosong persis seperti plot kosong di plant
-						local animals = zone:FindFirstChild("Animals")
-						local current = animals and #animals:GetChildren() or 0
+					local ok, maxSpace = pcall(function()
+						return R.GetAnimalSpace:InvokeServer("1")
+					end)
+					if ok and maxSpace then
+						local current = countInMyZone("Animals")
 						local avail = maxSpace - current
-
-						-- Isi slot kosong satu per satu seperti plant
-						for _ = 1, math.max(avail, 0) do
-							if not state.spawnAnimal then break end
+						if avail > 0 then
 							pcall(function()
-								R.SpawnAnimal:FireServer(selectedAnimal)
+								R.SpawnAnimal:FireServer(selectedAnimal, avail)
 							end)
-							task.wait(0.5)
 						end
 					end
-					-- Cek lagi tiap 10 detik
 					task.wait(10)
 				end
 			end)
@@ -457,14 +434,18 @@ return function(parentFrame, API)
 	-- ========================
 	local FishSec = CreateExpandableSection(parentFrame, "🐟 Ikan")
 
-	makeDropdown(FishSec, "Ikan", FISH, selectedFish, function(v) selectedFish = v end)
+	makeDropdown(FishSec, "Ikan", FISH, selectedFish, function(v)
+		selectedFish = v
+	end)
 
 	local HarvestFishCard = CreateFeatureCard(FishSec, "Auto Panen Ikan", 32)
 	AttachSwitch(HarvestFishCard, false, function(active)
 		state.fish = active
 		if active then
 			clearConns("fish")
-			for _, fish in ipairs(getMyFish()) do
+			-- Hanya dari zone milik player
+			local fishList = getMyFish()
+			for _, fish in ipairs(fishList) do
 				if fish:GetAttribute("IsReady") == true then
 					pcall(function() R.HarvestFish:FireServer(fish) end)
 					task.wait(0.5)
@@ -482,30 +463,22 @@ return function(parentFrame, API)
 		end
 	end)
 
-	-- Auto Spawn Ikan — mirip logika Auto Plant
 	local SpawnFishCard = CreateFeatureCard(FishSec, "Auto Spawn Ikan", 32)
 	AttachSwitch(SpawnFishCard, false, function(active)
 		state.spawnFish = active
 		if active then
 			threads.spawnFish = task.spawn(function()
 				while state.spawnFish do
-					local zone = getMyZone()
-					if zone then
-						local ok, maxSpace = pcall(function()
-							return R.GetFishSpace:InvokeServer()
-						end)
-						maxSpace = (ok and type(maxSpace) == "number") and maxSpace or 25
-
-						local fishFolder = zone:FindFirstChild("Fish")
-						local current = fishFolder and #fishFolder:GetChildren() or 0
+					local ok, maxSpace = pcall(function()
+						return R.GetFishSpace:InvokeServer("1")
+					end)
+					if ok and maxSpace then
+						local current = countInMyZone("Fish")
 						local avail = maxSpace - current
-
-						for _ = 1, math.max(avail, 0) do
-							if not state.spawnFish then break end
+						if avail > 0 then
 							pcall(function()
-								R.SpawnFish:FireServer(selectedFish)
+								R.SpawnFish:FireServer(selectedFish, avail)
 							end)
-							task.wait(0.5)
 						end
 					end
 					task.wait(10)
@@ -526,10 +499,14 @@ return function(parentFrame, API)
 		state.shroom = active
 		if active then
 			clearConns("shroom")
+			-- Hanya shroom di zone milik player
 			for _, shroom in ipairs(getMyShrooms()) do
 				if shroom:GetAttribute("HarvestActive") == true then
 					local part = shroom:FindFirstChild("Part")
-					if part then pcall(function() R.DecoHarvest:FireServer(part) end) task.wait(0.5) end
+					if part then
+						pcall(function() R.DecoHarvest:FireServer(part) end)
+						task.wait(0.5)
+					end
 				end
 				local c = shroom:GetAttributeChangedSignal("HarvestActive"):Connect(function()
 					if not state.shroom then return end
@@ -550,6 +527,7 @@ return function(parentFrame, API)
 		state.tree = active
 		if active then
 			clearConns("tree")
+			-- Hanya pohon di zone milik player
 			for _, tree in ipairs(getMyTreeFolders()) do
 				for _, child in ipairs(tree:GetChildren()) do
 					if child.Name:find("DroppedApple_") then
@@ -563,9 +541,13 @@ return function(parentFrame, API)
 					end
 					if child:GetAttribute("HarvestActive") == true then
 						local part = child:FindFirstChild("Part")
-						if part then pcall(function() R.DecoHarvest:FireServer(part) end) task.wait(0.4) end
+						if part then
+							pcall(function() R.DecoHarvest:FireServer(part) end)
+							task.wait(0.4)
+						end
 					end
 				end
+
 				local c1 = tree.ChildAdded:Connect(function(child)
 					if not state.tree then return end
 					if child.Name:find("DroppedApple_") then
@@ -579,6 +561,7 @@ return function(parentFrame, API)
 					end
 				end)
 				table.insert(conns.tree, c1)
+
 				for _, child in ipairs(tree:GetChildren()) do
 					if child:GetAttribute("HarvestActive") ~= nil then
 						local c2 = child:GetAttributeChangedSignal("HarvestActive"):Connect(function()
@@ -611,15 +594,24 @@ return function(parentFrame, API)
 		end
 	end)
 
+	-- Egg polling — join di main thread
 	task.spawn(function()
 		while true do
 			task.wait(1)
 			local egg = getEggRoot()
+
 			if egg and state.egg and not eggJoined then
-				game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("ShyEggJoinEvent"):FireServer()
+				game:GetService("ReplicatedStorage")
+					:WaitForChild("Remotes")
+					:WaitForChild("ShyEggJoinEvent")
+					:FireServer()
 				task.wait(0.8)
-				game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("ShyEggJoinEvent"):FireServer()
+				game:GetService("ReplicatedStorage")
+					:WaitForChild("Remotes")
+					:WaitForChild("ShyEggJoinEvent")
+					:FireServer()
 				eggJoined = true
+
 				cancelThread("egg")
 				threads.egg = task.spawn(function()
 					while state.egg do
@@ -628,13 +620,17 @@ return function(parentFrame, API)
 						if hrp and root and root.Position.Y >= 0 then
 							hrp.CFrame = CFrame.new(root.Position + Vector3.new(3,0,0))
 							task.wait(0.05)
-							game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("EggHitEvent"):FireServer()
+							game:GetService("ReplicatedStorage")
+								:WaitForChild("Remotes")
+								:WaitForChild("EggHitEvent")
+								:FireServer()
 							task.wait(0.2)
 						else
 							task.wait(0.5)
 						end
 					end
 				end)
+
 			elseif not egg and eggJoined then
 				eggJoined = false
 				cancelThread("egg")
@@ -647,4 +643,8 @@ return function(parentFrame, API)
 	-- ========================
 	API.Session.StopCookARecipe = function()
 		for k in pairs(state) do state[k] = false end
-		for k in pairs(threads) do cancelThread(k) e
+		for k in pairs(threads) do cancelThread(k) end
+		for k in pairs(conns) do clearConns(k) end
+		eggJoined = false
+	end
+end
