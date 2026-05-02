@@ -1996,19 +1996,100 @@ local function BuildSettingsTab(parentFrame)
     ExitBtn.MouseButton1Click:Connect(function() game:Shutdown() end)
 end
 
---// [7] EKSEKUSI
+-- =========================================================
+-- [API BRIDGE & GAME REGISTRY] Letakkan di bawah setup UI Anda
+-- =========================================================
+
+-- 1. Daftar Game Eksklusif yang Didukung NeeR Flow
+local SupportedGames = {
+	-- Masukkan ID Cook A Recipe
+	[89405258333641] = { Name = "Cook a Recipe", File = "games/cookarecipe.lua" }
+	-- Nanti Anda bisa tambah game lain di sini
+}
+
+-- 2. Koper API (Mengemas semua fungsi UI untuk dikirim ke GitHub)
+local NeeR_API = {
+	Theme = Theme,
+	Session = Session,
+	DefaultStats = DefaultStats,
+	CreateCard = CreateCard,
+	CreateFeatureCard = CreateFeatureCard,
+	CreateExpandableSection = CreateExpandableSection,
+	AttachSwitch = AttachSwitch,
+	AttachSlider = AttachSlider,
+	CreatePerfectMiniSlider = CreatePerfectMiniSlider,
+	CreateStepperCard = CreateStepperCard,
+	CreateActionCard = CreateActionCard,
+	CreateSwitchCard = CreateSwitchCard,
+	CreateSessionBtn = CreateSessionBtn,
+	CreateNeonBtn = CreateNeonBtn,
+	SetButtonStyle = SetButtonStyle,
+	AttachInlineColorPalette = AttachInlineColorPalette
+}
+
+-- 3. Fungsi Pemanggil GitHub
+local RepoURL = "https://raw.githubusercontent.com/neerflow/neer-script/refs/heads/main/"
+local function LoadModule(fileName, parentFrame)
+	local success, result = pcall(function()
+		return loadstring(game:HttpGet(RepoURL .. fileName))()
+	end)
+	if success and type(result) == "function" then
+		task.spawn(function() result(parentFrame, NeeR_API) end)
+	else
+		warn("[NeeR Flow] Gagal memuat tab: " .. fileName)
+	end
+end
+
+-- 4. Pembuat Label Pemisah di Sidebar (Biar Keren)
+local function CreateSidebarLabel(text)
+	local Label = Instance.new("TextLabel", Sidebar)
+	Label.BackgroundTransparency = 1; Label.Size = UDim2.new(1, 0, 0, 20)
+	Label.Font = Theme.FontBold; Label.Text = text:upper()
+	Label.TextColor3 = Theme.Accent; Label.TextSize = 9
+	Label.TextTransparency = 0.4
+	Label.TextXAlignment = Enum.TextXAlignment.Center 
+end
+
+--// [7] EKSEKUSI & AUTO-DETECTION
 Loader.Start()
 
 task.spawn(function()
 	Loader.Update("Initializing Modules...", 0.1); task.wait(1)
-	Loader.Update("Loading Informations...", 0.3); local TabInfo = CreateTabBtn("ℹ️ - Informations", true); BuildInfoTab(TabInfo); task.wait(0.4)
-	Loader.Update("Loading Movement...", 0.4); local TabMovement = CreateTabBtn("🏃 - Movement", false); BuildMovementTab(TabMovement); task.wait(0.4)
+
+	-- 1. DETEKSI GAME SPESIFIK (Paling Atas)
+	local CurrentGame = SupportedGames and SupportedGames[game.PlaceId] or nil
+	
+	if CurrentGame then
+		Loader.Update("Loading " .. CurrentGame.Name .. "...", 0.2)
+		CreateSidebarLabel("— Exclusive —") 
+		
+		-- Buat Tab Khusus dan otomatis buka (true)
+		local TabSpecific = CreateTabBtn("⭐ - " .. CurrentGame.Name, true) 
+
+		LoadModule(CurrentGame.File, TabSpecific)
+		task.wait(0.2)
+	end
+
+	-- 2. LABEL TAB UNIVERSAL
+	CreateSidebarLabel("— Universal —")
+
+	-- 3. TAB INFORMASI (Di bawah label Universal)
+	Loader.Update("Loading Informations...", 0.3)
+	-- Jika ada game spesifik, info diredupkan (false). Jika tidak ada, info menyala (true).
+	local isInfoActive = (CurrentGame == nil)
+	local TabInfo = CreateTabBtn("ℹ️ - Informations", isInfoActive)
+	BuildInfoTab(TabInfo)
+	task.wait(0.2)
+
+	-- 4. TAB UNIVERSAL LAINNYA
+	Loader.Update("Loading Movement...", 0.4); local TabMovement = CreateTabBtn("🏃 - Movement", false); BuildMovementTab(TabMovement); task.wait(0.2)
 	Loader.Update("Loading Teleports...", 0.5); local TabTeleports = CreateTabBtn("🚀 - Teleports", false); BuildTeleportTab(TabTeleports); task.wait(0.2)
 	Loader.Update("Loading ESP...", 0.6); local TabESP = CreateTabBtn("👁️ - ESP", false); BuildESPTab(TabESP); task.wait(0.2)
 	Loader.Update("Loading Tools...", 0.7); local TabTools = CreateTabBtn("🛠️ - Tools", false); BuildToolsTab(TabTools); task.wait(0.2)
 	Loader.Update("Loading Visuals...", 0.8); local TabVisuals = CreateTabBtn("📸 - Visuals", false); BuildVisualsTab(TabVisuals); task.wait(0.2)
-	Loader.Update("Loading Settings...", 0.9); local TabSettings = CreateTabBtn("⚙️ - Settings", false); BuildSettingsTab(TabSettings); task.wait(0.3)
+	Loader.Update("Loading Settings...", 0.9); local TabSettings = CreateTabBtn("⚙️ - Settings", false); BuildSettingsTab(TabSettings); task.wait(0.2)
 	
+	-- 5. TAMPILKAN UI
 	Loader.Finish(function()
 		MainFrame.Visible = true
 		MainFrame.Size = UDim2.new(0, 0, 0, 0)
