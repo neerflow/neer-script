@@ -2013,6 +2013,7 @@ local NeeR_API = {
 	Session = Session,
 	DefaultStats = DefaultStats,
 	CreateCard = CreateCard,
+	CreateTabBtn = CreateTabBtn,
 	CreateFeatureCard = CreateFeatureCard,
 	CreateExpandableSection = CreateExpandableSection,
 	AttachSwitch = AttachSwitch,
