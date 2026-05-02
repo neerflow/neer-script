@@ -2013,7 +2013,6 @@ local NeeR_API = {
 	Session = Session,
 	DefaultStats = DefaultStats,
 	CreateCard = CreateCard,
-	CreateTabBtn = CreateTabBtn,
 	CreateFeatureCard = CreateFeatureCard,
 	CreateExpandableSection = CreateExpandableSection,
 	AttachSwitch = AttachSwitch,
@@ -2025,7 +2024,8 @@ local NeeR_API = {
 	CreateSessionBtn = CreateSessionBtn,
 	CreateNeonBtn = CreateNeonBtn,
 	SetButtonStyle = SetButtonStyle,
-	AttachInlineColorPalette = AttachInlineColorPalette
+	AttachInlineColorPalette = AttachInlineColorPalette,
+	CreateTabBtn = CreateTabBtn 
 }
 
 -- 3. Fungsi Pemanggil GitHub
