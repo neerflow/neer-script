@@ -409,35 +409,14 @@ return function(parentFrame, API)
 		if active then
 			threads.spawnAnimal = task.spawn(function()
 				while state.spawnAnimal do
-					local zone = getMyZone()
-					if zone then
-						-- 1. Cek slot maksimal menggunakan ID Zone (contoh: "1")
-						local ok, maxSpace = pcall(function() 
-							return R.GetAnimalSpace:InvokeServer(myZoneId) 
-						end)
-						maxSpace = (ok and type(maxSpace) == "number") and maxSpace or 25
-
-						-- 2. Cek jumlah hewan saat ini
-						local animals = zone:FindFirstChild("Animals")
-						local current = animals and #animals:GetChildren() or 0
-						local avail = maxSpace - current
-
-						-- 3. Eksekusi Pembelian (Human-like Spammer)
-						if avail > 0 then
-							for _ = 1, avail do
-								if not state.spawnAnimal then break end
-								
-								pcall(function() 
-									R.SpawnAnimal:FireServer(selectedAnimal) 
-								end)
-								
-								-- Delay senormal jari manusia menekan (0.25 detik)
-								task.wait(0.25) 
-							end
-						end
-					end
-					-- Istirahat 3 detik sebelum mengecek lagi agar CPU tidak panas
-					task.wait(3)
+					-- Eksekusi langsung tanpa peduli zone atau slot!
+					-- Biarkan server game yang menolak jika uang kurang/slot penuh.
+					pcall(function()
+						R.SpawnAnimal:FireServer(selectedAnimal)
+					end)
+					
+					-- Delay 0.5 detik (senormal jari manusia) agar tidak kena kick anti-spam
+					task.wait(0.5)
 				end
 			end)
 		else
@@ -481,28 +460,13 @@ return function(parentFrame, API)
 		if active then
 			threads.spawnFish = task.spawn(function()
 				while state.spawnFish do
-					local zone = getMyZone()
-					if zone then
-						local ok, maxSpace = pcall(function() 
-							return R.GetFishSpace:InvokeServer(myZoneId) 
-						end)
-						maxSpace = (ok and type(maxSpace) == "number") and maxSpace or 25
-
-						local fishFolder = zone:FindFirstChild("Fish")
-						local current = fishFolder and #fishFolder:GetChildren() or 0
-						local avail = maxSpace - current
-
-						if avail > 0 then
-							for _ = 1, avail do
-								if not state.spawnFish then break end
-								pcall(function() 
-									R.SpawnFish:FireServer(selectedFish) 
-								end)
-								task.wait(0.25)
-							end
-						end
-					end
-					task.wait(3)
+					-- Eksekusi langsung tanpa peduli zone atau slot!
+					pcall(function()
+						R.SpawnFish:FireServer(selectedFish)
+					end)
+					
+					-- Delay 0.5 detik
+					task.wait(0.5)
 				end
 			end)
 		else
