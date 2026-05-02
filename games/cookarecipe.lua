@@ -647,4 +647,4 @@ return function(parentFrame, API)
 	-- ========================
 	API.Session.StopCookARecipe = function()
 		for k in pairs(state) do state[k] = false end
-		for k in pairs(threads) do cancelThread(k) e dan 
+		for k in pairs(threads) do cancelThread(k) e
