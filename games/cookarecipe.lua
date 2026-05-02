@@ -391,20 +391,6 @@ return function(parentFrame, API)
 		else cancelThread("spawnFish") end
 	end)
 
-	local HarvestFishCard = CreateFeatureCard(FishSec, "Auto Panen Ikan", 32)
-	
-
-
-	-- [ ALAM ]
-	local AlamSec = CreateExpandableSection(parentFrame, "🍄 Alam")
-	
-	local ShroomCard = CreateFeatureCard(AlamSec, "Auto Harvest Jamur", 32)
-	AttachSwitch(ShroomCard, false, function(active)
-		state.shroom = active
-		if active then
-			clearConns("shroom")
-			for _, shroom in ipairs(getMyShrooms()) do
-				if shroom:GetAttribute("HarvestActive") == true then
 		local HarvestFishCard = CreateFeatureCard(FishSec, "Auto Panen Ikan", 32)
 	AttachSwitch(HarvestFishCard, false, function(active)
 		state.fish = active
@@ -450,7 +436,20 @@ return function(parentFrame, API)
 		else 
 			clearConns("fish") 
 		end
-	end)			local part = shroom:FindFirstChild("Part")
+	end)
+
+
+	-- [ ALAM ]
+	local AlamSec = CreateExpandableSection(parentFrame, "🍄 Alam")
+	
+	local ShroomCard = CreateFeatureCard(AlamSec, "Auto Harvest Jamur", 32)
+	AttachSwitch(ShroomCard, false, function(active)
+		state.shroom = active
+		if active then
+			clearConns("shroom")
+			for _, shroom in ipairs(getMyShrooms()) do
+				if shroom:GetAttribute("HarvestActive") == true then
+					local part = shroom:FindFirstChild("Part")
 					if part then pcall(function() R.DecoHarvest:FireServer(part) end) task.wait(0.5) end
 				end
 				local c = shroom:GetAttributeChangedSignal("HarvestActive"):Connect(function()
