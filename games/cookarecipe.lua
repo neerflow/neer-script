@@ -325,11 +325,21 @@ return function(parentFrame, API)
 			clearConns("animal")
 			local zone = getMySafeZone()
 			local folder = zone and zone:FindFirstChild("Animals")
+			
 			if folder then
-				for _, animal in ipairs(folder:GetChildren()) do
-					if animal:GetAttribute("IsReady") == true then
-						pcall(function() R.HarvestAnimal:FireServer(animal) end)
+				-- 1. Panen awal dengan Delay (Anti-Spam Server)
+				task.spawn(function()
+					for _, animal in ipairs(folder:GetChildren()) do
+						if not state.animal then break end
+						if animal:GetAttribute("IsReady") == true then
+							pcall(function() R.HarvestAnimal:FireServer(animal) end)
+							task.wait(0.3) -- Jeda agar server memproses panen
+						end
 					end
+				end)
+
+				-- 2. Fungsi untuk memantau hewan (Sekarang & Masa Depan)
+				local function pantauHewan(animal)
 					local c = animal:GetAttributeChangedSignal("IsReady"):Connect(function()
 						if state.animal and animal:GetAttribute("IsReady") == true then
 							pcall(function() R.HarvestAnimal:FireServer(animal) end)
@@ -337,8 +347,23 @@ return function(parentFrame, API)
 					end)
 					table.insert(conns.animal, c)
 				end
+
+				-- Pasang radar ke hewan yang sudah ada
+				for _, animal in ipairs(folder:GetChildren()) do
+					pantauHewan(animal)
+				end
+
+				-- 3. Pasang radar ke hewan yang BARU LAHIR (dari Auto Spawn)
+				local cAdded = folder.ChildAdded:Connect(function(child)
+					if state.animal then
+						pantauHewan(child)
+					end
+				end)
+				table.insert(conns.animal, cAdded)
 			end
-		else clearConns("animal") end
+		else 
+			clearConns("animal") 
+		end
 	end)
 
 
@@ -367,27 +392,7 @@ return function(parentFrame, API)
 	end)
 
 	local HarvestFishCard = CreateFeatureCard(FishSec, "Auto Panen Ikan", 32)
-	AttachSwitch(HarvestFishCard, false, function(active)
-		state.fish = active
-		if active then
-			clearConns("fish")
-			local zone = getMySafeZone()
-			local folder = zone and zone:FindFirstChild("Fish")
-			if folder then
-				for _, fish in ipairs(folder:GetChildren()) do
-					if fish:GetAttribute("IsReady") == true then
-						pcall(function() R.HarvestFish:FireServer(fish) end)
-					end
-					local c = fish:GetAttributeChangedSignal("IsReady"):Connect(function()
-						if state.fish and fish:GetAttribute("IsReady") == true then
-							pcall(function() R.HarvestFish:FireServer(fish) end)
-						end
-					end)
-					table.insert(conns.fish, c)
-				end
-			end
-		else clearConns("fish") end
-	end)
+	
 
 
 	-- [ ALAM ]
@@ -400,7 +405,52 @@ return function(parentFrame, API)
 			clearConns("shroom")
 			for _, shroom in ipairs(getMyShrooms()) do
 				if shroom:GetAttribute("HarvestActive") == true then
-					local part = shroom:FindFirstChild("Part")
+		local HarvestFishCard = CreateFeatureCard(FishSec, "Auto Panen Ikan", 32)
+	AttachSwitch(HarvestFishCard, false, function(active)
+		state.fish = active
+		if active then
+			clearConns("fish")
+			local zone = getMySafeZone()
+			local folder = zone and zone:FindFirstChild("Fish")
+			
+			if folder then
+				-- 1. Panen awal dengan Delay
+				task.spawn(function()
+					for _, fish in ipairs(folder:GetChildren()) do
+						if not state.fish then break end
+						if fish:GetAttribute("IsReady") == true then
+							pcall(function() R.HarvestFish:FireServer(fish) end)
+							task.wait(0.3)
+						end
+					end
+				end)
+
+				-- 2. Fungsi pantau
+				local function pantauIkan(fish)
+					local c = fish:GetAttributeChangedSignal("IsReady"):Connect(function()
+						if state.fish and fish:GetAttribute("IsReady") == true then
+							pcall(function() R.HarvestFish:FireServer(fish) end)
+						end
+					end)
+					table.insert(conns.fish, c)
+				end
+
+				for _, fish in ipairs(folder:GetChildren()) do
+					pantauIkan(fish)
+				end
+
+				-- 3. Radar ikan baru
+				local cAdded = folder.ChildAdded:Connect(function(child)
+					if state.fish then
+						pantauIkan(child)
+					end
+				end)
+				table.insert(conns.fish, cAdded)
+			end
+		else 
+			clearConns("fish") 
+		end
+	end)			local part = shroom:FindFirstChild("Part")
 					if part then pcall(function() R.DecoHarvest:FireServer(part) end) task.wait(0.5) end
 				end
 				local c = shroom:GetAttributeChangedSignal("HarvestActive"):Connect(function()
