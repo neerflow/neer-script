@@ -2090,15 +2090,14 @@ task.spawn(function()
 	local CurrentGame = SupportedGames and SupportedGames[game.PlaceId] or nil
 	
 	if CurrentGame then
-		Loader.Update("Loading " .. CurrentGame.Name .. "...", 0.2)
-		CreateSidebarLabel("— Exclusive —") 
-		
-		-- Buat Tab Khusus dan otomatis buka (true)
-		local TabSpecific = CreateTabBtn("⭐ - " .. CurrentGame.Name, true) 
+    Loader.Update("Loading " .. CurrentGame.Name .. "...", 0.2)
+    CreateSidebarLabel("— " .. CurrentGame.Name .. " —")
 
-		LoadModule(CurrentGame.File, TabSpecific)
-		task.wait(0.2)
-	end
+    -- Tidak buat tab disini
+    -- Game script yang atur sendiri tab nya
+    LoadModule(CurrentGame.File, nil)
+    task.wait(0.2)
+		end
 
 	-- 2. LABEL TAB UNIVERSAL
 	CreateSidebarLabel("— Universal —")
