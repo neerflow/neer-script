@@ -299,171 +299,295 @@ return function(parentFrame, API)
 	makeDropdown(AnimalSec, "Pilih Hewan", ANIMALS, selectedAnimal, function(v) selectedAnimal = v end)
 
 	local SpawnAnimalCard = CreateFeatureCard(AnimalSec, "Auto Spawn Hewan", 32)
-	AttachSwitch(SpawnAnimalCard, false, function(active)
-		state.spawnAnimal = active
-		if active then
-			threads.spawnAnimal = task.spawn(function()
-				while state.spawnAnimal do
-					local zone = getMySafeZone()
-					if zone then
-						local animalsFolder = zone:FindFirstChild("Animals")
-						local currentAnimals = animalsFolder and #animalsFolder:GetChildren() or 0
-						if currentAnimals < 25 then
-							pcall(function() R.SpawnAnimal:FireServer(selectedAnimal) end)
-							task.wait(0.5)
-						else task.wait(3) end
-					else task.wait(2) end
-				end
-			end)
-		else cancelThread("spawnAnimal") end
-	end)
-    local HarvestAnimalCard = CreateFeatureCard(AnimalSec, "Auto Panen Hewan", 32)
-    AttachSwitch(HarvestAnimalCard, false, function(active)
+AttachSwitch(SpawnAnimalCard, false, function(active)
+    state.spawnAnimal = active
+    if active then
+        threads.spawnAnimal = task.spawn(function()
+            while state.spawnAnimal do
+                local zone = getMySafeZone()
+                if zone then
+                    local folder = zone:FindFirstChild("Animals")
+                    local current = folder and #folder:GetChildren() or 0
+                    local MAX = 25
+
+                    if current < MAX then
+                        -- Spawn 1, tunggu konfirmasi masuk folder
+                        local before = current
+                        pcall(function()
+                            R.SpawnAnimal:FireServer(selectedAnimal)
+                        end)
+                        -- Tunggu sampai count bertambah (max 3 detik)
+                        local waited = 0
+                        while waited < 3 do
+                            task.wait(0.5)
+                            waited = waited + 0.5
+                            local newCount = folder and #folder:GetChildren() or 0
+                            if newCount > before then break end
+                        end
+                    else
+                        -- Kandang penuh, cek lagi tiap 10 detik
+                        task.wait(10)
+                    end
+                else
+                    task.wait(3)
+                end
+            end
+        end)
+    else
+        cancelThread("spawnAnimal")
+    end
+end)
+
+	local HarvestAnimalCard = CreateFeatureCard(AnimalSec, "Auto Panen Hewan", 32)
+AttachSwitch(HarvestAnimalCard, false, function(active)
     state.animal = active
     if active then
         clearConns("animal")
+
         local zone = getMySafeZone()
         local folder = zone and zone:FindFirstChild("Animals")
+        if not folder then return end
 
-        if folder then
-            local function panenHewan(animal)
-                if not state.animal then return end
-                if animal:GetAttribute("IsReady") == true then
-                    pcall(function() R.HarvestAnimal:FireServer(animal) end)
-                end
+        -- Cooldown tracker per hewan
+        -- Mencegah double harvest dari event + polling
+        local harvestCooldown = {}
+
+        local function panenHewan(animal)
+            if not state.animal then return end
+            if not animal or not animal.Parent then return end
+            if animal:GetAttribute("IsReady") ~= true then return end
+
+            local uuid = animal:GetAttribute("UUID") or animal.Name
+            -- Skip kalau masih dalam cooldown 3 detik
+            if harvestCooldown[uuid] and
+               os.clock() - harvestCooldown[uuid] < 3 then
+                return
             end
 
-            local function pantauHewan(animal)
-                local c = animal:GetAttributeChangedSignal("IsReady"):Connect(function()
-                    panenHewan(animal)
-                end)
-                table.insert(conns.animal, c)
-            end
-
-            -- Pasang listener ke semua hewan
-            for _, animal in ipairs(folder:GetChildren()) do
-                pantauHewan(animal)
-            end
-
-            -- Listener hewan baru spawn
-            local cAdded = folder.ChildAdded:Connect(function(child)
-                if state.animal then
-                    task.wait(0.5) -- tunggu attribute ready
-                    pantauHewan(child)
-                    panenHewan(child)
-                end
-            end)
-            table.insert(conns.animal, cAdded)
+            harvestCooldown[uuid] = os.clock()
+            pcall(function() R.HarvestAnimal:FireServer(animal) end)
         end
 
-        -- Polling fallback tiap 5 detik
-        -- Menangkap hewan yg missed oleh event
+        local function pantauHewan(animal)
+            if not animal:IsA("Model") then return end
+            local c = animal:GetAttributeChangedSignal("IsReady"):Connect(function()
+                panenHewan(animal)
+            end)
+            table.insert(conns.animal, c)
+        end
+
+        -- Pasang ke semua hewan yang ada
+        for _, animal in ipairs(folder:GetChildren()) do
+            panenHewan(animal) -- panen yg sudah siap
+            pantauHewan(animal)
+        end
+
+        -- Radar hewan baru (dari spawn)
+        local cAdded = folder.ChildAdded:Connect(function(child)
+            if not state.animal then return end
+            task.wait(0.5) -- tunggu attribute terisi
+            panenHewan(child)
+            pantauHewan(child)
+        end)
+        table.insert(conns.animal, cAdded)
+
+        -- Polling ringan sebagai fallback (tiap 8 detik)
+        -- Hanya untuk catch yang benar-benar missed
         threads.animalPoll = task.spawn(function()
             while state.animal do
+                task.wait(8)
+                if not state.animal then break end
                 local z = getMySafeZone()
                 local f = z and z:FindFirstChild("Animals")
                 if f then
                     for _, animal in ipairs(f:GetChildren()) do
                         if not state.animal then break end
-                        if animal:GetAttribute("IsReady") == true then
-                            pcall(function() R.HarvestAnimal:FireServer(animal) end)
-                            task.wait(0.3)
-                        end
+                        panenHewan(animal)
+                        task.wait(0.3)
                     end
                 end
-                task.wait(5)
             end
         end)
+
+        -- Monitor zone change
+        -- Kalau zone berubah, reconnect otomatis
+        threads.animalZone = task.spawn(function()
+            local lastZone = zone
+            while state.animal do
+                task.wait(5)
+                local newZone = getMySafeZone()
+                if newZone and newZone ~= lastZone then
+                    lastZone = newZone
+                    -- Reconnect ke zone baru
+                    clearConns("animal")
+                    cancelThread("animalPoll")
+                    harvestCooldown = {}
+                    local newFolder = newZone:FindFirstChild("Animals")
+                    if newFolder then
+                        for _, animal in ipairs(newFolder:GetChildren()) do
+                            panenHewan(animal)
+                            pantauHewan(animal)
+                        end
+                        local c2 = newFolder.ChildAdded:Connect(function(child)
+                            if not state.animal then return end
+                            task.wait(0.5)
+                            panenHewan(child)
+                            pantauHewan(child)
+                        end)
+                        table.insert(conns.animal, c2)
+                    end
+                end
+            end
+        end)
+
     else
         clearConns("animal")
         cancelThread("animalPoll")
+        cancelThread("animalZone")
     end
-    end)
+end)
 
 	-- [ IKAN ]
 	local FishSec = CreateExpandableSection(parentFrame, "🐟 Ikan")
 	makeDropdown(FishSec, "Pilih Ikan", FISH, selectedFish, function(v) selectedFish = v end)
 
 	local SpawnFishCard = CreateFeatureCard(FishSec, "Auto Spawn Ikan", 32)
-	AttachSwitch(SpawnFishCard, false, function(active)
-		state.spawnFish = active
-		if active then
-			threads.spawnFish = task.spawn(function()
-				while state.spawnFish do
-					local zone = getMySafeZone()
-					if zone then
-						local fishFolder = zone:FindFirstChild("Fish")
-						local currentFish = fishFolder and #fishFolder:GetChildren() or 0
-						if currentFish < 25 then
-							pcall(function() R.SpawnFish:FireServer(selectedFish) end)
-							task.wait(0.5)
-						else task.wait(3) end
-					else task.wait(2) end
-				end
-			end)
-		else cancelThread("spawnFish") end
-	end)
+AttachSwitch(SpawnFishCard, false, function(active)
+    state.spawnFish = active
+    if active then
+        threads.spawnFish = task.spawn(function()
+            while state.spawnFish do
+                local zone = getMySafeZone()
+                if zone then
+                    local folder = zone:FindFirstChild("Fish")
+                    local current = folder and #folder:GetChildren() or 0
+                    local MAX = 25
+
+                    if current < MAX then
+                        local before = current
+                        pcall(function()
+                            R.SpawnFish:FireServer(selectedFish)
+                        end)
+                        -- Tunggu konfirmasi
+                        local waited = 0
+                        while waited < 3 do
+                            task.wait(0.5)
+                            waited = waited + 0.5
+                            local newCount = folder and #folder:GetChildren() or 0
+                            if newCount > before then break end
+                        end
+                    else
+                        task.wait(10)
+                    end
+                else
+                    task.wait(3)
+                end
+            end
+        end)
+    else
+        cancelThread("spawnFish")
+    end
+end)
 
     local HarvestFishCard = CreateFeatureCard(FishSec, "Auto Panen Ikan", 32)
-    AttachSwitch(HarvestFishCard, false, function(active)
+AttachSwitch(HarvestFishCard, false, function(active)
     state.fish = active
     if active then
         clearConns("fish")
+
         local zone = getMySafeZone()
         local folder = zone and zone:FindFirstChild("Fish")
+        if not folder then return end
 
-        if folder then
-            local function panenIkan(fish)
-                if not state.fish then return end
-                if fish:GetAttribute("IsReady") == true then
-                    pcall(function() R.HarvestFish:FireServer(fish) end)
-                end
+        local harvestCooldown = {}
+
+        local function panenIkan(fish)
+            if not state.fish then return end
+            if not fish or not fish.Parent then return end
+            if fish:GetAttribute("IsReady") ~= true then return end
+
+            local uuid = fish:GetAttribute("UUID") or fish.Name
+            if harvestCooldown[uuid] and
+               os.clock() - harvestCooldown[uuid] < 3 then
+                return
             end
 
-            local function pantauIkan(fish)
-                local c = fish:GetAttributeChangedSignal("IsReady"):Connect(function()
-                    panenIkan(fish)
-                end)
-                table.insert(conns.fish, c)
-            end
-
-            for _, fish in ipairs(folder:GetChildren()) do
-                pantauIkan(fish)
-            end
-
-            local cAdded = folder.ChildAdded:Connect(function(child)
-                if state.fish then
-                    task.wait(0.5)
-                    pantauIkan(child)
-                    panenIkan(child)
-                end
-            end)
-            table.insert(conns.fish, cAdded)
+            harvestCooldown[uuid] = os.clock()
+            pcall(function() R.HarvestFish:FireServer(fish) end)
         end
 
-        -- Polling fallback tiap 5 detik
+        local function pantauIkan(fish)
+            if not fish:IsA("Model") then return end
+            local c = fish:GetAttributeChangedSignal("IsReady"):Connect(function()
+                panenIkan(fish)
+            end)
+            table.insert(conns.fish, c)
+        end
+
+        for _, fish in ipairs(folder:GetChildren()) do
+            panenIkan(fish)
+            pantauIkan(fish)
+        end
+
+        local cAdded = folder.ChildAdded:Connect(function(child)
+            if not state.fish then return end
+            task.wait(0.5)
+            panenIkan(child)
+            pantauIkan(child)
+        end)
+        table.insert(conns.fish, cAdded)
+
         threads.fishPoll = task.spawn(function()
             while state.fish do
+                task.wait(8)
+                if not state.fish then break end
                 local z = getMySafeZone()
                 local f = z and z:FindFirstChild("Fish")
                 if f then
                     for _, fish in ipairs(f:GetChildren()) do
                         if not state.fish then break end
-                        if fish:GetAttribute("IsReady") == true then
-                            pcall(function() R.HarvestFish:FireServer(fish) end)
-                            task.wait(0.3)
-                        end
+                        panenIkan(fish)
+                        task.wait(0.3)
                     end
                 end
-                task.wait(5)
             end
         end)
+
+        threads.fishZone = task.spawn(function()
+            local lastZone = zone
+            while state.fish do
+                task.wait(5)
+                local newZone = getMySafeZone()
+                if newZone and newZone ~= lastZone then
+                    lastZone = newZone
+                    clearConns("fish")
+                    cancelThread("fishPoll")
+                    harvestCooldown = {}
+                    local newFolder = newZone:FindFirstChild("Fish")
+                    if newFolder then
+                        for _, fish in ipairs(newFolder:GetChildren()) do
+                            panenIkan(fish)
+                            pantauIkan(fish)
+                        end
+                        local c2 = newFolder.ChildAdded:Connect(function(child)
+                            if not state.fish then return end
+                            task.wait(0.5)
+                            panenIkan(child)
+                            pantauIkan(child)
+                        end)
+                        table.insert(conns.fish, c2)
+                    end
+                end
+            end
+        end)
+
     else
         clearConns("fish")
         cancelThread("fishPoll")
+        cancelThread("fishZone")
     end
-    end)	
-
+end)
+	
 	-- [ ALAM ]
 	local AlamSec = CreateExpandableSection(parentFrame, "🍄 Alam")
 	
