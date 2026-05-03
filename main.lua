@@ -1947,6 +1947,7 @@ local function BuildSettingsTab(parentFrame)
     end)
 
     local AntiAFKCard = CreateFeatureCard(parentFrame, "Anti-AFK (Stay Online)", 32)
+	AntiAFKCard.LayoutOrder = 4
     AttachSwitch(AntiAFKCard, false, function(active)
         if active then
             -- [ANALISIS]: Gunakan Event-Driven. Aktifkan hanya jika tombol ON.
@@ -1974,7 +1975,7 @@ local function BuildSettingsTab(parentFrame)
 	
 	
     local RjCard = CreateFeatureCard(parentFrame, "Auto Rejoin (Kick/DC)", 32)
-    RjCard.LayoutOrder = 4
+    RjCard.LayoutOrder = 5
     local rj_conn
     AttachSwitch(RjCard, false, function(active)
         if active then
@@ -1992,7 +1993,7 @@ local function BuildSettingsTab(parentFrame)
     end)
 
     local CpuCard = CreateFeatureCard(parentFrame, "Disable 3D Rendering", 32)
-    CpuCard.LayoutOrder = 5
+    CpuCard.LayoutOrder = 6
     local BlackScreenGUI = nil
     AttachSwitch(CpuCard, false, function(active)
         RunService:Set3dRenderingEnabled(not active)
