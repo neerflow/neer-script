@@ -1946,7 +1946,7 @@ local function BuildSettingsTab(parentFrame)
         if setfpscap then setfpscap(active and 999 or 60) end
     end)
 
-    local AntiAFKCard = CreateFeatureCard(Section, "Anti-AFK (Stay Online)", 32)
+    local AntiAFKCard = CreateFeatureCard(parentFrame, "Anti-AFK (Stay Online)", 32)
     AttachSwitch(AntiAFKCard, false, function(active)
         if active then
             -- [ANALISIS]: Gunakan Event-Driven. Aktifkan hanya jika tombol ON.
