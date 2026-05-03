@@ -7,21 +7,9 @@ return function(parentFrame, API)
 	local AttachSwitch = API.AttachSwitch
 	local CreateExpandableSection = API.CreateExpandableSection
 	local CreateTabBtn = API.CreateTabBtn
-
-	-- Ubah nama tab utama yang dibuat oleh Main.lua menjadi Auto Farm
-	local Sidebar = parentFrame.Parent and parentFrame.Parent.Parent and parentFrame.Parent.Parent:FindFirstChild("Sidebar")
-	if Sidebar then
-		for _, btn in pairs(Sidebar:GetChildren()) do
-			if btn:IsA("TextButton") and (btn.Text:find("Cook a Recipe") or btn.Text:find("⭐")) then
-				btn.Text = "🌾 - Auto Farm"
-				break
-			end
-		end
-	end
-
-	-- Buat Tab Kedua (Event)
-	local EventTab = CreateTabBtn("🥚 - Event", false)
-
+	
+	local FarmTab  = CreateTabBtn("🌾 - Auto Farm", true)  -- true = auto open
+    local EventTab = CreateTabBtn("🥚 - Event",     false)
 	-- ========================
 	-- [2] SERVICES & REMOTES
 	-- ========================
