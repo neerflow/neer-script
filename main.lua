@@ -1946,7 +1946,6 @@ local function BuildSettingsTab(parentFrame)
         if setfpscap then setfpscap(active and 999 or 60) end
     end)
 
-    local Section = CreateExpandableSection(parentFrame, "🛡️ - System Protection")
     local AntiAFKCard = CreateFeatureCard(Section, "Anti-AFK (Stay Online)", 32)
     AttachSwitch(AntiAFKCard, false, function(active)
         if active then
