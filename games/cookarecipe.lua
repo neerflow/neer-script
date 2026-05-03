@@ -260,40 +260,62 @@ return function(parentFrame, API)
 		else cancelThread("plant") end
 	end)
 
-	local HarvestCard = CreateFeatureCard(PlantSec, "Auto Harvest Tanaman", 32)
-	AttachSwitch(HarvestCard, false, function(active)
-		state.harvest = active
-		if active then
-			threads.harvest = task.spawn(function()
-				while state.harvest do
-					local plots = getMyPlots()
-					local count = 0
-					for _, plot in ipairs(plots) do
-						if not state.harvest then break end
-						if isReady(plot) then
-							pcall(function() R.HarvestSeed:FireServer(plot) end)
-							count = count + 1
-							task.wait(0.5)
-						end
-					end
-					if count == 0 then
-						local shortest = math.huge
-						for _, plot in ipairs(plots) do
-							local gt = plot:GetAttribute("GrowthTime"); local pa = plot:GetAttribute("PlantedAt")
-							if gt and pa then
-								local r = (pa+gt) - os.time()
-								if r > 0 and r < shortest then shortest = r end
-							end
-						end
-						shortest = math.max(shortest == math.huge and 10 or shortest, 3)
-						for _ = 1, shortest do if not state.harvest then break end task.wait(1) end
-					else task.wait(2) end
-				end
-			end)
-		else cancelThread("harvest") end
-	end)
+local HarvestCard = CreateFeatureCard(PlantSec, "Auto Harvest Tanaman", 32)
+AttachSwitch(HarvestCard, false, function(active)
+    state.harvest = active
+    if active then
+        threads.harvest = task.spawn(function()
+            local harvestCooldown = {}
+            while state.harvest do
+                local plots = getMyPlots()
+                local count = 0
+                local shortest = math.huge
 
+                for _, plot in ipairs(plots) do
+                    if not state.harvest then break end
 
+                    local plotId = plot:GetAttribute("PlotIndex") or plot.Name
+
+                    if isReady(plot) then
+                        -- Cooldown 3 detik per plot
+                        if not harvestCooldown[plotId] or
+                           os.clock() - harvestCooldown[plotId] >= 3 then
+                            harvestCooldown[plotId] = os.clock()
+                            pcall(function() R.HarvestSeed:FireServer(plot) end)
+                            count = count + 1
+                            task.wait(0.5)
+                        end
+                    else
+                        -- Hitung waktu tunggu terpendek
+                        local gt = plot:GetAttribute("GrowthTime")
+                        local pa = plot:GetAttribute("PlantedAt")
+                        if gt and pa then
+                            local r = (pa + gt) - os.time()
+                            if r > 0 and r < shortest then
+                                shortest = r
+                            end
+                        end
+                    end
+                end
+
+                if count == 0 then
+                    -- Tidak ada yang dipanen, tunggu yang tercepat
+                    shortest = math.max(
+                        shortest == math.huge and 10 or shortest, 3
+                    )
+                    for _ = 1, shortest do
+                        if not state.harvest then break end
+                        task.wait(1)
+                    end
+                else
+                    task.wait(2)
+                end
+            end
+        end)
+    else
+        cancelThread("harvest")
+    end
+end)
 	-- [ HEWAN ]
 	local AnimalSec = CreateExpandableSection(parentFrame, "🐄 Hewan")
 	makeDropdown(AnimalSec, "Pilih Hewan", ANIMALS, selectedAnimal, function(v) selectedAnimal = v end)
@@ -592,70 +614,229 @@ end)
 	local AlamSec = CreateExpandableSection(parentFrame, "🍄 Alam")
 	
 	local ShroomCard = CreateFeatureCard(AlamSec, "Auto Harvest Jamur", 32)
-	AttachSwitch(ShroomCard, false, function(active)
-		state.shroom = active
-		if active then
-			clearConns("shroom")
-			for _, shroom in ipairs(getMyShrooms()) do
-				if shroom:GetAttribute("HarvestActive") == true then
-					local part = shroom:FindFirstChild("Part")
-					if part then pcall(function() R.DecoHarvest:FireServer(part) end) task.wait(0.5) end
-				end
-				local c = shroom:GetAttributeChangedSignal("HarvestActive"):Connect(function()
-					if state.shroom and shroom:GetAttribute("HarvestActive") == true then
-						local part = shroom:FindFirstChild("Part")
-						if part then pcall(function() R.DecoHarvest:FireServer(part) end) end
-					end
-				end)
-				table.insert(conns.shroom, c)
-			end
-		else clearConns("shroom") end
-	end)
+AttachSwitch(ShroomCard, false, function(active)
+    state.shroom = active
+    if active then
+        clearConns("shroom")
+
+        local zone = getMySafeZone()
+        local harvestCooldown = {}
+
+        local function panenJamur(shroom)
+            if not state.shroom then return end
+            if not shroom or not shroom.Parent then return end
+            if shroom:GetAttribute("HarvestActive") ~= true then return end
+
+            local id = shroom.Name
+            if harvestCooldown[id] and
+               os.clock() - harvestCooldown[id] < 3 then
+                return
+            end
+
+            local part = shroom:FindFirstChild("Part")
+            if not part then return end
+
+            harvestCooldown[id] = os.clock()
+            pcall(function() R.DecoHarvest:FireServer(part) end)
+        end
+
+        local function pantauJamur(shroom)
+            local c = shroom:GetAttributeChangedSignal("HarvestActive"):Connect(function()
+                panenJamur(shroom)
+            end)
+            table.insert(conns.shroom, c)
+        end
+
+        local function connectShroomsInZone(z)
+            local m = z:FindFirstChild("Unlocks") and z.Unlocks:FindFirstChild("Mushrooms")
+            if not m then return end
+            for _, g in ipairs(m:GetChildren()) do
+                for _, shroom in ipairs(g:GetChildren()) do
+                    panenJamur(shroom)
+                    pantauJamur(shroom)
+                end
+            end
+        end
+
+        if zone then connectShroomsInZone(zone) end
+
+        -- Polling fallback tiap 8 detik
+        threads.shroomPoll = task.spawn(function()
+            while state.shroom do
+                task.wait(8)
+                if not state.shroom then break end
+                local z = getMySafeZone()
+                if z then
+                    local m = z:FindFirstChild("Unlocks") and z.Unlocks:FindFirstChild("Mushrooms")
+                    if m then
+                        for _, g in ipairs(m:GetChildren()) do
+                            for _, shroom in ipairs(g:GetChildren()) do
+                                if not state.shroom then break end
+                                panenJamur(shroom)
+                                task.wait(0.3)
+                            end
+                        end
+                    end
+                end
+            end
+        end)
+
+        -- Zone change monitor
+        threads.shroomZone = task.spawn(function()
+            local lastZone = zone
+            while state.shroom do
+                task.wait(5)
+                local newZone = getMySafeZone()
+                if newZone and newZone ~= lastZone then
+                    lastZone = newZone
+                    clearConns("shroom")
+                    cancelThread("shroomPoll")
+                    harvestCooldown = {}
+                    connectShroomsInZone(newZone)
+                end
+            end
+        end)
+
+    else
+        clearConns("shroom")
+        cancelThread("shroomPoll")
+        cancelThread("shroomZone")
+    end
+end)
 
 	local TreeCard = CreateFeatureCard(AlamSec, "Auto Harvest Pohon", 32)
-	AttachSwitch(TreeCard, false, function(active)
-		state.tree = active
-		if active then
-			clearConns("tree")
-			for _, tree in ipairs(getMyTreeFolders()) do
-				for _, child in ipairs(tree:GetChildren()) do
-					if child.Name:find("DroppedApple_") then
-						local part = child:FindFirstChild("Part")
-						if part then
-							pcall(function() R.ApplePickup:FireServer(child) end)
-							task.wait(0.1); pcall(function() R.DecoHarvest:FireServer(part) end); task.wait(0.4)
-						end
-					end
-					if child:GetAttribute("HarvestActive") == true then
-						local part = child:FindFirstChild("Part")
-						if part then pcall(function() R.DecoHarvest:FireServer(part) end); task.wait(0.4) end
-					end
-				end
-				local c1 = tree.ChildAdded:Connect(function(child)
-					if state.tree and child.Name:find("DroppedApple_") then
-						task.wait(0.3)
-						local part = child:FindFirstChild("Part")
-						if part then
-							pcall(function() R.ApplePickup:FireServer(child) end)
-							task.wait(0.1); pcall(function() R.DecoHarvest:FireServer(part) end)
-						end
-					end
-				end)
-				table.insert(conns.tree, c1)
-				for _, child in ipairs(tree:GetChildren()) do
-					if child:GetAttribute("HarvestActive") ~= nil then
-						local c2 = child:GetAttributeChangedSignal("HarvestActive"):Connect(function()
-							if state.tree and child:GetAttribute("HarvestActive") == true then
-								local part = child:FindFirstChild("Part")
-								if part then pcall(function() R.DecoHarvest:FireServer(part) end) end
-							end
-						end)
-						table.insert(conns.tree, c2)
-					end
-				end
-			end
-		else clearConns("tree") end
-	end)
+AttachSwitch(TreeCard, false, function(active)
+    state.tree = active
+    if active then
+        clearConns("tree")
+
+        local zone = getMySafeZone()
+        local harvestCooldown = {}
+
+        local function panenBuahJatuh(child)
+            if not state.tree then return end
+            if not child or not child.Parent then return end
+            if not child.Name:find("DroppedApple_") then return end
+
+            local id = child:GetAttribute("AppleId") or child.Name
+            if harvestCooldown[id] and
+               os.clock() - harvestCooldown[id] < 3 then
+                return
+            end
+
+            local part = child:FindFirstChild("Part")
+            if not part then return end
+
+            harvestCooldown[id] = os.clock()
+            pcall(function() R.ApplePickup:FireServer(child) end)
+            task.wait(0.1)
+            pcall(function() R.DecoHarvest:FireServer(part) end)
+        end
+
+        local function panenGummy(child)
+            if not state.tree then return end
+            if not child or not child.Parent then return end
+            if child:GetAttribute("HarvestActive") ~= true then return end
+
+            local id = child.Name
+            if harvestCooldown[id] and
+               os.clock() - harvestCooldown[id] < 3 then
+                return
+            end
+
+            local part = child:FindFirstChild("Part")
+            if not part then return end
+
+            harvestCooldown[id] = os.clock()
+            pcall(function() R.DecoHarvest:FireServer(part) end)
+        end
+
+        local function connectTreesInZone(z)
+            local trees = z:FindFirstChild("Unlocks") and z.Unlocks:FindFirstChild("Trees")
+            if not trees then return end
+
+            for _, tree in ipairs(trees:GetChildren()) do
+                -- Panen buah yang sudah jatuh
+                for _, child in ipairs(tree:GetChildren()) do
+                    if child.Name:find("DroppedApple_") then
+                        task.spawn(function() panenBuahJatuh(child) end)
+                    end
+                    if child:GetAttribute("HarvestActive") == true then
+                        task.spawn(function() panenGummy(child) end)
+                    end
+                end
+
+                -- Listener buah baru jatuh
+                local c1 = tree.ChildAdded:Connect(function(child)
+                    if not state.tree then return end
+                    task.wait(0.3)
+                    panenBuahJatuh(child)
+                end)
+                table.insert(conns.tree, c1)
+
+                -- Listener HarvestActive (Gummy)
+                for _, child in ipairs(tree:GetChildren()) do
+                    if child:GetAttribute("HarvestActive") ~= nil then
+                        local c2 = child:GetAttributeChangedSignal("HarvestActive"):Connect(function()
+                            panenGummy(child)
+                        end)
+                        table.insert(conns.tree, c2)
+                    end
+                end
+            end
+        end
+
+        if zone then connectTreesInZone(zone) end
+
+        -- Polling fallback buah jatuh tiap 8 detik
+        threads.treePoll = task.spawn(function()
+            while state.tree do
+                task.wait(8)
+                if not state.tree then break end
+                local z = getMySafeZone()
+                if z then
+                    local trees = z:FindFirstChild("Unlocks") and z.Unlocks:FindFirstChild("Trees")
+                    if trees then
+                        for _, tree in ipairs(trees:GetChildren()) do
+                            for _, child in ipairs(tree:GetChildren()) do
+                                if not state.tree then break end
+                                if child.Name:find("DroppedApple_") then
+                                    panenBuahJatuh(child)
+                                    task.wait(0.3)
+                                end
+                                if child:GetAttribute("HarvestActive") == true then
+                                    panenGummy(child)
+                                    task.wait(0.3)
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end)
+
+        -- Zone change monitor
+        threads.treeZone = task.spawn(function()
+            local lastZone = zone
+            while state.tree do
+                task.wait(5)
+                local newZone = getMySafeZone()
+                if newZone and newZone ~= lastZone then
+                    lastZone = newZone
+                    clearConns("tree")
+                    cancelThread("treePoll")
+                    harvestCooldown = {}
+                    connectTreesInZone(newZone)
+                end
+            end
+        end)
+
+    else
+        clearConns("tree")
+        cancelThread("treePoll")
+        cancelThread("treeZone")
+    end
+end)
 
 
 	-- ==========================================
@@ -770,12 +951,14 @@ end)
 	-- ========================
 	if API.Session then
 		API.Session.StopCookARecipe = function()
-			for k in pairs(state) do state[k] = false end
-			for k in pairs(threads) do cancelThread(k) end
-			for k in pairs(conns) do clearConns(k) end
-			if eggSpawnConn then eggSpawnConn:Disconnect() end
-			eggJoined = false
-			closeAllDropdowns()
+    for k in pairs(state) do state[k] = false end
+    for k in pairs(threads) do cancelThread(k) end
+    for k in pairs(conns) do clearConns(k) end
+    cancelThread("animalPoll") cancelThread("animalZone")
+    cancelThread("fishPoll")   cancelThread("fishZone")
+    cancelThread("shroomPoll") cancelThread("shroomZone")
+    cancelThread("treePoll")   cancelThread("treeZone")
+    eggJoined = false
 		end
 	end
 end
