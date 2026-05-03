@@ -539,51 +539,107 @@ return function(parentFrame, API)
 	-- ==========================================
 	local EventSec = CreateExpandableSection(EventTab, "🥚 Shy Egg Event")
 
-	local function AttemptJoinEgg()
-		if not state.autoEgg or eggJoined then return end
-		local egg = getEggRoot()
-		if egg then
-			pcall(function() R.ShyEggJoin:FireServer(); task.wait(0.5); R.ShyEggJoin:FireServer() end)
-			eggJoined = true
-		end
-	end
+	-- ========================
+-- AUTO SHY EGG
+-- ========================
+local EggCard = CreateFeatureCard(EventSec, "Auto Join & Hit Shy Egg", 32)
 
-	local EggCard = CreateFeatureCard(EventSec, "Auto Join & Hit Shy Egg", 32)
-	AttachSwitch(EggCard, false, function(active)
-		state.autoEgg = active
-		if active then
-			eggJoined = false
-			AttemptJoinEgg()
+local pendingJoin = false  -- flag untuk trigger join dari main thread
 
-			threads.eggHit = task.spawn(function()
-				while state.autoEgg do
-					local root = getEggRoot()
-					if root and root.Parent then
-						if not eggJoined then AttemptJoinEgg() end
-						local hrp = getHRP()
-						if hrp and root.Position.Y >= 0 then
-							hrp.CFrame = CFrame.new(root.Position + Vector3.new(3, 0, 0))
-							pcall(function() R.EggHit:FireServer() end)
-						end
-					else
-						eggJoined = false
-					end
-					task.wait(0.2)
-				end
-			end)
-		else
-			cancelThread("eggHit")
-			eggJoined = false
-		end
-	end)
+-- Deteksi egg spawn via ChildAdded
+-- HANYA set flag, TIDAK fire remote disini
+local eggSpawnConn = workspace.ChildAdded:Connect(function(child)
+    if child.Name:find("ShyEgg_") then
+        -- Tunggu egg fully loaded
+        task.wait(1.5)
+        if state.autoEgg then
+            eggJoined = false
+            pendingJoin = true
+        end
+    end
+end)
 
-	local eggSpawnConn = workspace.ChildAdded:Connect(function(child)
-		if state.autoEgg and child.Name:find("ShyEgg_") then
-			task.wait(2)
-			AttemptJoinEgg()
-		end
-	end)
+-- Deteksi egg hilang
+local eggRemoveConn = workspace.ChildRemoved:Connect(function(child)
+    if child.Name:find("ShyEgg_") then
+        eggJoined = false
+        cancelThread("eggHit")
+    end
+end)
 
+AttachSwitch(EggCard, false, function(active)
+    state.autoEgg = active
+    if active then
+        -- Saat toggle ON:
+        -- Cek langsung apakah egg sudah ada
+        if getEggRoot() then
+            -- Egg sudah ada → langsung trigger join
+            eggJoined = false
+            pendingJoin = true
+        end
+        -- Kalau belum ada, ChildAdded akan handle saat egg muncul
+    else
+        cancelThread("eggHit")
+        eggJoined = false
+        pendingJoin = false
+    end
+end)
+
+-- Main polling loop — satu-satunya tempat join di-fire
+task.spawn(function()
+    while true do
+        task.wait(0.5)
+
+        if state.autoEgg then
+            local egg = getEggRoot()
+
+            -- Handle pending join request
+            if pendingJoin and egg and not eggJoined then
+                pendingJoin = false
+
+                -- JOIN LANGSUNG di main thread tanpa pcall/wrapping
+                Remotes:WaitForChild("ShyEggJoinEvent"):FireServer()
+                task.wait(0.8)
+                Remotes:WaitForChild("ShyEggJoinEvent"):FireServer()
+                eggJoined = true
+
+                -- Start hit loop
+                cancelThread("eggHit")
+                threads.eggHit = task.spawn(function()
+                    while state.autoEgg do
+                        local root = getEggRoot()
+                        local hrp  = getHRP()
+
+                        if root and hrp then
+                            if root.Position.Y < 0 then
+                                -- Egg jatuh/mati, tunggu respawn
+                                task.wait(0.5)
+                            else
+                                hrp.CFrame = CFrame.new(
+                                    root.Position + Vector3.new(3, 0, 0)
+                                )
+                                task.wait(0.05)
+                                Remotes:WaitForChild("EggHitEvent"):FireServer()
+                                task.wait(0.2)
+                            end
+                        elseif not root then
+                            -- Egg hilang sepenuhnya
+                            eggJoined = false
+                            break
+                        else
+                            task.wait(0.5)
+                        end
+                    end
+                end)
+
+            elseif pendingJoin and not egg then
+                -- Join pending tapi egg belum ada
+                -- Biarkan sampai ChildAdded trigger lagi
+                pendingJoin = false
+            end
+        end
+    end
+end)
 
 	-- ========================
 	-- [6] CLEANUP
