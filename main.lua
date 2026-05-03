@@ -8,6 +8,7 @@ local Workspace = game:GetService("Workspace")
 local Lighting = game:GetService("Lighting")
 
 local LocalPlayer = Players.LocalPlayer
+local AntiAFKConn = nil -- Variabel untuk menyimpan koneksi event
 
 --// [1] THEME & SETTINGS
 local Theme = {
@@ -1945,6 +1946,34 @@ local function BuildSettingsTab(parentFrame)
         if setfpscap then setfpscap(active and 999 or 60) end
     end)
 
+    local Section = CreateExpandableSection(parentFrame, "🛡️ - System Protection")
+    local AntiAFKCard = CreateFeatureCard(Section, "Anti-AFK (Stay Online)", 32)
+    AttachSwitch(AntiAFKCard, false, function(active)
+        if active then
+            -- [ANALISIS]: Gunakan Event-Driven. Aktifkan hanya jika tombol ON.
+            if not AntiAFKConn then
+                AntiAFKConn = LocalPlayer.Idled:Connect(function()
+                    -- Simulasi input virtual untuk reset timer AFK Roblox
+                    local VirtualUser = game:GetService("VirtualUser")
+                    VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+                    task.wait(0.1)
+                    VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+                    
+                    print("[NeeR Flow] Anti-AFK: Activity Simulated.")
+                end)
+                print("[NeeR Flow] Anti-AFK Enabled.")
+            end
+        else
+            -- [EFISIENSI]: Putus koneksi secara total saat OFF untuk menghemat resource.
+            if AntiAFKConn then
+                AntiAFKConn:Disconnect()
+                AntiAFKConn = nil
+                print("[NeeR Flow] Anti-AFK Disabled.")
+            end
+        end
+    end)
+	
+	
     local RjCard = CreateFeatureCard(parentFrame, "Auto Rejoin (Kick/DC)", 32)
     RjCard.LayoutOrder = 4
     local rj_conn
