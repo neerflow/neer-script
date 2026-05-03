@@ -27,13 +27,6 @@ local Theme = {
 	FontBold = Enum.Font.GothamBold
 }
 
---  Daftar Game Eksklusif yang Didukung NeeR Flow
-local SupportedGames = {
-	-- Masukkan ID Cook A Recipe
-	[89405258333641] = { Name = "Cook a Recipe", File = "games/cookarecipe.lua" }
-	-- Nanti Anda bisa tambah game lain di sini
-}
-
 if CoreGui:FindFirstChild("NeeR_Unified") then CoreGui.NeeR_Unified:Destroy() end
 if CoreGui:FindFirstChild("NeeR_Loader") then CoreGui.NeeR_Loader:Destroy() end
 
@@ -201,7 +194,7 @@ MainStroke.Color = Theme.Accent; MainStroke.Thickness = 1; MainStroke.Transparen
 
 local Header = Instance.new("Frame"); Header.Parent = MainFrame; Header.Size = UDim2.new(1, 0, 0, 35); Header.BackgroundTransparency = 1
 local Title = Instance.new("TextLabel"); Title.Parent = Header
-Title.Text = "NeeR Flow <font color=\"rgb(137,207,240)\">| ".. SupportedGames.Name .."</font>"; Title.RichText = true
+Title.Text = "NeeR Flow <font color=\"rgb(137,207,240)\">| Script</font>"; Title.RichText = true
 Title.Font = Theme.FontBold; Title.TextColor3 = Theme.Text; Title.TextSize = 14
 Title.Position = UDim2.new(0, 15, 0, 0); Title.Size = UDim2.new(0, 0, 1, 0); Title.TextXAlignment = Enum.TextXAlignment.Left
 
@@ -2033,10 +2026,17 @@ local function BuildSettingsTab(parentFrame)
 end
 
 -- =========================================================
--- [API BRIDGE] Letakkan di bawah setup UI Anda
+-- [API BRIDGE & GAME REGISTRY] Letakkan di bawah setup UI Anda
 -- =========================================================
 
--- 1. Koper API (Mengemas semua fungsi UI untuk dikirim ke GitHub)
+-- 1. Daftar Game Eksklusif yang Didukung NeeR Flow
+local SupportedGames = {
+	-- Masukkan ID Cook A Recipe
+	[89405258333641] = { Name = "Cook a Recipe", File = "games/cookarecipe.lua" }
+	-- Nanti Anda bisa tambah game lain di sini
+}
+
+-- 2. Koper API (Mengemas semua fungsi UI untuk dikirim ke GitHub)
 local NeeR_API = {
 	Theme = Theme,
 	Session = Session,
@@ -2057,7 +2057,7 @@ local NeeR_API = {
 	CreateTabBtn = CreateTabBtn 
 }
 
--- 2. Fungsi Pemanggil GitHub
+-- 3. Fungsi Pemanggil GitHub
 local RepoURL = "https://raw.githubusercontent.com/neerflow/neer-script/refs/heads/main/"
 local function LoadModule(fileName, parentFrame)
 	local success, result = pcall(function()
@@ -2070,7 +2070,7 @@ local function LoadModule(fileName, parentFrame)
 	end
 end
 
--- 3. Pembuat Label Pemisah di Sidebar (Biar Keren)
+-- 4. Pembuat Label Pemisah di Sidebar (Biar Keren)
 local function CreateSidebarLabel(text)
 	local Label = Instance.new("TextLabel", Sidebar)
 	Label.BackgroundTransparency = 1; Label.Size = UDim2.new(1, 0, 0, 20)
@@ -2091,7 +2091,8 @@ task.spawn(function()
 	
 	if CurrentGame then
     Loader.Update("Loading " .. CurrentGame.Name .. "...", 0.2)
-    CreateSidebarLabel("— Exclusive —")
+    CreateSidebarLabel("— " .. CurrentGame.Name .. " —")
+
     -- Tidak buat tab disini
     -- Game script yang atur sendiri tab nya
     LoadModule(CurrentGame.File, nil)
