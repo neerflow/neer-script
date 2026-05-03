@@ -222,11 +222,11 @@ return function(parentFrame, API)
 
 
 	-- ==========================================
-	-- TAB 1: AUTO FARM (parentFrame)
+	-- TAB 1: AUTO FARM (FarmTab)
 	-- ==========================================
 
 	-- [ TANAMAN ]
-	local PlantSec = CreateExpandableSection(parentFrame, "🌱 Tanaman")
+	local PlantSec = CreateExpandableSection(FarmTab, "🌱 Tanaman")
 	makeDropdown(PlantSec, "Pilih Benih", SEEDS, selectedSeed, function(v) selectedSeed = v end)
 
 	local PlantCard = CreateFeatureCard(PlantSec, "Auto Plant Tanaman", 32)
@@ -305,7 +305,7 @@ AttachSwitch(HarvestCard, false, function(active)
     end
 end)
 	-- [ HEWAN ]
-	local AnimalSec = CreateExpandableSection(parentFrame, "🐄 Hewan")
+	local AnimalSec = CreateExpandableSection(FarmTab, "🐄 Hewan")
 	makeDropdown(AnimalSec, "Pilih Hewan", ANIMALS, selectedAnimal, function(v) selectedAnimal = v end)
 
 	local SpawnAnimalCard = CreateFeatureCard(AnimalSec, "Auto Spawn Hewan", 32)
@@ -458,7 +458,7 @@ AttachSwitch(HarvestAnimalCard, false, function(active)
 end)
 
 	-- [ IKAN ]
-	local FishSec = CreateExpandableSection(parentFrame, "🐟 Ikan")
+	local FishSec = CreateExpandableSection(FarmTab, "🐟 Ikan")
 	makeDropdown(FishSec, "Pilih Ikan", FISH, selectedFish, function(v) selectedFish = v end)
 
 	local SpawnFishCard = CreateFeatureCard(FishSec, "Auto Spawn Ikan", 32)
@@ -599,7 +599,7 @@ AttachSwitch(HarvestFishCard, false, function(active)
 end)
 	
 	-- [ ALAM ]
-	local AlamSec = CreateExpandableSection(parentFrame, "🍄 Alam")
+	local AlamSec = CreateExpandableSection(FarmTab, "🍄 Alam")
 	
 	local ShroomCard = CreateFeatureCard(AlamSec, "Auto Harvest Jamur", 32)
 AttachSwitch(ShroomCard, false, function(active)
