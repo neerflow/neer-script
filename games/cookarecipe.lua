@@ -826,12 +826,6 @@ AttachSwitch(TreeCard, false, function(active)
     end
 end)
 
-
-	-- ==========================================
-	-- TAB 2: EVENT (EventTab)
-	-- ==========================================
-	local EventSec = CreateExpandableSection(EventTab, "🥚 Shy Egg Event")
-
 -- ========================
 -- SECTION: SHY EGG EVENT
 -- ========================
