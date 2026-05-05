@@ -831,25 +831,32 @@ end)
 -- ========================
 local EventSec = CreateExpandableSection(EventTab, "🥚 Shy Egg Event")
 
-local EventTimer = Remotes:WaitForChild("EventTimerGetTime")
+local ShyEggStatus  = Remotes:WaitForChild("ShyEggStatusEvent")
 local ShyEggJoin    = Remotes:WaitForChild("ShyEggJoinEvent")
-local ShyEggHit     = Remotes:WaitForChild("EggHitEvent")
 local ShyEggSpawned = Remotes:WaitForChild("ShyEggSpawnedEvent")
+local ShyEggHitR    = Remotes:WaitForChild("EggHitEvent")
 local EggLoot       = Remotes:WaitForChild("EggLootEvent")
 
+local myEggName     = "ShyEgg_" .. tostring(player.UserId)
 local eggJoined     = false
-local eggAlive      = false  -- apakah egg sedang hidup
+local eggAlive      = false
+local eventActive   = false  -- status event terakhir diketahui
+
 local eggSpawnConn  = nil
 local eggLootConn   = nil
+local statusConn    = nil
 
--- Helper cari root egg
-local function getEggRoot()
-    for _, v in ipairs(workspace:GetChildren()) do
-        if v.Name:find("ShyEgg_") and v:IsA("Model") then
-            local r = v:FindFirstChild("Root")
-            if r then return r end
-        end
+-- Cari egg MILIK PLAYER saja
+local function getMyEgg()
+    local egg = workspace:FindFirstChild(myEggName)
+    if egg and egg:IsA("Model") then
+        return egg
     end
+end
+
+local function getMyEggRoot()
+    local egg = getMyEgg()
+    return egg and egg:FindFirstChild("Root")
 end
 
 local function getHRP()
@@ -857,165 +864,113 @@ local function getHRP()
     return c and c:FindFirstChild("HumanoidRootPart")
 end
 
+local function doJoin()
+    ShyEggJoin:FireServer()
+    task.wait(0.8)
+    ShyEggJoin:FireServer()
+    eggJoined = true
+end
+
+local function startHitLoop()
+    cancelThread("eggHit")
+    threads.eggHit = task.spawn(function()
+        while state.autoHit and eggAlive do
+            local root = getMyEggRoot()
+            local hrp  = getHRP()
+            if root and hrp and root.Position.Y >= 0 then
+                hrp.CFrame = CFrame.new(root.Position + Vector3.new(3, 0, 0))
+                task.wait(0.05)
+                pcall(function() ShyEggHitR:FireServer() end)
+                task.wait(0.2)
+            elseif not root then
+                eggAlive = false
+                break
+            else
+                task.wait(0.3)
+            end
+        end
+    end)
+end
+
 -- ========================
--- FITUR 1: AUTO JOIN EVENT
+-- FITUR 1: AUTO JOIN
 -- ========================
 local JoinCard = CreateFeatureCard(EventSec, "Auto Join Event", 32)
 AttachSwitch(JoinCard, false, function(active)
     state.autoJoin = active
 
     if active then
-        -- Langsung cek apakah event sudah aktif
-        -- Join di main thread — TIDAK di task.spawn
-        local ok, data = pcall(function()
-            return EventTimer:InvokeServer()
-        end)
-        if ok and data and data.eventActive == true and not eggJoined then
-            ShyEggJoin:FireServer()
-            task.wait(0.8)
-            ShyEggJoin:FireServer()
+        -- Cek apakah event sudah aktif saat toggle ON
+        -- dengan cek egg milik player sudah ada atau tidak
+        if getMyEgg() then
+            -- Sudah join sebelumnya (egg sudah ada)
             eggJoined = true
+            eggAlive  = true
+        elseif eventActive and not eggJoined then
+            -- Event aktif tapi belum join
+            doJoin()
         end
 
-        -- Polling timer tiap 10 detik
-        threads.joinPoll = task.spawn(function()
-            while state.autoJoin do
-                task.wait(10)
-                if not state.autoJoin then break end
-
-                local ok2, data2 = pcall(function()
-                    return EventTimer:InvokeServer()
-                end)
-                if not ok2 or not data2 then continue end
-
-                if data2.eventActive == true and not eggJoined then
-                    -- Event aktif tapi belum join
-                    -- Fire join di luar pcall/spawn
-                    eggJoined = true
-                    ShyEggJoin:FireServer()
-                    task.wait(0.8)
-                    ShyEggJoin:FireServer()
-
-                elseif data2.eventActive == false then
-                    -- Event selesai, reset
-                    eggJoined = false
-                    eggAlive  = false
-                    cancelThread("eggHit")
+        -- Listen status event
+        -- (handle join saat event muncul berikutnya)
+        if statusConn then statusConn:Disconnect() end
+        statusConn = ShyEggStatus.OnClientEvent:Connect(function(isActive, duration, isJoined)
+            eventActive = isActive
+            if isActive then
+                if state.autoJoin and not eggJoined then
+                    doJoin()
                 end
-            end
-        end)
-
-        -- Countdown display thread
-        threads.joinCountdown = task.spawn(function()
-            while state.autoJoin do
-                task.wait(1)
-                if not state.autoJoin then break end
-
-                local ok3, data3 = pcall(function()
-                    return EventTimer:InvokeServer()
-                end)
-                if ok3 and data3 then
-                    if data3.eventActive == true then
-                        -- Event sedang berjalan
-                        -- Hitung sisa waktu event (cycle 1 jam)
-                        local elapsed = data3.serverTime - data3.cycleStart
-                        local remaining = 600 - elapsed  -- event berlangsung 10 menit
-                        remaining = math.max(0, remaining)
-                        local m = math.floor(remaining / 60)
-                        local s = remaining % 60
-                        -- Update label card (kalau API support)
-                        -- print("Event aktif, sisa: " .. m .. ":" .. string.format("%02d", s))
-                    else
-                        local timeLeft = data3.nextEventStartTime - data3.serverTime
-                        timeLeft = math.max(0, timeLeft)
-                        local m = math.floor(timeLeft / 60)
-                        local s = timeLeft % 60
-                        -- print("Event dalam: " .. m .. ":" .. string.format("%02d", s))
-                    end
-                end
+            else
+                -- Event selesai
+                eggJoined  = false
+                eggAlive   = false
+                eventActive = false
+                cancelThread("eggHit")
             end
         end)
 
     else
-        cancelThread("joinPoll")
-        cancelThread("joinCountdown")
+        if statusConn then statusConn:Disconnect() statusConn = nil end
         eggJoined = false
     end
 end)
 
 -- ========================
--- FITUR 2: AUTO HIT EGG
+-- FITUR 2: AUTO HIT
 -- ========================
 local HitCard = CreateFeatureCard(EventSec, "Auto Hit Egg", 32)
 AttachSwitch(HitCard, false, function(active)
     state.autoHit = active
 
     if active then
-        -- Disconnect listener lama kalau ada
+        -- Disconnect listener lama
         if eggSpawnConn then eggSpawnConn:Disconnect() eggSpawnConn = nil end
         if eggLootConn  then eggLootConn:Disconnect()  eggLootConn  = nil end
 
-        -- Kalau egg sudah ada di workspace langsung mulai hit
-        if getEggRoot() then
+        -- Kalau egg milik player sudah ada langsung hit
+        if getMyEgg() then
             eggAlive = true
-            cancelThread("eggHit")
-            threads.eggHit = task.spawn(function()
-                while state.autoHit and eggAlive do
-                    local root = getEggRoot()
-                    local hrp  = getHRP()
-                    if root and hrp and root.Position.Y >= 0 then
-                        hrp.CFrame = CFrame.new(root.Position + Vector3.new(3, 0, 0))
-                        task.wait(0.05)
-                        pcall(function() ShyEggHit:FireServer() end)
-                        task.wait(0.2)
-                    elseif not root then
-                        eggAlive = false
-                        break
-                    else
-                        task.wait(0.3)
-                    end
-                end
-            end)
+            startHitLoop()
         end
 
-        -- Listener egg spawn baru (level naik)
+        -- Egg baru spawn (setelah kill)
         eggSpawnConn = ShyEggSpawned.OnClientEvent:Connect(function(level)
             if not state.autoHit then return end
-
             eggAlive = true
-            -- Tunggu egg benar-benar ada di workspace
+            -- Tunggu egg muncul di workspace
             task.wait(1)
-
-            cancelThread("eggHit")
-            threads.eggHit = task.spawn(function()
-                while state.autoHit and eggAlive do
-                    local root = getEggRoot()
-                    local hrp  = getHRP()
-                    if root and hrp and root.Position.Y >= 0 then
-                        hrp.CFrame = CFrame.new(root.Position + Vector3.new(3, 0, 0))
-                        task.wait(0.05)
-                        pcall(function() ShyEggHit:FireServer() end)
-                        task.wait(0.2)
-                    elseif not root then
-                        eggAlive = false
-                        break
-                    else
-                        task.wait(0.3)
-                    end
-                end
-            end)
+            startHitLoop()
         end)
 
-        -- Listener egg mati
+        -- Egg mati
         eggLootConn = EggLoot.OnClientEvent:Connect(function()
             if not state.autoHit then return end
             eggAlive = false
             cancelThread("eggHit")
-            -- Egg berikutnya akan di-handle oleh ShyEggSpawnedEvent
+            -- ShyEggSpawnedEvent akan handle egg berikutnya
         end)
 
     else
-        -- Cleanup
         cancelThread("eggHit")
         eggAlive = false
         if eggSpawnConn then eggSpawnConn:Disconnect() eggSpawnConn = nil end
@@ -1030,15 +985,16 @@ if API.Session then
         if prev then prev() end
         state.autoJoin = false
         state.autoHit  = false
-        cancelThread("joinPoll")
-        cancelThread("joinCountdown")
         cancelThread("eggHit")
-        eggJoined = false
-        eggAlive  = false
+        eggJoined  = false
+        eggAlive   = false
+        eventActive = false
+        if statusConn   then statusConn:Disconnect()   end
         if eggSpawnConn then eggSpawnConn:Disconnect() end
         if eggLootConn  then eggLootConn:Disconnect()  end
     end
 	end
+
 
 	-- ========================
 	-- [6] CLEANUP
