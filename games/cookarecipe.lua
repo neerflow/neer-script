@@ -348,7 +348,7 @@ AttachSwitch(SpawnAnimalCard, false, function(active)
     end
 end)
 
-	local HarvestAnimalCard = CreateFeatureCard(AnimalSec, "Auto Panen Hewan", 32)
+local HarvestAnimalCard = CreateFeatureCard(AnimalSec, "Auto Panen Hewan", 32)
 AttachSwitch(HarvestAnimalCard, false, function(active)
     state.animal = active
     if active then
@@ -358,9 +358,9 @@ AttachSwitch(HarvestAnimalCard, false, function(active)
         local folder = zone and zone:FindFirstChild("Animals")
         if not folder then return end
 
-        -- Cooldown tracker per hewan
-        -- Mencegah double harvest dari event + polling
         local harvestCooldown = {}
+        -- Dictionary per instance, bukan flat array
+        local instanceConns = {}
 
         local function panenHewan(animal)
             if not state.animal then return end
@@ -368,11 +368,8 @@ AttachSwitch(HarvestAnimalCard, false, function(active)
             if animal:GetAttribute("IsReady") ~= true then return end
 
             local uuid = animal:GetAttribute("UUID") or animal.Name
-            -- Skip kalau masih dalam cooldown 3 detik
             if harvestCooldown[uuid] and
-               os.clock() - harvestCooldown[uuid] < 3 then
-                return
-            end
+               os.clock() - harvestCooldown[uuid] < 3 then return end
 
             harvestCooldown[uuid] = os.clock()
             pcall(function() R.HarvestAnimal:FireServer(animal) end)
@@ -380,71 +377,114 @@ AttachSwitch(HarvestAnimalCard, false, function(active)
 
         local function pantauHewan(animal)
             if not animal:IsA("Model") then return end
+            local uuid = animal:GetAttribute("UUID") or animal.Name
+
+            -- Jangan pasang listener 2x ke instance yang sama
+            if instanceConns[uuid] then return end
+
             local c = animal:GetAttributeChangedSignal("IsReady"):Connect(function()
-                panenHewan(animal)
+                task.spawn(panenHewan, animal)
             end)
+
+            instanceConns[uuid] = c
             table.insert(conns.animal, c)
         end
 
-        -- Pasang ke semua hewan yang ada
+        local function lepasHewan(animal)
+            local uuid = animal:GetAttribute("UUID") or animal.Name
+            if instanceConns[uuid] then
+                instanceConns[uuid]:Disconnect()
+                instanceConns[uuid] = nil
+                harvestCooldown[uuid] = nil
+            end
+        end
+
+        -- Panen & pasang listener ke semua hewan yang ada
         for _, animal in ipairs(folder:GetChildren()) do
-            panenHewan(animal) -- panen yg sudah siap
+            task.spawn(panenHewan, animal)
             pantauHewan(animal)
         end
 
-        -- Radar hewan baru (dari spawn)
+        -- Hewan baru spawn (dari auto spawn)
         local cAdded = folder.ChildAdded:Connect(function(child)
             if not state.animal then return end
-            task.wait(0.5) -- tunggu attribute terisi
-            panenHewan(child)
-            pantauHewan(child)
+            task.spawn(function()
+                task.wait(0.5)
+                if child and child.Parent then
+                    panenHewan(child)
+                    pantauHewan(child)
+                end
+            end)
         end)
         table.insert(conns.animal, cAdded)
 
-        -- Polling ringan sebagai fallback (tiap 8 detik)
-        -- Hanya untuk catch yang benar-benar missed
+        -- Hewan dihapus → LANGSUNG bersihkan koneksinya
+        local cRemoved = folder.ChildRemoved:Connect(function(child)
+            lepasHewan(child)
+        end)
+        table.insert(conns.animal, cRemoved)
+
+        -- Polling fallback
         threads.animalPoll = task.spawn(function()
             while state.animal do
                 task.wait(8)
                 if not state.animal then break end
                 local z = getMySafeZone()
                 local f = z and z:FindFirstChild("Animals")
-                if f then
-                    for _, animal in ipairs(f:GetChildren()) do
-                        if not state.animal then break end
-                        panenHewan(animal)
-                        task.wait(0.3)
-                    end
+                if not f then continue end
+                for _, animal in ipairs(f:GetChildren()) do
+                    if not state.animal then break end
+                    task.spawn(panenHewan, animal)
+                    task.wait(0.2)
                 end
             end
         end)
 
-        -- Monitor zone change
-        -- Kalau zone berubah, reconnect otomatis
+        -- Bersihkan cooldown lama
+        threads.animalCooldownClean = task.spawn(function()
+            while state.animal do
+                task.wait(30)
+                local now = os.clock()
+                for id, t in pairs(harvestCooldown) do
+                    if now - t > 5 then harvestCooldown[id] = nil end
+                end
+            end
+        end)
+
+        -- Zone monitor
         threads.animalZone = task.spawn(function()
             local lastZone = zone
             while state.animal do
                 task.wait(5)
+                if not state.animal then break end
                 local newZone = getMySafeZone()
                 if newZone and newZone ~= lastZone then
                     lastZone = newZone
-                    -- Reconnect ke zone baru
                     clearConns("animal")
                     cancelThread("animalPoll")
                     harvestCooldown = {}
+                    instanceConns   = {}
                     local newFolder = newZone:FindFirstChild("Animals")
                     if newFolder then
                         for _, animal in ipairs(newFolder:GetChildren()) do
-                            panenHewan(animal)
+                            task.spawn(panenHewan, animal)
                             pantauHewan(animal)
                         end
                         local c2 = newFolder.ChildAdded:Connect(function(child)
                             if not state.animal then return end
-                            task.wait(0.5)
-                            panenHewan(child)
-                            pantauHewan(child)
+                            task.spawn(function()
+                                task.wait(0.5)
+                                if child and child.Parent then
+                                    panenHewan(child)
+                                    pantauHewan(child)
+                                end
+                            end)
+                        end)
+                        local c3 = newFolder.ChildRemoved:Connect(function(child)
+                            lepasHewan(child)
                         end)
                         table.insert(conns.animal, c2)
+                        table.insert(conns.animal, c3)
                     end
                 end
             end
@@ -454,9 +494,10 @@ AttachSwitch(HarvestAnimalCard, false, function(active)
         clearConns("animal")
         cancelThread("animalPoll")
         cancelThread("animalZone")
+        cancelThread("animalCooldownClean")
     end
 end)
-
+	
 	-- [ IKAN ]
 	local FishSec = CreateExpandableSection(FarmTab, "🐟 Ikan")
 	makeDropdown(FishSec, "Pilih Ikan", FISH, selectedFish, function(v) selectedFish = v end)
@@ -499,7 +540,7 @@ AttachSwitch(SpawnFishCard, false, function(active)
     end
 end)
 
-    local HarvestFishCard = CreateFeatureCard(FishSec, "Auto Panen Ikan", 32)
+local HarvestFishCard = CreateFeatureCard(FishSec, "Auto Panen Ikan", 32)
 AttachSwitch(HarvestFishCard, false, function(active)
     state.fish = active
     if active then
@@ -510,6 +551,7 @@ AttachSwitch(HarvestFishCard, false, function(active)
         if not folder then return end
 
         local harvestCooldown = {}
+        local instanceConns   = {}
 
         local function panenIkan(fish)
             if not state.fish then return end
@@ -518,9 +560,7 @@ AttachSwitch(HarvestFishCard, false, function(active)
 
             local uuid = fish:GetAttribute("UUID") or fish.Name
             if harvestCooldown[uuid] and
-               os.clock() - harvestCooldown[uuid] < 3 then
-                return
-            end
+               os.clock() - harvestCooldown[uuid] < 3 then return end
 
             harvestCooldown[uuid] = os.clock()
             pcall(function() R.HarvestFish:FireServer(fish) end)
@@ -528,24 +568,49 @@ AttachSwitch(HarvestFishCard, false, function(active)
 
         local function pantauIkan(fish)
             if not fish:IsA("Model") then return end
+            local uuid = fish:GetAttribute("UUID") or fish.Name
+
+            if instanceConns[uuid] then return end
+
             local c = fish:GetAttributeChangedSignal("IsReady"):Connect(function()
-                panenIkan(fish)
+                task.spawn(panenIkan, fish)
             end)
+
+            instanceConns[uuid] = c
             table.insert(conns.fish, c)
         end
 
+        local function lepasIkan(fish)
+            local uuid = fish:GetAttribute("UUID") or fish.Name
+            if instanceConns[uuid] then
+                instanceConns[uuid]:Disconnect()
+                instanceConns[uuid] = nil
+                harvestCooldown[uuid] = nil
+            end
+        end
+
         for _, fish in ipairs(folder:GetChildren()) do
-            panenIkan(fish)
+            task.spawn(panenIkan, fish)
             pantauIkan(fish)
         end
 
         local cAdded = folder.ChildAdded:Connect(function(child)
             if not state.fish then return end
-            task.wait(0.5)
-            panenIkan(child)
-            pantauIkan(child)
+            task.spawn(function()
+                task.wait(0.5)
+                if child and child.Parent then
+                    panenIkan(child)
+                    pantauIkan(child)
+                end
+            end)
         end)
         table.insert(conns.fish, cAdded)
+
+        -- Ikan dihapus → bersihkan koneksi
+        local cRemoved = folder.ChildRemoved:Connect(function(child)
+            lepasIkan(child)
+        end)
+        table.insert(conns.fish, cRemoved)
 
         threads.fishPoll = task.spawn(function()
             while state.fish do
@@ -553,12 +618,21 @@ AttachSwitch(HarvestFishCard, false, function(active)
                 if not state.fish then break end
                 local z = getMySafeZone()
                 local f = z and z:FindFirstChild("Fish")
-                if f then
-                    for _, fish in ipairs(f:GetChildren()) do
-                        if not state.fish then break end
-                        panenIkan(fish)
-                        task.wait(0.3)
-                    end
+                if not f then continue end
+                for _, fish in ipairs(f:GetChildren()) do
+                    if not state.fish then break end
+                    task.spawn(panenIkan, fish)
+                    task.wait(0.2)
+                end
+            end
+        end)
+
+        threads.fishCooldownClean = task.spawn(function()
+            while state.fish do
+                task.wait(30)
+                local now = os.clock()
+                for id, t in pairs(harvestCooldown) do
+                    if now - t > 5 then harvestCooldown[id] = nil end
                 end
             end
         end)
@@ -567,25 +641,35 @@ AttachSwitch(HarvestFishCard, false, function(active)
             local lastZone = zone
             while state.fish do
                 task.wait(5)
+                if not state.fish then break end
                 local newZone = getMySafeZone()
                 if newZone and newZone ~= lastZone then
                     lastZone = newZone
                     clearConns("fish")
                     cancelThread("fishPoll")
                     harvestCooldown = {}
+                    instanceConns   = {}
                     local newFolder = newZone:FindFirstChild("Fish")
                     if newFolder then
                         for _, fish in ipairs(newFolder:GetChildren()) do
-                            panenIkan(fish)
+                            task.spawn(panenIkan, fish)
                             pantauIkan(fish)
                         end
                         local c2 = newFolder.ChildAdded:Connect(function(child)
                             if not state.fish then return end
-                            task.wait(0.5)
-                            panenIkan(child)
-                            pantauIkan(child)
+                            task.spawn(function()
+                                task.wait(0.5)
+                                if child and child.Parent then
+                                    panenIkan(child)
+                                    pantauIkan(child)
+                                end
+                            end)
+                        end)
+                        local c3 = newFolder.ChildRemoved:Connect(function(child)
+                            lepasIkan(child)
                         end)
                         table.insert(conns.fish, c2)
+                        table.insert(conns.fish, c3)
                     end
                 end
             end
@@ -595,8 +679,10 @@ AttachSwitch(HarvestFishCard, false, function(active)
         clearConns("fish")
         cancelThread("fishPoll")
         cancelThread("fishZone")
+        cancelThread("fishCooldownClean")
     end
 end)
+    
 	
 	-- [ ALAM ]
 	local AlamSec = CreateExpandableSection(FarmTab, "🍄 Alam")
@@ -900,41 +986,34 @@ AttachSwitch(JoinCard, false, function(active)
     state.autoJoin = active
 
     if active then
-        -- Cek apakah event sudah aktif saat toggle ON
-        -- dengan cek egg milik player sudah ada atau tidak
-        if getMyEgg() then
-            -- Sudah join sebelumnya (egg sudah ada)
-            eggJoined = true
-            eggAlive  = true
-        elseif eventActive and not eggJoined then
-            -- Event aktif tapi belum join
-            doJoin()
-        end
+        -- Langsung fire join tanpa cek kondisi apapun
+        ShyEggJoin:FireServer()
+        task.wait(0.8)
+        ShyEggJoin:FireServer()
+        eggJoined = true
 
-        -- Listen status event
-        -- (handle join saat event muncul berikutnya)
+        -- Listen untuk event berikutnya
         if statusConn then statusConn:Disconnect() end
-        statusConn = ShyEggStatus.OnClientEvent:Connect(function(isActive, duration, isJoined)
+        statusConn = ShyEggStatus.OnClientEvent:Connect(function(isActive)
             eventActive = isActive
-            if isActive then
-                if state.autoJoin and not eggJoined then
-                    doJoin()
-                end
+            if isActive and state.autoJoin then
+                -- Event baru mulai, join lagi
+                ShyEggJoin:FireServer()
+                task.wait(0.8)
+                ShyEggJoin:FireServer()
+                eggJoined = true
             else
-                -- Event selesai
                 eggJoined  = false
                 eggAlive   = false
-                eventActive = false
                 cancelThread("eggHit")
             end
         end)
-
     else
         if statusConn then statusConn:Disconnect() statusConn = nil end
         eggJoined = false
     end
 end)
-
+	
 -- ========================
 -- FITUR 2: AUTO HIT
 -- ========================
